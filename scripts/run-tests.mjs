@@ -18,11 +18,22 @@ const hasJavaScriptWorkstream = files.some(
     /^(?:packages|examples)\/.+\.(?:js|jsx|ts|tsx)$/u.test(file) &&
     !file.endsWith(".d.ts"),
 );
+const scriptTests = files
+  .filter((file) => /^scripts\/.+\.test\.mjs$/u.test(file))
+  .sort();
 
-if (!hasRustWorkstream && !hasJavaScriptWorkstream) {
+if (
+  !hasRustWorkstream &&
+  !hasJavaScriptWorkstream &&
+  scriptTests.length === 0
+) {
   printNotApplicable();
 } else {
   let testsPassed = true;
+
+  if (scriptTests.length > 0) {
+    testsPassed = runCommand("node", ["--test", ...scriptTests]) && testsPassed;
+  }
 
   if (hasJavaScriptWorkstream) {
     if (!existsSync("jest.config.mjs")) {

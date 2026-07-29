@@ -8,7 +8,9 @@ respective owners. No trademark license is granted.
 This project is offered under either the MIT License or the Apache License,
 Version 2.0, at the recipient's option. See LICENSE-MIT and LICENSE-APACHE.
 
-Before any source-derived material is distributed, its copyright ownership,
-license compatibility, attribution notices, and third-party redistribution
-obligations must be audited and recorded. This NOTICE does not assert that
-such an audit has been completed and does not modify either license.
+This private implementation repository defers the final copyright, attribution,
+and distribution decision for extracted source to its future destination
+repository. Before any public distribution, that destination must complete and
+record the source-ownership decision, license compatibility, attribution
+notices, and third-party redistribution obligations. This NOTICE does not modify
+either license.

@@ -109,17 +109,17 @@ The program is complete when all of the following are true:
 
 ## 4. Milestone map
 
-| Milestone                     | Result                                          | Blocking gate                             |
-| ----------------------------- | ----------------------------------------------- | ----------------------------------------- |
-| M0 — Bootstrap                | Private planning repository and controls        | Scope and provenance reviewed             |
-| M1 — Allowlisted extraction   | Compiling wallet runtime copied without history | Source and license inventory complete     |
-| M2 — Wallet-core sanitization | Private features physically absent              | Forbidden-content and wallet tests pass   |
-| M3 — React Native API         | Typed SDK, standard transport, and example      | Example works against mocked services     |
-| M4 — Native distribution      | Prebuilt iOS and Android payloads in npm        | Clean consumer builds without Rust        |
-| M5 — Security and CI          | Auditable pull-request and release pipelines    | All required checks enforced              |
-| M6 — Alpha release            | Private RC followed by public `0.1.0-alpha.1`   | Release checklist and maintainer approval |
-| M7 — External validation      | Evidence from real third-party integrations     | Demand gate measured and documented       |
-| M8 — Demand-led evolution     | Shared core or native APIs only when justified  | Separate design review for each expansion |
+| Milestone                     | Result                                          | Blocking gate                              |
+| ----------------------------- | ----------------------------------------------- | ------------------------------------------ |
+| M0 — Bootstrap                | Private planning repository and controls        | Scope and provenance reviewed              |
+| M1 — Allowlisted extraction   | Compiling wallet runtime copied without history | Technical source/dependency audit complete |
+| M2 — Wallet-core sanitization | Private features physically absent              | Forbidden-content and wallet tests pass    |
+| M3 — React Native API         | Typed SDK, standard transport, and example      | Example works against mocked services      |
+| M4 — Native distribution      | Prebuilt iOS and Android payloads in npm        | Clean consumer builds without Rust         |
+| M5 — Security and CI          | Auditable pull-request and release pipelines    | All required checks enforced               |
+| M6 — Migration and release    | Destination RC followed by public alpha         | Distribution decision and release approval |
+| M7 — External validation      | Evidence from real third-party integrations     | Demand gate measured and documented        |
+| M8 — Demand-led evolution     | Shared core or native APIs only when justified  | Separate design review for each expansion  |
 
 Milestones are sequential. Work inside a milestone may run in parallel, but no
 later milestone may weaken an earlier security or isolation gate.
@@ -128,7 +128,7 @@ later milestone may weaken an earlier security or isolation gate.
 
 ### M0 — Repository bootstrap and project controls
 
-Status: in progress.
+Status: complete.
 
 1. Confirm the repository is private and `main` is the default branch.
 2. Retain the planning-only root commit as the history boundary.
@@ -147,11 +147,16 @@ Status: in progress.
    - pull requests required;
    - required CI checks;
    - no force pushes or branch deletion;
-   - one maintainer approval for code, native binaries, or release workflows.
+   - one maintainer approval for ordinary contributor changes;
+   - repository-owner merge authority for completed agent-authored pull requests
+     after primary review and passing required checks.
 8. Add `CODEOWNERS` for Rust, React Native, native packaging, security docs, and
    workflows when maintainers are assigned.
-9. Decide licensing only after the ownership audit. Add `LICENSE-MIT`,
-   `LICENSE-APACHE`, and `NOTICE` before source lands.
+9. Keep repository-authored bootstrap material under the existing provisional
+   `MIT OR Apache-2.0` terms. Preserve the assessed component's MIT declarations
+   and provenance during private implementation. Defer the extracted
+   implementation's final copyright, attribution, and distribution decision to
+   the destination-repository migration before publication.
 10. Add the pinned code-quality toolchain and required `npm run quality` command
     described in section 6 before importing runtime source.
 
@@ -162,6 +167,8 @@ Exit criteria:
 - No runtime source has been copied.
 - Branch controls are ready before the source-import pull request.
 - Markdown, workflow, shell, and source-policy checks run locally and in CI.
+- Final extracted-source licensing remains an explicit destination-migration
+  release gate rather than an internal source-import blocker.
 
 ### M1 — Allowlisted source extraction
 
@@ -400,25 +407,32 @@ Exit criteria:
 - Documentation is sufficient for an external developer with no 1AM context.
 - The npm package and example agree with the documented public API.
 
-### M6 — `0.1.0-alpha.1` release
+### M6 — Destination migration and `0.1.0-alpha.1` release
 
-1. Freeze the release candidate commit.
-2. Run the complete release pipeline without publishing.
-3. Review the source tree, npm pack list, binary string scan, SBOM, dependency
+1. Freeze the implementation release-candidate commit.
+2. Migrate the completed reviewed implementation to its destination repository
+   while preserving this repository's commit provenance and without importing
+   the 1AM source history.
+3. In the destination repository, resolve and record the final copyright owner,
+   attribution notices, package license expression, source distribution terms,
+   and binary redistribution obligations.
+4. Run the complete release pipeline without publishing.
+5. Review the source tree, npm pack list, binary string scan, SBOM, dependency
    licenses, artifact sizes, and test results.
-4. Install the candidate tarball in a separate clean Expo application.
-5. Run a controlled preview-network smoke test:
+6. Install the candidate tarball in a separate clean Expo application.
+7. Run a controlled preview-network smoke test:
    - open and sync a disposable wallet;
    - export and restore its checkpoint;
    - build and prove a transaction;
    - submit or intentionally cancel it;
    - confirm accepted, rejected, and ambiguous submission handling.
-6. Verify no production or maintainer wallet material entered logs or artifacts.
-7. Tag `v0.1.0-alpha.1`.
-8. Publish the npm package with provenance and the matching GitHub release.
-9. Change repository visibility to public only after publication approval and a
-   final secret scan.
-10. Monitor install failures, native crashes, package size, documentation gaps,
+8. Verify no production or maintainer wallet material entered logs or artifacts.
+9. Tag `v0.1.0-alpha.1` in the destination repository.
+10. Publish the npm package with provenance and the matching GitHub release.
+11. Change the destination repository visibility to public only after
+    publication approval, the final copyright/distribution record, and a final
+    secret scan.
+12. Monitor install failures, native crashes, package size, documentation gaps,
     and security reports.
 
 Rollback:
@@ -702,7 +716,7 @@ Create implementation issues in this order:
 
 1. `M0: configure branch protection and repository templates`
 2. `M0: add pinned linters, formatters, and source-quality policy`
-3. `M0: complete ownership and dual-license audit`
+3. `M0: record source-license evidence and defer the final decision to the destination migration`
 4. `M1: define the source extraction allowlist`
 5. `M1: inventory dependencies and redistribution obligations`
 6. `M1: import the compiling wallet runtime snapshot`
@@ -724,9 +738,11 @@ Create implementation issues in this order:
 22. `M5: add pull-request CI and security scans`
 23. `M5: add release CI, SBOM, checksums, and provenance`
 24. `M5: complete public API, architecture, and security documentation`
-25. `M6: run the private alpha release candidate`
-26. `M6: publish 0.1.0-alpha.1 and make the repository public`
-27. `M7: onboard and document the first external integration`
+25. `M6: migrate the completed implementation to the destination repository`
+26. `M6: resolve final copyright, attribution, and distribution terms`
+27. `M6: run the private alpha release candidate`
+28. `M6: publish 0.1.0-alpha.1 and make the destination repository public`
+29. `M7: onboard and document the first external integration`
 
 An issue may be split into smaller pull requests, but its exit criteria must
 remain intact.
@@ -778,7 +794,9 @@ A milestone is complete only when:
 
 ## 11. Current next action
 
-Complete M0 repository controls, the pinned quality toolchain, and the
-dual-license ownership audit. The first source-code task must then be
-`M1: define the source extraction allowlist`; no runtime source should enter
-this repository before that allowlist is reviewed.
+M0 repository controls and the pinned quality toolchain are complete. The
+reviewed M1 extraction allowlist and dependency inventory are enforced by the
+repository quality gate. Begin the sanitized M1 source extraction from the
+pinned commit under a fresh section 2.1 source-state bracket. Final copyright,
+attribution, and distribution terms remain deferred to the destination
+repository and do not block private internal implementation.

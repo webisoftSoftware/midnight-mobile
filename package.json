@@ -16,9 +16,10 @@
     "lint:workflows": "node scripts/run-actionlint.mjs",
     "lint:shell": "node scripts/run-shellcheck.mjs",
     "check:source-policy": "node scripts/check-source-policy.mjs",
+    "check:extraction-allowlist": "node scripts/check-extraction-allowlist.mjs",
     "typecheck": "node scripts/run-typecheck.mjs",
     "test": "node scripts/run-tests.mjs",
-    "quality": "npm run format:check && npm run lint:markdown && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm run check:source-policy && npm run typecheck && npm test"
+    "quality": "npm run format:check && npm run lint:markdown && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm run check:source-policy && npm run check:extraction-allowlist && npm run typecheck && npm test"
   },
   "overrides": {
     "brace-expansion@<2": "1.1.17",
