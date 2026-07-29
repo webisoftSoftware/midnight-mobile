@@ -11,7 +11,7 @@ export const MILESTONES = Object.freeze(
 const EXPECTED_CONTRACTS = Object.freeze({
   typescript: "packages/react-native/src/commands.ts",
   rust: "crates/runtime/src/runtime/types.rs",
-  extractionManifest: "scripts/m2-sanitized-target-manifest.json",
+  extractionManifest: "scripts/m3-sanitized-target-manifest.json",
 });
 const EXPECTED_RUST_EXCEPTION = Object.freeze({
   rule: "rust-line-coverage",
@@ -40,6 +40,7 @@ maintained|clippy.toml|M1
 maintained|crates/runtime/Cargo.toml|M1
 maintained|crates/runtime/src|M1
 maintained|crates/runtime/uniffi.toml|M1
+maintained|examples/expo|M3
 maintained|packages/react-native/android/build.gradle|M1
 maintained|packages/react-native/android/src|M3
 maintained|packages/react-native/expo-module.config.json|M1

@@ -115,6 +115,20 @@ function elapsed(startedAt: number): number {
   return Math.max(0, performance.now() - startedAt);
 }
 
+function positiveInteger(value: number | undefined, fallback: number): number {
+  const resolved = value ?? fallback;
+  if (!Number.isSafeInteger(resolved) || resolved <= 0) {
+    throw new MidnightRuntimeError("INVALID_ARGUMENT");
+  }
+  return resolved;
+}
+
+function requireNotAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted === true) {
+    throw new MidnightRuntimeError("CANCELLED");
+  }
+}
+
 async function readBody(response: MidnightFetchResponse): Promise<Uint8Array> {
   return new Uint8Array(await response.arrayBuffer());
 }
@@ -242,14 +256,12 @@ async function executeNetwork(
   config: MidnightTransportConfiguration,
   step: NetworkStep<MidnightCommandKind>,
   signal: AbortSignal | undefined,
+  timeoutMs: number,
 ): Promise<MidnightNetworkResult> {
   const logger = config.logger ?? silentMidnightLogger;
   const bytes = decodeBase64(step.bodyBase64);
   const startedAt = performance.now();
-  const linked = createLinkedAbortController(
-    signal,
-    config.timeoutMs ?? 30_000,
-  );
+  const linked = createLinkedAbortController(signal, timeoutMs);
   logger.write({
     level: "debug",
     event: "transport.request",
@@ -299,19 +311,28 @@ export function createStandardMidnightTransport(
     nodeUrl: checkedUrl(config.network.nodeUrl, ["http:", "https:"]),
   };
   const normalized = { ...config, network };
+  const timeoutMs = positiveInteger(config.timeoutMs, 30_000);
+  const maximumEffectSteps = positiveInteger(config.maximumEffectSteps, 64);
   return {
     async runCommand(api, session, command, options) {
+      requireNotAborted(options?.signal);
       let step = await api.beginCommand(session, command);
       let operation = step.kind === "complete" ? null : step.operation;
       try {
-        const maximum = normalized.maximumEffectSteps ?? 64;
-        for (let count = 0; count < maximum; count += 1) {
+        for (let count = 0; count < maximumEffectSteps; count += 1) {
+          requireNotAborted(options?.signal);
           await notifyStep(options, step);
+          requireNotAborted(options?.signal);
           if (step.kind === "complete") return step.result;
           operation = step.operation;
           const result =
             step.kind === "network"
-              ? await executeNetwork(normalized, step, options?.signal)
+              ? await executeNetwork(
+                  normalized,
+                  step,
+                  options?.signal,
+                  timeoutMs,
+                )
               : null;
           step = await api.resumeOperation(step.operation, result);
         }

@@ -7,6 +7,7 @@ import {
   type MidnightCommandResultMap,
 } from "../src/commands.js";
 import { decodeCommandResult, decodeOperationStep } from "../src/decode.js";
+import { PUBLIC_COMMAND_TYPE_FIXTURES } from "../type-tests/public-command-types.js";
 
 const commandAndResultKeysMatch: Readonly<
   Record<keyof MidnightCommandResultMap, true>
@@ -35,6 +36,10 @@ const commandAndResultKeysMatch: Readonly<
 await test("command and result maps contain the exact public command set", () => {
   assert.equal(Object.keys(commandAndResultKeysMatch).length, 19);
   assert.equal(MIDNIGHT_COMMAND_KINDS.length, 19);
+  assert.deepEqual(
+    Object.keys(PUBLIC_COMMAND_TYPE_FIXTURES),
+    MIDNIGHT_COMMAND_KINDS,
+  );
   assert.equal(new Set(MIDNIGHT_COMMAND_KINDS).size, 19);
   assert.deepEqual(MIDNIGHT_COMMAND_KINDS.slice(0, 5), [
     "signData",

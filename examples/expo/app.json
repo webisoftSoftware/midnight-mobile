@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "Midnight Mobile Mock Lifecycle",
+    "slug": "midnight-mobile-mock-lifecycle",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "dev.oneam.midnightmobile.example",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "dev.oneam.midnightmobile.example"
+    }
+  }
+}
