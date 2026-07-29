@@ -37,6 +37,57 @@ These constraints remain in force unless the accepted product plan is revised:
 9. Pin the alpha to the tested Midnight Ledger 8.1.0 revision.
 10. Use only synthetic test material and caller-supplied network endpoints.
 
+### 2.1 Read-only source reference
+
+Use the following repository only as a read-only source reference:
+
+- Repository: [`webisoftSoftware/one-am-wallet`](https://github.com/webisoftSoftware/one-am-wallet)
+- Assessed commit: `dc9c0dd34dba9e19304859106ca2531f48590599`
+- Assessed component: `apps/mobile/modules/expo-midnight-native`
+- Provenance record: [`PROVENANCE.md`](../PROVENANCE.md)
+
+The commit hash is authoritative. Do not read from a moving branch, pull a
+newer revision, or silently substitute the current working tree. Updating the
+source revision requires a reviewed change to `PROVENANCE.md`, the extraction
+allowlist, dependency inventory, and compatibility record.
+
+Permitted source-repository operations are limited to:
+
+- `git rev-parse`, `git status`, `git show`, `git diff`, and `git archive`;
+- read-only file listing and searching;
+- reading files and metadata from the pinned commit;
+- writing archive output into a separate temporary staging directory.
+
+Do not run any command that changes the source checkout, index, refs, object
+database, ignored files, untracked files, dependency state, or generated
+artifacts. In particular, do not:
+
+- edit, format, generate, patch, delete, or create files in the source
+  repository;
+- run dependency installation, builds, tests, code generation, or cleanup from
+  the source repository;
+- run `git fetch`, `pull`, `switch`, `checkout`, `reset`, `clean`, `add`,
+  `commit`, `stash`, `merge`, `rebase`, or `push`;
+- create branches, tags, commits, worktrees, submodules, or remotes;
+- use the source repository as the working directory for extraction scripts.
+
+Before reading, capture:
+
+```text
+git rev-parse HEAD
+git status --porcelain=v1 --untracked-files=all
+```
+
+Repeat both commands after extraction and compare their complete outputs. Any
+difference is a hard stop: report it and do not attempt to repair, reset, clean,
+stash, or otherwise modify the source repository. Existing differences are
+user-owned and must be preserved. Extract committed content from the pinned
+commit with `git show` or `git archive`, not from modified working-tree files.
+
+All copied files must enter a temporary directory outside the source repository
+before sanitization, formatting, dependency installation, generation, builds,
+or tests begin. All project writes occur in this repository.
+
 ## 3. Program outcomes
 
 The program is complete when all of the following are true:
@@ -124,8 +175,9 @@ history or unrelated application code.
    - exact versions or revisions;
    - licenses and required notices;
    - source and binary redistribution obligations.
-4. Copy into a temporary staging directory, never directly from a Git clone
-   with its `.git` directory.
+4. Read the source repository under the section 2.1 contract and use
+   `git archive` or `git show` at the pinned commit to copy allowlisted files
+   into a temporary staging directory outside that repository.
 5. Copy only:
    - generic Rust wallet, state, transaction, codec, session, sync, checkpoint,
      and runtime modules;
@@ -156,7 +208,8 @@ Exit criteria:
 - The copied runtime compiles in this repository.
 - Every copied file appears in the allowlist and provenance record.
 - No app code or private Git history is present.
-- The working 1AM repository has the same commit and clean status as before.
+- The working 1AM repository has exactly the same HEAD and complete porcelain
+  status output captured before extraction.
 - Imported handwritten source satisfies the quality policy or has a
   time-bounded reviewed exception.
 
