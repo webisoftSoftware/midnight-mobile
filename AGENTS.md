@@ -63,9 +63,13 @@ the finished feature.
 
 The primary agent is also authorized to complete the pull-request lifecycle for
 work within the user's requested scope. After implementation and review are
-complete and all required checks pass, mark a draft ready, accept or approve the
-pull request where GitHub permits, merge it, and update the local target branch.
+complete and all required automated checks pass, mark a draft ready, record
+acceptance or approval where GitHub permits, merge it, and update the local
+target branch. When GitHub prohibits self-approval of an agent-authored pull
+request, completed primary-agent review plus passing required checks counts as
+acceptance; use repository-owner or administrator merge authority if available.
 Do not leave completed work unmerged merely because the user did not separately
-request the merge. Never bypass required checks or unresolved review
-requirements, and do not merge unrelated or third-party changes without explicit
+request the merge. Never bypass a failing required check, unresolved third-party
+feedback, or an independent approval that the user explicitly asked to retain,
+and do not merge unrelated or third-party changes without explicit
 authorization.
