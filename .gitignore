@@ -1,0 +1,35 @@
+# JavaScript
+node_modules/
+npm-debug.log*
+yarn-error.log*
+*.tgz
+
+# Rust
+target/
+
+# Expo and React Native
+.expo/
+dist/
+build/
+android/.gradle/
+android/local.properties
+ios/Pods/
+ios/DerivedData/
+
+# Generated release artifacts
+artifacts/
+*.xcarchive
+*.xcframework.zip
+*.aar
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
