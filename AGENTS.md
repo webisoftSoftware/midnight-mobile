@@ -60,3 +60,12 @@ For coding tasks, delegate implementation to Luna sub-agents using `x-high`
 reasoning. The primary agent must review their work, run the relevant quality
 checks and tests, and correct anything incomplete or incorrect before committing
 the finished feature.
+
+The primary agent is also authorized to complete the pull-request lifecycle for
+work within the user's requested scope. After implementation and review are
+complete and all required checks pass, mark a draft ready, accept or approve the
+pull request where GitHub permits, merge it, and update the local target branch.
+Do not leave completed work unmerged merely because the user did not separately
+request the merge. Never bypass required checks or unresolved review
+requirements, and do not merge unrelated or third-party changes without explicit
+authorization.
