@@ -1,5 +1,9 @@
 # Fresh 1AM Midnight Mobile SDK Alpha
 
+This document records the accepted product and technical scope. The detailed
+delivery sequence, work breakdown, gates, and long-term roadmap are maintained
+in [docs/LONG_TERM_PROJECT_PLAN.md](./docs/LONG_TERM_PROJECT_PLAN.md).
+
 ## Summary
 
 Create this repository as a fresh, sanitized project without modifying or
