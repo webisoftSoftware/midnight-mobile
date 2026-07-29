@@ -21,6 +21,7 @@ const hasJavaScriptWorkstream = files.some(
     !file.endsWith(".d.ts"),
 );
 const reactNativePackage = "packages/react-native";
+const expoExample = "examples/expo";
 const hasReactNativeWorkstream = files.some((file) =>
   file.startsWith(`${reactNativePackage}/`),
 );
@@ -28,8 +29,10 @@ const hasOtherJavaScriptWorkstream = files.some(
   (file) =>
     /^(?:packages|examples)\/.+\.(?:js|jsx|ts|tsx)$/u.test(file) &&
     !file.startsWith(`${reactNativePackage}/`) &&
+    !file.startsWith(`${expoExample}/`) &&
     !file.endsWith(".d.ts"),
 );
+const hasExpoExample = files.some((file) => file.startsWith(`${expoExample}/`));
 const scriptTests = files
   .filter((file) => /^scripts\/.+\.test\.mjs$/u.test(file))
   .sort();
@@ -69,6 +72,26 @@ if (
       testsPassed =
         runCommand("npm", ["test", "--prefix", reactNativePackage]) &&
         testsPassed;
+    }
+  }
+
+  if (hasExpoExample && testsPassed) {
+    if (!existsSync(`${expoExample}/package.json`)) {
+      console.error(
+        `required configuration not found: ${expoExample}/package.json`,
+      );
+      process.exitCode = 1;
+      testsPassed = false;
+    } else {
+      testsPassed =
+        runCommand("npm", [
+          "run",
+          "build",
+          "--workspace",
+          "@1am/midnight-mobile",
+        ]) && testsPassed;
+      testsPassed =
+        runCommand("npm", ["test", "--prefix", expoExample]) && testsPassed;
     }
   }
 

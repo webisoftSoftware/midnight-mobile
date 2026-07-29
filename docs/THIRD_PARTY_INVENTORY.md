@@ -162,15 +162,18 @@ The enclosing assessed mobile application resolves this exact compatibility set:
 | `react-native`      | `0.83.6`                  | `MIT`            | Peer dependency; not bundled.                                              |
 
 The target `@1am/midnight-mobile` manifest now declares these exact versions as
-development dependencies and matching major/minor peer ranges. The exact
-CocoaPods constraint for `ExpoModulesCore` and the exact Gradle plugin
-resolution are not stated by the assessed component; they remain evidence gaps
-until the clean Expo example resolves them reproducibly.
+development dependencies and matching major/minor peer ranges. The root npm
+lockfile records the package and clean Expo example workspaces with this exact
+set, and the M3 gate resolves their TypeScript declarations and deterministic
+iOS/Android JavaScript exports reproducibly. The exact CocoaPods constraint for
+`ExpoModulesCore` and the native Gradle plugin resolution remain M4 evidence
+gaps; the M3 package does not claim or bundle native release binaries.
 
-React test tooling, Jest, and TypeScript are supplied by the enclosing upstream
+React test tooling, Jest, and TypeScript were supplied by the enclosing upstream
 application rather than the assessed module. They are not direct runtime
-dependencies for this inventory. The target package's eventual dev dependency
-set must be inventoried from its own lockfile.
+dependencies. The target package and Expo example now declare their exact
+development dependencies in the authoritative root lockfile; the release-time
+SBOM must inventory the full resolved npm graph.
 
 ## Android/JNA dependency
 

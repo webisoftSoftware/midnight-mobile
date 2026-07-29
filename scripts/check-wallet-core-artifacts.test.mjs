@@ -80,7 +80,7 @@ await test("staging package validation requires compiled entrypoints", () => {
       { path: "dist/index.d.ts" },
       { path: "ios/build/runtime.xcframework/runtime" },
     ]).join("\n"),
-    /premature at M2/u,
+    /premature before M4/u,
   );
 });
 

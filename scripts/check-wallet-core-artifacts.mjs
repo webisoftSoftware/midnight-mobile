@@ -230,7 +230,7 @@ export function findStagingPackageErrors(entries) {
   }
   for (const path of paths) {
     if (NATIVE_PACKAGE_PATTERN.test(path)) {
-      errors.push(`npm:${path}: native release binary is premature at M2`);
+      errors.push(`npm:${path}: native release binary is premature before M4`);
     }
   }
   return errors;

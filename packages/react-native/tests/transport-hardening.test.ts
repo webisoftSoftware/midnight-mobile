@@ -155,6 +155,24 @@ await test("transport rejects malformed and unsupported endpoint URLs", () => {
       }),
     { code: "INVALID_ARGUMENT" },
   );
+  for (const invalid of [0, -1, 1.5, Number.POSITIVE_INFINITY]) {
+    assert.throws(
+      () =>
+        createStandardMidnightTransport({
+          ...base,
+          timeoutMs: invalid,
+        }),
+      { code: "INVALID_ARGUMENT" },
+    );
+    assert.throws(
+      () =>
+        createStandardMidnightTransport({
+          ...base,
+          maximumEffectSteps: invalid,
+        }),
+      { code: "INVALID_ARGUMENT" },
+    );
+  }
 });
 
 await test("transport forwards rejected indexer and proof responses with headers", async () => {
@@ -240,6 +258,41 @@ await test("transport normalizes generic non-submission network failure", async 
   );
 });
 
+await test("transport maps request timeouts by submission ambiguity", async () => {
+  const neverResponds: MidnightFetch = (_url, request) =>
+    new Promise((_resolve, reject) => {
+      request.signal.addEventListener(
+        "abort",
+        () => {
+          reject(new Error("request timed out"));
+        },
+        { once: true },
+      );
+    });
+  const transport = createStandardMidnightTransport({
+    ...transportConfig(neverResponds),
+    timeoutMs: 1,
+  });
+  let submissionOutcome = "";
+  await transport.runCommand(
+    resumableNetworkApi("submit", "node", (result) => {
+      submissionOutcome = result?.outcome ?? "";
+    }),
+    { id: 1, generation: 1 },
+    { kind: "parseCheckResult", resultBase64: "" },
+  );
+  assert.equal(submissionOutcome, "statusUnknown");
+
+  await assert.rejects(
+    transport.runCommand(
+      resumableNetworkApi("prove", "proof", () => undefined),
+      { id: 1, generation: 1 },
+      { kind: "parseCheckResult", resultBase64: "" },
+    ),
+    { code: "TRANSPORT_ERROR" },
+  );
+});
+
 await test("transport handles progress and completion", async () => {
   let resumedWith: MidnightNetworkResult | null | undefined;
   const api: MidnightRuntimeApi = {
@@ -281,6 +334,64 @@ await test("transport handles progress and completion", async () => {
   );
   assert.deepEqual(result.values, []);
   assert.equal(resumedWith, null);
+});
+
+await test("transport cancels before starting and between progress steps", async () => {
+  let began = 0;
+  const api: MidnightRuntimeApi = {
+    ...idleApi(),
+    beginCommand<K extends MidnightCommandKind>(
+      _session: { readonly id: number; readonly generation: number },
+      command: MidnightCommand<K>,
+    ): Promise<MidnightOperationStep<K>> {
+      began += 1;
+      return Promise.resolve({
+        kind: "progress",
+        operation: { id: 4, generation: 1, commandKind: command.kind },
+        phase: "queued",
+      });
+    },
+  };
+  const unusedFetch: MidnightFetch = () => Promise.reject(new Error("unused"));
+  const transport = createStandardMidnightTransport(
+    transportConfig(unusedFetch),
+  );
+  const alreadyAborted = new AbortController();
+  alreadyAborted.abort();
+  await assert.rejects(
+    transport.runCommand(
+      api,
+      { id: 1, generation: 1 },
+      { kind: "parseCheckResult", resultBase64: "" },
+      { signal: alreadyAborted.signal },
+    ),
+    { code: "CANCELLED" },
+  );
+  assert.equal(began, 0);
+
+  let cancelled = 0;
+  const betweenSteps = new AbortController();
+  await assert.rejects(
+    transport.runCommand(
+      {
+        ...api,
+        cancelOperation() {
+          cancelled += 1;
+          return Promise.resolve();
+        },
+      },
+      { id: 1, generation: 1 },
+      { kind: "parseCheckResult", resultBase64: "" },
+      {
+        signal: betweenSteps.signal,
+        onStep() {
+          betweenSteps.abort();
+        },
+      },
+    ),
+    { code: "CANCELLED" },
+  );
+  assert.equal(cancelled, 1);
 });
 
 await test("transport cancels when the maximum effect step count is reached", async () => {

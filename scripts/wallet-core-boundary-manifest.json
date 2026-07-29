@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "currentMilestone": "M2",
+  "currentMilestone": "M3",
   "contracts": {
     "typescript": "packages/react-native/src/commands.ts",
     "rust": "crates/runtime/src/runtime/types.rs",
-    "extractionManifest": "scripts/m2-sanitized-target-manifest.json"
+    "extractionManifest": "scripts/m3-sanitized-target-manifest.json"
   },
   "commandKinds": [
     "signData",
@@ -57,6 +57,11 @@
       "group": "maintained",
       "path": "crates/runtime/uniffi.toml",
       "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "examples/expo",
+      "requiredAtMilestone": "M3"
     },
     {
       "group": "maintained",

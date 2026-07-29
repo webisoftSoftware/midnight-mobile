@@ -15,12 +15,12 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "README.md",
     "dist",
     "expo-module.config.json",
     "ios/ExpoMidnightNative.podspec",
     "ios/ExpoMidnightNativeModule.swift",
     "ios/generated",
-    "ios/build/MidnightNativeRuntime.xcframework",
     "android/build.gradle",
     "android/src/main",
     "android/generated"
@@ -47,6 +47,6 @@
     "test": "tsc -p tsconfig.test.json && node --import ./test-support/register-peer-stubs.mjs --test .staging-build/tests/*.test.js"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22 <23"
   }
 }

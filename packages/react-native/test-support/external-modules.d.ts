@@ -1,5 +1,5 @@
 declare module "expo-modules-core" {
-  export function requireNativeModule(name: string): unknown;
+  export function requireNativeModule<T>(name: string, typeHint?: () => T): T;
 }
 
 declare module "react" {

@@ -8,11 +8,13 @@ const EXPECTED_AUTHORITY = Object.freeze({
   sourceArchiveSha256:
     "57f2cfd30d1d920ad3041a6db52bccbede90613930148e2b6e41fc5bb683fb74",
 });
-const EXPECTED_ROOTS = Object.freeze([
+const BASE_ROOTS = Object.freeze([
   "crates/runtime",
   "packages/react-native",
   "tools/bindgen",
 ]);
+const M3_ROOTS = Object.freeze([...BASE_ROOTS, "examples/expo"]);
+const EXPECTED_ROOT_SETS = Object.freeze([BASE_ROOTS, M3_ROOTS]);
 const EXPECTED_FILES = Object.freeze([
   "Cargo.lock",
   "Cargo.toml",
@@ -27,7 +29,10 @@ const EXPECTED_ORIGINS = Object.freeze([
 const OUTPUT_DIRECTORIES = new Set([
   "_input",
   ".declaration-build",
+  ".expo",
+  ".platform-build",
   ".staging-build",
+  ".test-build",
   "build",
   "dist",
   "staging",
@@ -95,8 +100,12 @@ function validateManifestHeader(manifest, errors) {
       errors.push(`sanitized target authority.${name} must be ${expected}`);
     }
   }
-  if (!sameArray(manifest.targetRoots, EXPECTED_ROOTS)) {
-    errors.push("sanitized targetRoots must be the exact approved roots");
+  if (
+    !EXPECTED_ROOT_SETS.some((roots) => sameArray(manifest.targetRoots, roots))
+  ) {
+    errors.push(
+      "sanitized targetRoots must be the exact approved legacy or M3 roots",
+    );
   }
   if (!sameArray(manifest.targetFiles, EXPECTED_FILES)) {
     errors.push("sanitized targetFiles must be the exact workspace files");
@@ -111,21 +120,24 @@ function validateManifestHeader(manifest, errors) {
   return entries;
 }
 
-function isApprovedTarget(path) {
+function isApprovedTarget(path, targetRoots) {
   return (
     EXPECTED_FILES.includes(path) ||
-    EXPECTED_ROOTS.some((root) => path === root || path.startsWith(`${root}/`))
+    targetRoots.some((root) => path === root || path.startsWith(`${root}/`))
   );
 }
 
-function validateEntry(entry, index, targets, seen, errors) {
+function validateEntry(entry, index, targetRoots, targets, seen, errors) {
   const label = `sanitized entries[${index}]`;
   if (!exactObjectKeys(entry, ["originClass", "targetPath"])) {
     errors.push(`${label} has an unexpected schema`);
     return;
   }
   const { originClass, targetPath } = entry;
-  if (!normalizedTarget(targetPath) || !isApprovedTarget(targetPath)) {
+  if (
+    !normalizedTarget(targetPath) ||
+    !isApprovedTarget(targetPath, targetRoots)
+  ) {
     errors.push(`${label}.targetPath is not an approved target`);
   }
   const segment = forbiddenOutputSegment(targetPath);
@@ -164,10 +176,13 @@ export function validateSanitizedTargetManifest(
   }
   const errors = [];
   const entries = validateManifestHeader(manifest, errors);
+  const targetRoots = Array.isArray(manifest.targetRoots)
+    ? manifest.targetRoots
+    : [];
   const targets = [];
   const seen = new Set();
   entries.forEach((entry, index) =>
-    validateEntry(entry, index, targets, seen, errors),
+    validateEntry(entry, index, targetRoots, targets, seen, errors),
   );
   if (actualTargets !== undefined) {
     compareTargetSets(targets, seen, actualTargets, errors);

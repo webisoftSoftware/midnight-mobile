@@ -13,9 +13,15 @@ import {
 } from "./check-wallet-core-boundary.mjs";
 import { validateSanitizedTargetManifest } from "./check-wallet-core-targets.mjs";
 
+const legacyTargetManifests = [
+  "./m1-sanitized-target-manifest.json",
+  "./m2-sanitized-target-manifest.json",
+].map((path) =>
+  JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")),
+);
 const targetManifest = JSON.parse(
   readFileSync(
-    new URL("./m2-sanitized-target-manifest.json", import.meta.url),
+    new URL("./m3-sanitized-target-manifest.json", import.meta.url),
     "utf8",
   ),
 );
@@ -140,6 +146,13 @@ test("rejects added, removed, and reordered kinds in every contract", () => {
 });
 
 test("target manifest fixes schema and rejects target-set drift", () => {
+  for (const legacy of legacyTargetManifests) {
+    const legacyPaths = legacy.entries.map((entry) => entry.targetPath);
+    assert.deepEqual(
+      validateSanitizedTargetManifest(structuredClone(legacy), legacyPaths),
+      [],
+    );
+  }
   const paths = targetManifest.entries.map((entry) => entry.targetPath);
   assert.deepEqual(
     validateSanitizedTargetManifest(structuredClone(targetManifest), paths),

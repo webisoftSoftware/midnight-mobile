@@ -1,0 +1,32 @@
+{
+  "name": "@1am/midnight-mobile-example",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mock-first Expo SDK 55 integration example for Midnight Mobile",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --import ./test-support/register-test-loader.mjs --test .staging-build/tests/*.test.js",
+    "validate:platforms": "node ./scripts/validate-platforms.mjs",
+    "quality": "npm run typecheck && npm test && npm run validate:platforms"
+  },
+  "dependencies": {
+    "@1am/midnight-mobile": "0.1.0-alpha.1",
+    "expo": "55.0.23",
+    "expo-modules-core": "55.0.25",
+    "react": "19.2.0",
+    "react-native": "0.83.6"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.14",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}

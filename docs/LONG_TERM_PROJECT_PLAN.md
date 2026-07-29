@@ -285,6 +285,8 @@ Exit criteria:
 
 ### M3 — React Native package and standard host transport
 
+Status: complete.
+
 Goal: make the wallet-core runtime usable from a normal Expo development build.
 
 1. Create `@1am/midnight-mobile` with:
@@ -819,12 +821,17 @@ A milestone is complete only when:
 
 ## 11. Current next action
 
-M0-M2 are complete. The immutable M1 extraction evidence remains preserved,
-while the live M2 target manifest, wallet threat tests, production-only
-TypeScript coverage gate, declaration scan, deterministic staging npm-pack
-inspection, and host binary-string scan enforce the sanitized wallet boundary.
-Begin M3 by completing the consumable React Native package and mocked Expo
-example. Full `npm run quality` remains mandatory locally; automatic
-pull-request CI stays disabled until M5, when it must be re-enabled and
-required. Final copyright, attribution, and distribution terms remain deferred
-to the destination repository and do not block private internal implementation.
+M0-M3 are complete. The immutable M1 and M2 extraction evidence remains
+preserved while the live M3 target manifest extends the sanitized boundary to
+the Expo example. The package gate builds JavaScript and declarations twice,
+inspects the real npm tarball, rejects premature native binaries, performs an
+isolated offline install, and compiles a consumer against the packed public API
+with the exact root-locked peers. Exhaustive type fixtures retain all 19
+command/result correlations. The mock-first Expo 55 / React Native 0.83 example
+completes its lifecycle in explicit iOS and Android platform-context tests, and
+Expo produces reproducible JavaScript exports for both platforms. Begin M4 by
+producing and validating prebuilt native payloads; none are claimed or bundled
+yet. Full `npm run quality` remains mandatory locally; automatic pull-request CI
+stays disabled until M5, when it must be re-enabled and required. Final
+copyright, attribution, and distribution terms remain deferred to the
+destination repository and do not block private internal implementation.

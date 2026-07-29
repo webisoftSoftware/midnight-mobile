@@ -23,5 +23,6 @@
     "packages/**/*.tsx",
     "examples/**/*.ts",
     "examples/**/*.tsx"
-  ]
+  ],
+  "exclude": ["packages/react-native/test-support/external-modules.d.ts"]
 }

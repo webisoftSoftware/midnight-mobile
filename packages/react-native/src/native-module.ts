@@ -40,7 +40,7 @@ export interface NativeRuntimeModule {
 export type NativeRuntimeModuleLoader = () => Partial<NativeRuntimeModule>;
 
 export function loadNativeRuntimeModule(): NativeRuntimeModule {
-  return requireNativeModule(
+  return requireNativeModule<NativeRuntimeModule>(
     EXPO_MIDNIGHT_NATIVE_MODULE_NAME,
-  ) as NativeRuntimeModule;
+  );
 }
