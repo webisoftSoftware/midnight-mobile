@@ -11,11 +11,14 @@ with GitHub-hosted settings. On 2026-07-29, a read-only GitHub query confirmed:
 The same audit confirmed that the milestone, workstream, platform, type,
 security, blocked-work, and external-demand labels are present. Dependabot
 vulnerability alerts and automated security updates are enabled. The current
-GitHub API token cannot read or enable private vulnerability reporting: the
-endpoint returns `404`, so that setting still requires verification by a
-repository administrator in the GitHub web interface.
+repository is private, so GitHub does not offer private vulnerability reporting
+for it.
+[GitHub limits that feature](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository)
+to public repositories. Enable and verify it during the M6 visibility change;
+until then, `SECURITY.md` provides the private pre-release contact path.
 
-The settings below must be applied and verified in GitHub before the M1 source
+Except for controls explicitly assigned to the M6 visibility change, the
+settings below must be applied and verified in GitHub before the M1 source
 import pull request. Committing this document or a workflow does not configure
 server-side repository settings.
 
@@ -73,7 +76,8 @@ details belong in a private security advisory.
 
 ## Security and dependency settings
 
-- Enable GitHub private vulnerability reporting.
+- Enable GitHub private vulnerability reporting as part of the M6 change to
+  public visibility.
 - Enable Dependabot alerts and security updates.
 - Keep the repository private until the M6 publication gate and final secret
   scan have passed.
@@ -92,5 +96,6 @@ Before source import, record evidence that:
 3. the required check resolves to the `Repository quality` job;
 4. CODEOWNERS review is requested on representative protected paths;
 5. issue forms apply their configured labels;
-6. private vulnerability reporting is reachable;
+6. before M6, the private pre-release contact path is reachable; during the M6
+   visibility change, private vulnerability reporting is enabled and reachable;
 7. Dependabot alerts and security updates are enabled.

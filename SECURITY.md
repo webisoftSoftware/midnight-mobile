@@ -18,7 +18,10 @@ Until then, do not treat the project as production-ready.
 
 ## Report a vulnerability
 
-Use
+While the repository remains private before the alpha release, contact the
+repository owner through an established private channel and include only a
+request to establish a secure reporting channel. After the repository becomes
+public, use
 [GitHub private vulnerability reporting](https://github.com/ADGLx/midnight-mobile/security/advisories/new).
 Do not open a public issue, pull request, discussion, or integration report for
 a suspected vulnerability.
@@ -38,9 +41,9 @@ Redact local paths and unrelated identifiers. If even a private report would
 require sensitive material, first send a description without that material so
 maintainers can arrange a safer method.
 
-If private vulnerability reporting is unavailable, contact `@ADGLx` through a
-private method published on their [GitHub profile](https://github.com/ADGLx) and
-include only a request to establish a secure reporting channel.
+If private vulnerability reporting is unavailable after publication, use the
+same private contact fallback and include only a request to establish a secure
+reporting channel.
 
 ## What to expect
 
