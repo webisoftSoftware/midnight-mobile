@@ -151,6 +151,8 @@ if (
         "--all-targets",
         "--fail-under-lines",
         String(coveragePolicy.rust.enforcedPercent),
+        "--ignore-filename-regex",
+        coveragePolicy.rust.ignoreFilenameRegex,
         "--",
         "--test-threads=1",
       ]) && testsPassed;

@@ -187,4 +187,5 @@ mod tests {
 
     include!("runtime/tests/sanitized.rs");
     include!("runtime/tests/hardening.rs");
+    include!("runtime/tests/coverage.rs");
 }

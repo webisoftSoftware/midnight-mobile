@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  RUST_M2_ENFORCED,
-  RUST_M2_MEASURED,
+  RUST_BASELINE,
+  RUST_IGNORE_FILENAME_REGEX,
   RUST_TARGET,
   TYPESCRIPT_TARGET,
   loadCoveragePolicy,
@@ -12,17 +12,16 @@ import {
 
 function manifest() {
   return {
-    currentMilestone: "M2",
-    rustCoverageException: {
+    currentMilestone: "M5",
+    rustCoverage: {
       rule: "rust-line-coverage",
+      runner: "cargo-llvm-cov",
+      include: "crates/runtime/src/**/*.rs",
+      ignoreFilenameRegex: RUST_IGNORE_FILENAME_REGEX,
       minimumPercent: RUST_TARGET,
-      measuredPercent: RUST_M2_MEASURED,
-      enforcedPercent: RUST_M2_ENFORCED,
+      baselinePercent: RUST_BASELINE,
+      enforcedPercent: RUST_BASELINE,
       trackingIssue: "https://github.com/ADGLx/midnight-mobile/issues/40",
-      activeFromMilestone: "M1",
-      expiresAtMilestone: "M5",
-      removalCondition:
-        "Raise measured Rust runtime line coverage to the required target before M5 begins.",
     },
     typescriptCoverage: {
       rule: "typescript-coverage",
@@ -34,12 +33,14 @@ function manifest() {
   };
 }
 
-await test("accepts the permanent TypeScript gate and active Rust exception", () => {
+await test("accepts permanent TypeScript and Rust coverage gates", () => {
   const policy = validateCoverageManifest(manifest());
-  assert.equal(policy.currentMilestone, "M2");
+  assert.equal(policy.currentMilestone, "M5");
   assert.deepEqual(policy.typescript.minimumPercent, TYPESCRIPT_TARGET);
-  assert.equal(policy.rust.measuredPercent, RUST_M2_MEASURED);
-  assert.equal(policy.rust.enforcedPercent, RUST_M2_ENFORCED);
+  assert.equal(policy.rust.minimumPercent, RUST_TARGET);
+  assert.equal(policy.rust.baselinePercent, RUST_BASELINE);
+  assert.equal(policy.rust.enforcedPercent, RUST_BASELINE);
+  assert.equal(policy.rust.ignoreFilenameRegex, RUST_IGNORE_FILENAME_REGEX);
 });
 
 await test("rejects a TypeScript threshold reduction", () => {
@@ -50,10 +51,28 @@ await test("rejects a TypeScript threshold reduction", () => {
 
 await test("rejects a Rust baseline reduction", () => {
   const value = manifest();
-  value.rustCoverageException.measuredPercent = 10;
+  value.rustCoverage.baselinePercent = RUST_TARGET;
   assert.throws(
     () => validateCoverageManifest(value),
-    /recorded value 28\.06/u,
+    /recorded value 81\.31/u,
+  );
+});
+
+await test("rejects a Rust enforcement reduction", () => {
+  const value = manifest();
+  value.rustCoverage.enforcedPercent = RUST_TARGET;
+  assert.throws(
+    () => validateCoverageManifest(value),
+    /recorded value 81\.31/u,
+  );
+});
+
+await test("rejects drift in the Rust exclusion scope", () => {
+  const value = manifest();
+  value.rustCoverage.ignoreFilenameRegex = ".*";
+  assert.throws(
+    () => validateCoverageManifest(value),
+    /ignoreFilenameRegex must be/u,
   );
 });
 
@@ -63,19 +82,21 @@ await test("rejects malformed permanent coverage metadata", () => {
   assert.throws(() => validateCoverageManifest(value), /runner must be/u);
 });
 
-await test("retains the permanent TypeScript gate when M3 begins", () => {
+await test("retains both permanent gates after M5", () => {
   const value = manifest();
-  value.currentMilestone = "M3";
-  assert.deepEqual(
-    validateCoverageManifest(value).typescript.minimumPercent,
-    TYPESCRIPT_TARGET,
-  );
+  value.currentMilestone = "M6";
+  const policy = validateCoverageManifest(value);
+  assert.deepEqual(policy.typescript.minimumPercent, TYPESCRIPT_TARGET);
+  assert.equal(policy.rust.enforcedPercent, RUST_BASELINE);
 });
 
-await test("rejects the Rust exception when M5 begins", () => {
+await test("rejects the permanent Rust gate before M5", () => {
   const value = manifest();
-  value.currentMilestone = "M5";
-  assert.throws(() => validateCoverageManifest(value), /expired at M5/u);
+  value.currentMilestone = "M4";
+  assert.throws(
+    () => validateCoverageManifest(value),
+    /currentMilestone M5 or later/u,
+  );
 });
 
 await test("rejects a missing coverage manifest", () => {

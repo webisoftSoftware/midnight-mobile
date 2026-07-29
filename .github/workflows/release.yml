@@ -1,0 +1,119 @@
+name: Alpha release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+
+jobs:
+  build:
+    name: Build and verify release
+    runs-on: macos-15
+    timeout-minutes: 150
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Check out exact tag and history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install and verify pinned toolchains
+        uses: ./.github/actions/setup-native
+
+      - name: Run the complete repository gate
+        run: npm run quality
+
+      - name: Verify tag and release contract
+        run: node scripts/check-release-inputs.mjs --tag "$GITHUB_REF_NAME"
+
+      - name: Package exact source and tag metadata
+        run: node scripts/prepare-release-source.mjs --tag "$GITHUB_REF_NAME"
+
+      - name:
+          Generate and verify checksums, SBOM, licenses, and local provenance
+        run: |
+          npm run release:evidence
+          npm run release:verify
+
+      - name: Create signed GitHub artifact attestations
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-path: |
+            artifacts/apple/*.zip
+            artifacts/native/*.zip
+            artifacts/native/npm/*.tgz
+            artifacts/release-inputs/*
+            artifacts/release/*
+
+      - name: Create signed GitHub SBOM attestation
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-path: artifacts/native/npm/*.tgz
+          sbom-path: artifacts/release/sbom.cdx.json
+
+      - name: Upload immutable release bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: alpha-release-bundle
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Approve and publish alpha
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: alpha-release
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Check out exact tag and approval policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Download verified release bundle
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: alpha-release-bundle
+          path: artifacts
+
+      - name: Enforce M6 distribution approval and artifact checksums
+        run: |
+          node scripts/check-release-inputs.mjs --tag "$GITHUB_REF_NAME" --require-distribution-decision
+          node scripts/verify-release-evidence.mjs
+
+      - name: Publish package with trusted npm provenance
+        run: npm publish artifacts/native/npm/*.tgz --access public --provenance
+
+      - name: Publish matching GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            artifacts/apple/*.zip \
+            artifacts/native/*.zip \
+            artifacts/native/npm/*.tgz \
+            artifacts/release-inputs/* \
+            artifacts/release/* \
+            --verify-tag \
+            --generate-notes \
+            --title "$GITHUB_REF_NAME"

@@ -1,5 +1,5 @@
 {
-  "currentMilestone": "M4",
+  "currentMilestone": "M5",
   "exceptions": [
     {
       "path": "packages/react-native/android/generated/expo/modules/midnightnative/uniffi/midnight_native_runtime.kt",

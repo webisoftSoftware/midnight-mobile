@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "currentMilestone": "M5",
+  "ledgerGitRevision": "02716c2c95d50654aeb3cb63bfd8386046e4ca7d",
+  "cargoAuditVersion": "0.22.2",
+  "braceExpansionAdvisory": {
+    "advisory": "GHSA-mh99-v99m-4gvg",
+    "cve": "CVE-2026-14257",
+    "source": 1124334,
+    "url": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+    "severity": "high",
+    "vulnerableRange": "<=5.0.7",
+    "acceptedVersions": ["1.1.17", "2.1.3", "5.0.8"],
+    "maximumExpandedCharacters": 4000000,
+    "trackingIssue": "https://github.com/ADGLx/midnight-mobile/issues/35",
+    "status": "upstream-advisory-metadata-blocked",
+    "removalCondition": "Remove the compatibility overrides and this record when direct dependencies accept patched compatible ranges and the upstream advisory recognizes every retained backport."
+  }
+}

@@ -1,6 +1,10 @@
 name: Quality
 
 on:
+  pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -10,28 +14,33 @@ concurrency:
   group: quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+
 jobs:
   quality:
     name: Repository quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: macos-15
+    timeout-minutes: 120
     steps:
-      - name: Check out repository
+      - name: Check out repository and history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Use Node.js 22
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
-          cache: npm
+          fetch-depth: 0
 
-      - name: Install pinned dependencies
-        run: npm ci
-
-      - name: Install pinned Rust coverage tooling
-        run: |
-          rustup component add llvm-tools-preview
-          cargo install cargo-llvm-cov --version 0.8.6 --locked
+      - name: Install and verify pinned toolchains
+        uses: ./.github/actions/setup-native
 
       - name: Run repository quality gate
         run: npm run quality
+
+      - name: Upload verified build evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: quality-evidence
+          path: |
+            artifacts/native
+            artifacts/release
+          if-no-files-found: error
+          retention-days: 14

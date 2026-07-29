@@ -7,8 +7,9 @@ export const TYPESCRIPT_TARGET = Object.freeze({
   branches: 75,
   functions: 85,
 });
-export const RUST_M2_MEASURED = 28.06;
-export const RUST_M2_ENFORCED = 28.05;
+export const RUST_BASELINE = 81.31;
+export const RUST_IGNORE_FILENAME_REGEX =
+  "(^|/)(tools/bindgen|generated|fixtures|examples|tests)(/|$)|(^|/)tests?\\.rs$|\\.cargo/registry";
 export const RUST_TARGET = 80;
 
 const MILESTONES = Object.freeze([
@@ -21,6 +22,7 @@ const MILESTONES = Object.freeze([
   "M6",
   "M7",
   "M8",
+  "M9",
 ]);
 
 function policyError(message) {
@@ -37,12 +39,6 @@ function requireObject(value, field) {
 function requireExactString(value, expected, field) {
   if (value !== expected) {
     policyError(`${field} must be ${JSON.stringify(expected)}`);
-  }
-}
-
-function requireConcreteText(value, field) {
-  if (typeof value !== "string" || value.trim().length < 20) {
-    policyError(`${field} must be concrete and at least 20 characters`);
   }
 }
 
@@ -68,27 +64,6 @@ function milestoneIndex(value, field) {
     policyError(`${field} must be one of ${MILESTONES.join(", ")}`);
   }
   return MILESTONES.indexOf(value);
-}
-
-function validateActiveWindow(exception, currentMilestone, field) {
-  const current = milestoneIndex(currentMilestone, "currentMilestone");
-  const active = milestoneIndex(
-    exception.activeFromMilestone,
-    `${field}.activeFromMilestone`,
-  );
-  const expiry = milestoneIndex(
-    exception.expiresAtMilestone,
-    `${field}.expiresAtMilestone`,
-  );
-  if (active >= expiry) {
-    policyError(`${field} must expire after it becomes active`);
-  }
-  if (current < active) {
-    policyError(`${field} is not active at ${currentMilestone}`);
-  }
-  if (current >= expiry) {
-    policyError(`${field} expired at ${exception.expiresAtMilestone}`);
-  }
 }
 
 function validateTypeScriptCoverage(value) {
@@ -138,42 +113,47 @@ function validateTypeScriptCoverage(value) {
   };
 }
 
-function validateRustException(value, currentMilestone) {
-  const field = "rustCoverageException";
-  const exception = requireObject(value, field);
-  requireExactString(exception.rule, "rust-line-coverage", `${field}.rule`);
+function validateRustCoverage(value, currentMilestone) {
+  const field = "rustCoverage";
+  const coverage = requireObject(value, field);
+  requireExactString(coverage.rule, "rust-line-coverage", `${field}.rule`);
+  requireExactString(coverage.runner, "cargo-llvm-cov", `${field}.runner`);
   requireExactString(
-    exception.trackingIssue,
+    coverage.include,
+    "crates/runtime/src/**/*.rs",
+    `${field}.include`,
+  );
+  requireExactString(
+    coverage.ignoreFilenameRegex,
+    RUST_IGNORE_FILENAME_REGEX,
+    `${field}.ignoreFilenameRegex`,
+  );
+  requireExactString(
+    coverage.trackingIssue,
     "https://github.com/ADGLx/midnight-mobile/issues/40",
     `${field}.trackingIssue`,
   );
-  requireExactString(
-    exception.activeFromMilestone,
-    "M1",
-    `${field}.activeFromMilestone`,
-  );
-  requireExactString(
-    exception.expiresAtMilestone,
-    "M5",
-    `${field}.expiresAtMilestone`,
-  );
-  requireConcreteText(exception.removalCondition, `${field}.removalCondition`);
-  validateActiveWindow(exception, currentMilestone, field);
+  if (milestoneIndex(currentMilestone, "currentMilestone") < 5) {
+    policyError(`${field} requires currentMilestone M5 or later`);
+  }
   return {
-    measuredPercent: requirePercentage(
-      exception.measuredPercent,
-      RUST_M2_MEASURED,
-      `${field}.measuredPercent`,
-    ),
-    enforcedPercent: requirePercentage(
-      exception.enforcedPercent,
-      RUST_M2_ENFORCED,
-      `${field}.enforcedPercent`,
-    ),
-    requiredPercent: requirePercentage(
-      exception.minimumPercent,
+    runner: coverage.runner,
+    include: coverage.include,
+    ignoreFilenameRegex: coverage.ignoreFilenameRegex,
+    minimumPercent: requirePercentage(
+      coverage.minimumPercent,
       RUST_TARGET,
       `${field}.minimumPercent`,
+    ),
+    baselinePercent: requirePercentage(
+      coverage.baselinePercent,
+      RUST_BASELINE,
+      `${field}.baselinePercent`,
+    ),
+    enforcedPercent: requirePercentage(
+      coverage.enforcedPercent,
+      RUST_BASELINE,
+      `${field}.enforcedPercent`,
     ),
   };
 }
@@ -182,10 +162,7 @@ export function validateCoverageManifest(value) {
   const manifest = requireObject(value, "manifest");
   const currentMilestone = manifest.currentMilestone;
   milestoneIndex(currentMilestone, "currentMilestone");
-  const rust = validateRustException(
-    manifest.rustCoverageException,
-    currentMilestone,
-  );
+  const rust = validateRustCoverage(manifest.rustCoverage, currentMilestone);
   const typescript = validateTypeScriptCoverage(manifest.typescriptCoverage);
   return {
     currentMilestone,

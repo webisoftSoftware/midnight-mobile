@@ -6,21 +6,23 @@ export const ALLOWED_COMMAND_KINDS = Object.freeze(
   ),
 );
 export const MILESTONES = Object.freeze(
-  "M0,M1,M2,M3,M4,M5,M6,M7,M8".split(","),
+  "M0,M1,M2,M3,M4,M5,M6,M7,M8,M9".split(","),
 );
 const EXPECTED_CONTRACTS = Object.freeze({
   typescript: "packages/react-native/src/commands.ts",
   rust: "crates/runtime/src/runtime/types.rs",
-  extractionManifest: "scripts/m4-sanitized-target-manifest.json",
+  extractionManifest: "scripts/m5-sanitized-target-manifest.json",
 });
-const EXPECTED_RUST_EXCEPTION = Object.freeze({
+const EXPECTED_RUST_COVERAGE = Object.freeze({
   rule: "rust-line-coverage",
-  measuredPercent: 28.06,
-  enforcedPercent: 28.05,
+  runner: "cargo-llvm-cov",
+  include: "crates/runtime/src/**/*.rs",
+  ignoreFilenameRegex:
+    "(^|/)(tools/bindgen|generated|fixtures|examples|tests)(/|$)|(^|/)tests?\\.rs$|\\.cargo/registry",
   minimumPercent: 80,
+  baselinePercent: 81.31,
+  enforcedPercent: 81.31,
   trackingIssue: "https://github.com/ADGLx/midnight-mobile/issues/40",
-  activeFromMilestone: "M1",
-  expiresAtMilestone: "M5",
 });
 const EXPECTED_TYPESCRIPT_COVERAGE = Object.freeze({
   rule: "typescript-coverage",
@@ -103,19 +105,10 @@ function checkExpected(actual, expected, label, errors) {
   }
 }
 
-function checkRemovalCondition(exception, label, errors) {
-  if (
-    typeof exception?.removalCondition !== "string" ||
-    exception.removalCondition.trim().length < 40
-  ) {
-    errors.push(`${label}.removalCondition must be concrete`);
-  }
-}
-
 function validateBoundaryInputs(manifest, errors) {
   if (manifest.schemaVersion !== 1) errors.push("schemaVersion must be 1");
   if (!MILESTONES.includes(manifest.currentMilestone)) {
-    errors.push("currentMilestone must be one of M0 through M8");
+    errors.push("currentMilestone must be one of M0 through M9");
   }
   checkExpected(manifest.contracts, EXPECTED_CONTRACTS, "contracts", errors);
   if (!sameArray(manifest.commandKinds, ALLOWED_COMMAND_KINDS)) {
@@ -145,15 +138,11 @@ function validateBoundaryInputs(manifest, errors) {
     );
 }
 
-function validateRustException(manifest, current, errors) {
-  const rust = manifest.rustCoverageException;
-  checkExpected(rust, EXPECTED_RUST_EXCEPTION, "rustCoverageException", errors);
-  checkRemovalCondition(rust, "rustCoverageException", errors);
-  const rustExpiry = MILESTONES.indexOf(rust?.expiresAtMilestone);
-  if (current >= rustExpiry && rustExpiry >= 0) {
-    errors.push(
-      `Rust coverage exception expired at ${rust.expiresAtMilestone}`,
-    );
+function validateRustCoverage(manifest, current, errors) {
+  const rust = manifest.rustCoverage;
+  checkExpected(rust, EXPECTED_RUST_COVERAGE, "rustCoverage", errors);
+  if (current < MILESTONES.indexOf("M5")) {
+    errors.push("rustCoverage requires currentMilestone M5 or later");
   }
 }
 
@@ -180,7 +169,7 @@ export function validatePolicyManifest(manifest) {
   const errors = [];
   validateBoundaryInputs(manifest, errors);
   const current = MILESTONES.indexOf(manifest.currentMilestone);
-  validateRustException(manifest, current, errors);
+  validateRustCoverage(manifest, current, errors);
   validateTypescriptCoverage(manifest, errors);
   return errors;
 }

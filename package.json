@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Private repository tooling for the Midnight Mobile SDK",
+  "license": "MIT OR Apache-2.0",
   "workspaces": [
     "packages/react-native",
     "examples/expo"
@@ -29,16 +30,22 @@
     "check:example": "npm run build --workspace @1am/midnight-mobile && npm run validate:platforms --workspace @1am/midnight-mobile-example",
     "check:native": "node scripts/check-apple-xcframework.mjs && node scripts/check-native-distribution.mjs",
     "check:package": "node scripts/check-react-native-package.mjs",
+    "check:release": "node scripts/check-release-inputs.mjs",
+    "check:security": "node scripts/check-security.mjs",
+    "check:m5-workflows": "node scripts/check-m5-workflows.mjs",
     "generate:bindings": "node scripts/check-uniffi-bindings.mjs --write",
+    "release:evidence": "node scripts/build-release-evidence.mjs",
+    "release:verify": "node scripts/verify-release-evidence.mjs",
     "typecheck": "node scripts/run-typecheck.mjs",
     "test": "node scripts/run-tests.mjs",
-    "quality": "npm run build:native && npm run build:package && npm run format:check && npm run lint:markdown && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm run check:source-policy && npm run check:extraction-allowlist && npm run check:wallet-core-boundary && npm run check:bindings && npm run check:package && npm run check:native && npm run check:example && npm run typecheck && npm test",
+    "quality": "npm run build:native && npm run build:package && npm run format:check && npm run lint:markdown && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm run check:m5-workflows && npm run check:source-policy && npm run check:extraction-allowlist && npm run check:wallet-core-boundary && npm run check:bindings && npm run check:package && npm run check:native && npm run check:example && npm run check:security && npm run check:release && npm run release:evidence && npm run release:verify && npm run typecheck && npm test",
     "check:wallet-core-boundary": "node scripts/check-wallet-core-boundary.mjs && node scripts/check-wallet-core-artifacts.mjs"
   },
   "overrides": {
     "brace-expansion@<2": "1.1.17",
     "brace-expansion@>=2 <3": "2.1.3",
-    "brace-expansion@>=5 <6": "5.0.8"
+    "brace-expansion@>=5 <6": "5.0.8",
+    "uuid": "11.1.1"
   },
   "devDependencies": {
     "@tktco/node-actionlint": "1.6.0",
@@ -51,6 +58,7 @@
     "markdownlint-cli2": "0.23.2",
     "prettier": "3.9.6",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.65.0"
+    "typescript-eslint": "8.65.0",
+    "xcode": "3.0.1"
   }
 }

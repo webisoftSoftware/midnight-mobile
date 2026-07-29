@@ -24,7 +24,7 @@ function createExpoConsumer(root) {
     main: "index.js",
     dependencies: {
       "@1am/midnight-mobile": "0.1.0-alpha.1",
-      expo: "55.0.23",
+      expo: "55.0.28",
       "expo-modules-core": "55.0.25",
       react: "19.2.0",
       "react-native": "0.83.6",

@@ -17,12 +17,13 @@ const legacyTargetManifests = [
   "./m1-sanitized-target-manifest.json",
   "./m2-sanitized-target-manifest.json",
   "./m3-sanitized-target-manifest.json",
+  "./m4-sanitized-target-manifest.json",
 ].map((path) =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")),
 );
 const targetManifest = JSON.parse(
   readFileSync(
-    new URL("./m4-sanitized-target-manifest.json", import.meta.url),
+    new URL("./m5-sanitized-target-manifest.json", import.meta.url),
     "utf8",
   ),
 );
@@ -79,20 +80,22 @@ test("policy manifest fixes contracts, scan roots, and coverage gates", () => {
   assert.deepEqual(validatePolicyManifest(structuredClone(manifest)), []);
 });
 
-test("policy manifest rejects command, scan, issue, and expiry drift", () => {
+test("policy manifest rejects command, scan, and coverage drift", () => {
   const value = structuredClone(manifest);
   value.commandKinds.pop();
   value.textInputs.pop();
-  value.rustCoverageException.trackingIssue =
+  value.rustCoverage.trackingIssue =
     "https://github.com/ADGLx/midnight-mobile/issues/39";
+  value.rustCoverage.enforcedPercent = 80;
   value.typescriptCoverage.runner = "test-inclusive";
   value.typescriptCoverage.minimumPercent.functions = 64;
-  value.currentMilestone = "M5";
+  value.currentMilestone = "M4";
   const errors = validatePolicyManifest(value);
   includesError(errors, "exact ordered 19-kind contract");
   includesError(errors, "all maintained/generated/package roots");
   includesError(errors, "issues/40");
-  includesError(errors, "expired at M5");
+  includesError(errors, "enforcedPercent must be 81.31");
+  includesError(errors, "currentMilestone M5 or later");
   includesError(errors, "compiled-production-node-tests");
   includesError(errors, "minimumPercent.functions");
 });

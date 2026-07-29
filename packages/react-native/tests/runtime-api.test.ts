@@ -102,6 +102,79 @@ function nativeModule(): NativeRuntimeModule {
   };
 }
 
+interface SyncCall {
+  stream: string;
+  fromOffset: number;
+  toOffset: number;
+  payloads: readonly string[];
+}
+
+function syncTrackingNative(calls: SyncCall[]): NativeRuntimeModule {
+  const caughtUp = new Set<string>();
+  return {
+    ...nativeModule(),
+    applySyncBatch(
+      _sessionId,
+      _generation,
+      stream,
+      fromOffset,
+      toOffset,
+      payloads,
+    ) {
+      calls.push({ stream, fromOffset, toOffset, payloads });
+      if (stream.endsWith("-tip")) caughtUp.add(stream.slice(0, -4));
+      return Promise.resolve(
+        JSON.stringify({
+          duplicate: stream === "unshielded",
+          snapshot: {
+            ...snapshotValue(),
+            status: caughtUp.size === 3 ? "ready" : "syncing",
+          },
+        }),
+      );
+    },
+  };
+}
+
+const expectedSyncCalls: readonly SyncCall[] = [
+  {
+    stream: "shielded",
+    fromOffset: 0,
+    toOffset: 1,
+    payloads: ["AQ=="],
+  },
+  {
+    stream: "shielded-tip",
+    fromOffset: 1,
+    toOffset: 1,
+    payloads: [],
+  },
+  {
+    stream: "unshielded",
+    fromOffset: 0,
+    toOffset: 1,
+    payloads: ["AQ=="],
+  },
+  {
+    stream: "unshielded-tip",
+    fromOffset: 1,
+    toOffset: 1,
+    payloads: [],
+  },
+  {
+    stream: "dust",
+    fromOffset: 0,
+    toOffset: 1,
+    payloads: ["AQ=="],
+  },
+  {
+    stream: "dust-tip",
+    fromOffset: 1,
+    toOffset: 1,
+    payloads: [],
+  },
+];
+
 await test("runtime API copies and wipes secrets around native open", async () => {
   const captured: Uint8Array[] = [];
   let checkpoint = "";
@@ -169,6 +242,70 @@ await test("runtime API maps every remaining native ABI method", async () => {
   assert.equal(resumed.kind, "complete");
   await api.cancelOperation(operation);
   await api.closeWalletSession(session);
+});
+
+await test("only terminal empty batches mark public streams caught up", async () => {
+  const calls: SyncCall[] = [];
+  const native = syncTrackingNative(calls);
+  const api = createMidnightRuntimeApi(() => native);
+  const session = { id: 1, generation: 1 };
+
+  for (const stream of ["shielded", "unshielded", "dust"] as const) {
+    const applied = await api.applySyncBatch(session, {
+      stream,
+      fromOffset: 0,
+      toOffset: 1,
+      payloads: [Uint8Array.of(1)],
+    });
+    assert.equal(applied.duplicate, stream === "unshielded");
+    assert.equal(applied.snapshot.status, "syncing");
+    const terminal = await api.applySyncBatch(session, {
+      stream,
+      fromOffset: 1,
+      toOffset: 1,
+      payloads: [],
+    });
+    assert.equal(terminal.duplicate, false);
+    assert.equal(
+      terminal.snapshot.status,
+      stream === "dust" ? "ready" : "syncing",
+    );
+  }
+
+  assert.deepEqual(calls, expectedSyncCalls);
+});
+
+await test("sync batches reject unknown streams and native failures", async () => {
+  let calls = 0;
+  const native = {
+    ...nativeModule(),
+    applySyncBatch() {
+      calls += 1;
+      return Promise.reject(new Error("SYNC_GAP"));
+    },
+  };
+  const api = createMidnightRuntimeApi(() => native);
+  const session = { id: 1, generation: 1 };
+  await assert.rejects(
+    api.applySyncBatch(session, {
+      stream: "unknown",
+      fromOffset: 0,
+      toOffset: 0,
+      payloads: [],
+    } as never),
+    { code: "INVALID_ARGUMENT" },
+  );
+  assert.equal(calls, 0);
+  await assert.rejects(
+    api.applySyncBatch(session, {
+      stream: "dust",
+      fromOffset: 0,
+      toOffset: 1,
+      payloads: [],
+    }),
+    { code: "SYNC_GAP" },
+  );
+  assert.equal(calls, 1);
 });
 
 await test("runtime API rejects unavailable native modules and invalid secrets", async () => {

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "currentMilestone": "M4",
+  "currentMilestone": "M5",
   "contracts": {
     "typescript": "packages/react-native/src/commands.ts",
     "rust": "crates/runtime/src/runtime/types.rs",
-    "extractionManifest": "scripts/m4-sanitized-target-manifest.json"
+    "extractionManifest": "scripts/m5-sanitized-target-manifest.json"
   },
   "commandKinds": [
     "signData",
@@ -179,15 +179,15 @@
       "requiredAtMilestone": null
     }
   ],
-  "rustCoverageException": {
+  "rustCoverage": {
     "rule": "rust-line-coverage",
-    "measuredPercent": 28.06,
-    "enforcedPercent": 28.05,
+    "runner": "cargo-llvm-cov",
+    "include": "crates/runtime/src/**/*.rs",
+    "ignoreFilenameRegex": "(^|/)(tools/bindgen|generated|fixtures|examples|tests)(/|$)|(^|/)tests?\\.rs$|\\.cargo/registry",
     "minimumPercent": 80,
-    "trackingIssue": "https://github.com/ADGLx/midnight-mobile/issues/40",
-    "activeFromMilestone": "M1",
-    "expiresAtMilestone": "M5",
-    "removalCondition": "Raise measured Rust runtime line coverage from the M2 baseline of 28.06 percent to at least 80 percent and enforce that threshold in required CI before M5 begins."
+    "baselinePercent": 81.31,
+    "enforcedPercent": 81.31,
+    "trackingIssue": "https://github.com/ADGLx/midnight-mobile/issues/40"
   },
   "typescriptCoverage": {
     "rule": "typescript-coverage",

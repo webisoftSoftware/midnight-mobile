@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Mock-first Expo SDK 55 integration example for Midnight Mobile",
+  "license": "MIT OR Apache-2.0",
   "type": "module",
   "main": "index.ts",
   "scripts": {
@@ -16,7 +17,7 @@
   },
   "dependencies": {
     "@1am/midnight-mobile": "0.1.0-alpha.1",
-    "expo": "55.0.23",
+    "expo": "55.0.28",
     "expo-modules-core": "55.0.25",
     "react": "19.2.0",
     "react-native": "0.83.6"

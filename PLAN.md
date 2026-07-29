@@ -18,6 +18,16 @@ This alpha intentionally duplicates the sanitized wallet runtime. Shared-core
 migration, extensions, crates.io, checkpoint migration, and stable direct-native
 APIs are deferred until external demand is demonstrated.
 
+Any later 1AM consumer migration is an ordered M9 program, not part of the
+alpha. Before changing 1AM consumer code, the SDK must rename every colliding
+native identifier, retain the permanent 81.31% Rust coverage gate established by
+M5, execute the real native runtime on a device, resolve signature
+compatibility, prove disposable non-production 1AM checkpoint interop, and pass
+a Ledger 8.1.0 golden-vector/transcript equivalence harness. M9 may add only two
+normal-command-path mint migration hooks: session-seed shielded mint context and
+`watch_shielded_mint` registration for an externally built coin. These are not
+FT/NFT product workflows and do not authorize verifier artifacts.
+
 ## Repository and sanitization
 
 - Populate the repository through an explicit file allowlist, not by cloning,
@@ -195,3 +205,8 @@ Collect demand through GitHub issues and the example integration. Reconsider
 shared-core migration only after at least two independent external applications
 complete an integration or a concrete outside contributor requires native or
 extension support.
+
+After that demand/design review, M9 consumer migration prerequisites remain
+blocking and ordered. Social stays a stateless internal 1AM module because its
+six commands need only the already-public `networkId` and
+`shieldedCoinPublicKeyHex`; it does not expand this SDK.

@@ -4,6 +4,12 @@ M4 packages release-mode Rust libraries inside the npm tarball so SDK consumers
 do not need Cargo, `rustc`, or `rustup`. Native outputs are generated during the
 release build and remain ignored by Git.
 
+This document records the native package contract. The complete tagged-source
+lineage, M5 evidence bundle, and independent verification procedure are in
+[binary provenance](./BINARY_PROVENANCE.md). Native artifacts remain private
+build outputs until the M6 destination repository resolves and records final
+distribution terms.
+
 ## Pinned build contract
 
 - Rust `1.97.1` is selected by the root `rust-toolchain.toml`.
@@ -57,3 +63,24 @@ The release gates:
 
 The generated direct Swift and Kotlin binding surfaces are implementation
 details. Only the public TypeScript API is supported for SDK adopters.
+
+## Consumer compatibility
+
+The native payload supports only:
+
+- iOS 15.1+ on arm64 devices and arm64/x86_64 simulators; and
+- Android API 24+ on `arm64-v8a` and `x86_64`.
+
+Expo Go, unsupported ABIs, standalone CocoaPods/Maven/SwiftPM distribution, and
+direct generated native APIs are outside the alpha contract. The exact Expo,
+React Native, Xcode, JDK, NDK, Rust, and Ledger versions are recorded in the
+[compatibility matrix](./COMPATIBILITY.md).
+
+## Release interpretation
+
+The hashes above record the validated M4 candidate and may change when reviewed
+source, toolchain, or release metadata changes. A downloadable release is
+authoritative only when its own `artifacts/release/SHA256SUMS.json`, SBOM,
+license report, and provenance record cover the attached tarball and native
+archives from the same tag. A checksum proves byte identity, not safety,
+compatibility, or permission to distribute.

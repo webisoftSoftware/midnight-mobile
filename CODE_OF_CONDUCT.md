@@ -66,6 +66,11 @@ conduct report in a public issue. If no private contact method is available, use
 All complaints will be reviewed and investigated promptly and fairly. Community
 leaders will respect the privacy and security of the reporter of any incident.
 
+Do not include wallet seeds, checkpoints, credentials, private endpoints,
+transaction payloads, sensitive logs, or unrelated personal data in a conduct
+report. First send the minimum information needed to establish a private
+channel. Technical vulnerabilities must follow [`SECURITY.md`](./SECURITY.md).
+
 ## Enforcement guidelines
 
 Community leaders will follow these Community Impact Guidelines in determining

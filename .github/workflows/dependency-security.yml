@@ -1,0 +1,100 @@
+name: Dependency security
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-security:
+    name: Dependency security
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository and history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install exact Node dependencies
+        run: |
+          npm install --global npm@11.12.1
+          npm ci
+
+      - name: Run deterministic source and dependency policy
+        run: npm run check:security -- --source-only
+
+      - name: Use Go 1.26.2
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.0.0
+        with:
+          go-version: 1.26.2
+          cache: false
+
+      - name: Install pinned OSV-Scanner
+        run: |
+          go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.3.8
+          osv-scanner --version | grep -F "2.3.8"
+
+      - name: Download public OSV database without project data
+        shell: bash
+        env:
+          OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: ${{ runner.temp }}/osv-db
+        run: |
+          mkdir -p artifacts/security
+          set +e
+          osv-scanner scan source --offline --download-offline-databases \
+            --no-resolve --format=json -L package-lock.json \
+            > artifacts/security/osv-download-results.json
+          download_status=$?
+          set -e
+          if [[ "$download_status" -gt 1 ]]; then
+            exit "$download_status"
+          fi
+          sha256sum \
+            "$OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY/osv-scanner/npm/all.zip" \
+            > artifacts/security/osv-npm-database-sha256.txt
+
+      - name: Scan npm lockfile locally against the offline OSV database
+        shell: bash
+        env:
+          OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: ${{ runner.temp }}/osv-db
+        run: |
+          set +e
+          osv-scanner scan source --offline --no-resolve --format=json \
+            -L package-lock.json > artifacts/security/osv-results.json
+          osv_status=$?
+          set -e
+          if [[ "$osv_status" -gt 1 ]]; then
+            exit "$osv_status"
+          fi
+          node scripts/check-osv-findings.mjs artifacts/security/osv-results.json
+
+      - name: Install pinned RustSec audit tool
+        run: |
+          rustup toolchain install 1.97.1 --profile minimal
+          cargo install cargo-audit --version 0.22.2 --locked
+
+      - name: Reject RustSec vulnerabilities and warnings
+        run: |
+          cargo audit --json --deny warnings \
+            > artifacts/security/cargo-audit.json
+
+      - name: Upload advisory evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dependency-security-evidence
+          path: artifacts/security
+          if-no-files-found: error
+          retention-days: 14

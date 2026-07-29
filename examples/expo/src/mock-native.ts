@@ -79,6 +79,7 @@ export class MockNativeRuntimeModule implements NativeRuntimeModule {
     unshielded: 0,
     dust: 0,
   };
+  readonly #caughtUp = new Set<MidnightSyncStream>();
   readonly #operations = new Map<number, MockOperation>();
   #configuration: MockSessionConfiguration | null = null;
   #nextOperationId = 1;
@@ -110,15 +111,35 @@ export class MockNativeRuntimeModule implements NativeRuntimeModule {
     payloadsBase64: readonly string[],
   ): Promise<string> {
     this.#validateSession(sessionId, generation);
-    void payloadsBase64;
-    if (stream !== "shielded" && stream !== "unshielded" && stream !== "dust") {
+    const terminal = stream.endsWith("-tip");
+    const canonical = terminal ? stream.slice(0, -4) : stream;
+    if (
+      canonical !== "shielded" &&
+      canonical !== "unshielded" &&
+      canonical !== "dust"
+    ) {
       return Promise.reject(new Error("INVALID_ARGUMENT"));
     }
-    const duplicate = this.#offsets[stream] === toOffset;
-    if (!duplicate && this.#offsets[stream] !== fromOffset) {
+    if (
+      terminal &&
+      (payloadsBase64.length !== 0 ||
+        fromOffset !== toOffset ||
+        this.#offsets[canonical] !== fromOffset)
+    ) {
       return Promise.reject(new Error("SYNC_GAP"));
     }
-    this.#offsets[stream] = toOffset;
+    if (terminal) {
+      this.#caughtUp.add(canonical);
+      return Promise.resolve(
+        JSON.stringify({ duplicate: false, snapshot: this.#snapshot() }),
+      );
+    }
+    const duplicate = this.#offsets[canonical] === toOffset;
+    if (!duplicate && this.#offsets[canonical] !== fromOffset) {
+      return Promise.reject(new Error("SYNC_GAP"));
+    }
+    this.#offsets[canonical] = toOffset;
+    this.#caughtUp.delete(canonical);
     return Promise.resolve(
       JSON.stringify({ duplicate, snapshot: this.#snapshot() }),
     );
@@ -138,6 +159,9 @@ export class MockNativeRuntimeModule implements NativeRuntimeModule {
       this.#offsets.shielded,
       this.#offsets.unshielded,
       this.#offsets.dust,
+      this.#caughtUp.has("shielded") ? 1 : 0,
+      this.#caughtUp.has("unshielded") ? 1 : 0,
+      this.#caughtUp.has("dust") ? 1 : 0,
     );
     return Promise.resolve(encodeMockBase64(bytes));
   }
@@ -248,7 +272,7 @@ export class MockNativeRuntimeModule implements NativeRuntimeModule {
   #snapshot(): object {
     const configuration = this.#configuration;
     if (configuration === null) throw new Error("STALE_SESSION");
-    const ready = Object.values(this.#offsets).every((offset) => offset > 0);
+    const ready = this.#caughtUp.size === 3;
     return {
       ...configuration,
       status: ready ? "ready" : "syncing",
@@ -278,10 +302,20 @@ export class MockNativeRuntimeModule implements NativeRuntimeModule {
 
   #restore(checkpointBase64: string): void {
     const bytes = decodeMockBase64(checkpointBase64);
-    if (bytes.length !== 3) throw new Error("STATE_INCOMPATIBLE");
+    if (bytes.length !== 6) throw new Error("STATE_INCOMPATIBLE");
     this.#offsets.shielded = bytes[0] ?? 0;
     this.#offsets.unshielded = bytes[1] ?? 0;
     this.#offsets.dust = bytes[2] ?? 0;
+    this.#caughtUp.clear();
+    for (const [index, stream] of [
+      "shielded",
+      "unshielded",
+      "dust",
+    ].entries()) {
+      if (bytes[index + 3] === 1) {
+        this.#caughtUp.add(stream as MidnightSyncStream);
+      }
+    }
   }
 
   #validateSession(sessionId: number, generation: number): void {

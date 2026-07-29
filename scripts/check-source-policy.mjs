@@ -5,7 +5,7 @@ import { listRepositoryFiles } from "./quality-utils.mjs";
 
 const MAX_PHYSICAL_LINES = 500;
 const EXCEPTIONS_PATH = "scripts/source-policy-exceptions.json";
-const MILESTONES = ["M0", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"];
+const MILESTONES = ["M0", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9"];
 const SOURCE_EXTENSIONS = new Set([
   ".gradle",
   ".js",
@@ -111,7 +111,7 @@ function validateExceptionExpiry(entry, policy, label, errors) {
     const currentIndex = MILESTONES.indexOf(policy.currentMilestone);
     const expiryIndex = MILESTONES.indexOf(expiryMilestone);
     if (currentIndex === -1 || expiryIndex === -1) {
-      addError(errors, label, "milestones must be one of M0 through M8");
+      addError(errors, label, "milestones must be one of M0 through M9");
     } else if (expiryIndex < currentIndex) {
       addError(errors, label, `exception expired at ${expiryMilestone}`);
     }
