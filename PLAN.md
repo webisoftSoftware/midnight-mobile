@@ -109,9 +109,13 @@ fetch, WebSocket, endpoint-header, timeout, and cancellation implementations.
   and the initial source commit for secrets and forbidden content.
 - If a potentially live credential is discovered, exclude it and rotate it
   externally without changing the 1AM repository.
-- License the audited copy as `MIT OR Apache-2.0`; include both license texts,
-  dependency attribution, `NOTICE`, `SECURITY.md`, and an explicit
-  unofficial/community-maintained disclaimer.
+- Keep repository-authored bootstrap material under `MIT OR Apache-2.0` and
+  preserve the assessed component's MIT declarations and provenance during
+  internal implementation. Defer the extracted implementation's final copyright,
+  attribution, and distribution terms to the destination-repository migration.
+  Resolve them before any npm publication or public distribution, then include
+  the chosen license texts, dependency attribution, `NOTICE`, `SECURITY.md`, and
+  an explicit unofficial/community-maintained disclaimer.
 - Keep the Rust crate `publish = false` and pinned to the currently tested
   Midnight Ledger `8.1.0` revision with a committed lockfile.
 

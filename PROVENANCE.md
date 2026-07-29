@@ -16,11 +16,16 @@ sanitization gates in `PLAN.md`.
 The source and dependency metadata at the assessed commit was audited on
 2026-07-29. The component manifests claim MIT, but the assessed repository
 contains no root license/notice file, the component contains no license text or
-per-file license headers, and the available metadata does not prove ownership or
-sublicensing authority for every allowlisted file. The evidence required to
-clear that source-landing blocker is recorded in
-[`docs/THIRD_PARTY_INVENTORY.md`](./docs/THIRD_PARTY_INVENTORY.md). No
-source-derived material may land until it is resolved through review.
+per-file license headers, and the available metadata does not conclusively
+identify the copyright owner. By project-owner direction on 2026-07-29, that
+question is deferred to the future destination-repository migration and is not
+an internal source-landing gate in this private implementation repository. The
+known evidence and the destination release gate are recorded in
+[`docs/THIRD_PARTY_INVENTORY.md`](./docs/THIRD_PARTY_INVENTORY.md).
+
+No npm publication, public repository transition, or other public distribution
+may occur until the destination repository records the final copyright,
+attribution, and distribution decision.
 
 An initial 2026-07-29 extraction audit bracket did not pass because the source
 checkout's complete porcelain output changed during the read-only audit. A fresh

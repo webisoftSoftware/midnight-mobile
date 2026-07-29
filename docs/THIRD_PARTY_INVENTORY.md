@@ -2,11 +2,13 @@
 
 ## Audit status
 
-**Source landing is blocked.** The dependency licenses below are compatible in
-principle with the planned distribution, but the assessed 1AM component's
-ownership and source-license evidence is incomplete. No source-derived material
-may enter this repository, a native binary, or an npm package until the source
-license gap is resolved and reviewed.
+**Private internal implementation may proceed.** The dependency licenses below
+are compatible in principle with the planned distribution, while the assessed
+1AM component's final copyright and source-license evidence remains incomplete.
+By project-owner direction on 2026-07-29, that decision is deferred to the
+future destination-repository migration. It does not block source landing in
+this private implementation repository, but it blocks npm publication, public
+repository visibility, and any other public distribution.
 
 This is an engineering compliance record, not legal advice. It inventories the
 direct dependency surface at source commit
@@ -42,13 +44,15 @@ Evidence read from the pinned commit:
   another commissioning party.
 
 The manifest declarations are evidence of intended MIT licensing, but they do
-not provide the required MIT notice or prove that the declarant owns or is
-authorized to license every contribution. They are therefore insufficient for
-the M0 ownership audit and for copying or redistributing source.
+not provide the exact MIT notice or conclusively identify the copyright owner.
+That evidence is sufficient for the project-owner-authorized private
+implementation phase, but not for the destination repository's final publication
+and distribution decision.
 
-### Required evidence to clear the blocker
+### Required evidence before destination publication
 
-Record all of the following before source landing:
+Record all of the following during destination-repository migration and before
+public distribution:
 
 1. The legal name of the relevant copyright owner and confirmation of the
    relationship among Alvaro Gonzalez, `ADGLx`, `1AM`, and Webisoft Software.
@@ -192,10 +196,11 @@ Android binary gate.
 
 ## Source and binary release requirements
 
-Before distributing source, generated bindings, native libraries, an example
-binary, or an npm tarball:
+Before publicly distributing source, generated bindings, native libraries, an
+example binary, or an npm tarball from the destination repository:
 
-1. Resolve the assessed source ownership/license blocker.
+1. Resolve and record the assessed source copyright, attribution, and final
+   distribution terms.
 2. Generate a complete transitive SBOM for Cargo, npm, CocoaPods, Gradle, and
    native payloads; this direct inventory is not sufficient for release.
 3. Generate a third-party notices artifact with dependency-specific copyright
@@ -208,10 +213,10 @@ binary, or an npm tarball:
 8. Record exact checksums for the npm tarball, Apple/Android libraries, JNA AAR,
    SBOM, notices, and source archive.
 
-`NOTICE` is not changed by this audit because no third-party source or binary is
-currently distributed and the existing file already states that the ownership
-audit is incomplete. Add verified upstream attribution to `NOTICE` only when the
-source blocker is cleared and source-derived material is approved to land.
+The current `NOTICE` records that the final copyright and attribution decision
+is deferred to the destination repository. Add verified upstream attribution
+there before public distribution; private internal source landing does not
+complete or waive that future gate.
 
 ## Evidence references
 

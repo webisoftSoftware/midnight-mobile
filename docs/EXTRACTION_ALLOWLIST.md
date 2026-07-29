@@ -10,9 +10,10 @@ This allowlist applies only to committed content at:
 
 The commit is authoritative. Every source path not listed below is denied. No
 glob, directory entry, moving branch, working-tree file, generated binary, or
-Git history is authorized. This document does not authorize source to land until
-the ownership and source-license gaps in
-[`THIRD_PARTY_INVENTORY.md`](./THIRD_PARTY_INVENTORY.md) are resolved.
+Git history is authorized. This document authorizes only private internal
+staging and implementation. Final copyright, attribution, and distribution terms
+remain a destination-repository release gate recorded in
+[`THIRD_PARTY_INVENTORY.md`](./THIRD_PARTY_INVENTORY.md).
 
 Extraction must use `git show` or `git archive` under section 2.1 of
 [`LONG_TERM_PROJECT_PLAN.md`](./LONG_TERM_PROJECT_PLAN.md). Content first enters
@@ -50,9 +51,9 @@ The fresh audit proved that this document forms a closed-world partition of all
 - the component `.gitignore` and README excluded by the component-level rule;
 - no missing paths, overlaps, or uncovered files.
 
-No source was copied. A new source-state bracket is required around extraction,
-and the ownership/source-license blocker must be resolved before staging or
-landing.
+No source was copied. A new source-state bracket is required around extraction.
+The deferred copyright decision does not block private internal staging or
+landing, but it blocks publication and public distribution.
 
 ## Package and native build basis
 
@@ -208,15 +209,15 @@ telemetry, and every path outside the component are also denied.
 
 Before any sanitized source moves from temporary staging into this repository:
 
-1. Resolve and record the source ownership/license blocker in
-   [`THIRD_PARTY_INVENTORY.md`](./THIRD_PARTY_INVENTORY.md).
-2. Confirm the staged input path set is an exact subset of this allowlist.
-3. Confirm every **Select** target contains only the stated wallet-core
+1. Confirm the staged input path set is an exact subset of this allowlist.
+2. Confirm every **Select** target contains only the stated wallet-core
    behavior.
-4. Scan source and generated text for social, FT/NFT, verifier artifacts,
+3. Scan source and generated text for social, FT/NFT, verifier artifacts,
    gateway signing, `/chain-data/v2`, viewing-key upload, IPFS, private fast
    sync, operated endpoints, credentials, and upstream application paths.
-5. Generate bindings only from the sanitized Rust runtime.
-6. Generate new deterministic synthetic fixtures and record their recipes.
-7. Re-run the source checkout HEAD and full porcelain checks and require
+4. Generate bindings only from the sanitized Rust runtime.
+5. Generate new deterministic synthetic fixtures and record their recipes.
+6. Re-run the source checkout HEAD and full porcelain checks and require
    byte-identical output.
+7. Keep the repository private and do not publish source or artifacts until the
+   destination-repository copyright and distribution gate is complete.

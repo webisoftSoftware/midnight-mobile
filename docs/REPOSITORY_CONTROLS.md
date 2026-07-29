@@ -34,8 +34,11 @@ Configure a ruleset or branch protection rule that:
 - requires branches to be up to date before merging;
 - requires all review conversations to be resolved;
 - blocks force pushes and branch deletion;
-- prevents bypass for changes to code, native binaries, security policy, or
-  release workflows.
+- permits repository-owner or administrator merge authority for completed
+  agent-authored pull requests after primary review and passing required checks,
+  as defined in `AGENTS.md`;
+- never permits bypass of a failing required check, unresolved third-party
+  feedback, or an independent approval the user explicitly required.
 
 The quality workflow deliberately gives its required job the stable name
 `Repository quality`. Do not mark that check optional, warning-only, or
@@ -44,9 +47,8 @@ skippable when applicable.
 ## Ownership
 
 `.github/CODEOWNERS` routes all paths to `@ADGLx` during bootstrap. This is a
-temporary maintainer assignment, not evidence that specialist or intellectual
-property ownership has been audited. Add or replace owners when the following
-roles are assigned:
+temporary maintainer assignment, not evidence of specialist ownership. Add or
+replace owners when the following roles are assigned:
 
 - Rust wallet runtime and UniFFI;
 - public React Native and Expo API;
@@ -54,8 +56,10 @@ roles are assigned:
 - security policy and threat-model documentation;
 - CI, binary builds, and release workflows.
 
-Keep at least one owner with write access on every listed path. Complete the
-separate ownership and dual-license audit before importing source.
+Keep at least one owner with write access on every listed path. Final copyright,
+attribution, and distribution terms for extracted source are decided during the
+destination-repository migration and block publication, not private internal
+implementation.
 
 ## Labels
 
