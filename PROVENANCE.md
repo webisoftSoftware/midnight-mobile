@@ -69,4 +69,11 @@ inputs, not repository or release artifacts. The exact landed Rust and React
 Native path set and each file's origin class are machine-checked in
 [`scripts/m1-sanitized-target-manifest.json`](./scripts/m1-sanitized-target-manifest.json).
 
+That 72-file M1 manifest is immutable extraction evidence. M2
+repository-authored hardening tests and test infrastructure are tracked
+separately in the live 80-file
+[`scripts/m2-sanitized-target-manifest.json`](./scripts/m2-sanitized-target-manifest.json).
+The wallet-core boundary gate points to the M2 manifest without rewriting the M1
+landing record.
+
 This project is community-maintained and is not an official Midnight SDK.

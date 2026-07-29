@@ -15,7 +15,7 @@ import { validateSanitizedTargetManifest } from "./check-wallet-core-targets.mjs
 
 const targetManifest = JSON.parse(
   readFileSync(
-    new URL("./m1-sanitized-target-manifest.json", import.meta.url),
+    new URL("./m2-sanitized-target-manifest.json", import.meta.url),
     "utf8",
   ),
 );
@@ -68,7 +68,7 @@ function includesError(errors, fragment) {
   );
 }
 
-test("policy manifest fixes the contract, scan roots, and temporary waiver", () => {
+test("policy manifest fixes contracts, scan roots, and coverage gates", () => {
   assert.deepEqual(validatePolicyManifest(structuredClone(manifest)), []);
 });
 
@@ -77,21 +77,17 @@ test("policy manifest rejects command, scan, issue, and expiry drift", () => {
   value.commandKinds.pop();
   value.textInputs.pop();
   value.rustCoverageException.trackingIssue =
-    "https://github.com/ADGLx/midnight-mobile/issues/8";
-  value.typescriptCoverageException.trackingIssue =
-    "https://github.com/ADGLx/midnight-mobile/issues/17";
-  value.typescriptCoverageException.runner = "raw-source-tests";
-  value.typescriptCoverageException.measuredPercent.functions = 64;
+    "https://github.com/ADGLx/midnight-mobile/issues/39";
+  value.typescriptCoverage.runner = "test-inclusive";
+  value.typescriptCoverage.minimumPercent.functions = 64;
   value.currentMilestone = "M5";
   const errors = validatePolicyManifest(value);
   includesError(errors, "exact ordered 19-kind contract");
   includesError(errors, "all maintained/generated/package roots");
-  includesError(errors, "issues/7");
+  includesError(errors, "issues/40");
   includesError(errors, "expired at M5");
-  includesError(errors, "issues/16");
-  includesError(errors, "compiled-node-tests");
-  includesError(errors, "measuredPercent.functions");
-  includesError(errors, "expired at M3");
+  includesError(errors, "compiled-production-node-tests");
+  includesError(errors, "minimumPercent.functions");
 });
 
 test("extracts all TypeScript and Rust command surfaces", () => {
@@ -160,6 +156,7 @@ test("target manifest fixes schema and rejects target-set drift", () => {
 test("rejects raw-input and generated-output directories in target data", () => {
   const directories = [
     ["_", "input"].join(""),
+    [".", "declaration", "-", "build"].join(""),
     ["tar", "get"].join(""),
     ["bu", "ild"].join(""),
     ["staging", "-", "build"].join(""),

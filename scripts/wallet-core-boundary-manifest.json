@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "currentMilestone": "M1",
+  "currentMilestone": "M2",
   "contracts": {
     "typescript": "packages/react-native/src/commands.ts",
     "rust": "crates/runtime/src/runtime/types.rs",
-    "extractionManifest": "scripts/m1-sanitized-target-manifest.json"
+    "extractionManifest": "scripts/m2-sanitized-target-manifest.json"
   },
   "commandKinds": [
     "signData",
@@ -131,29 +131,23 @@
   ],
   "rustCoverageException": {
     "rule": "rust-line-coverage",
-    "measuredPercent": 14.73,
+    "measuredPercent": 28.06,
+    "enforcedPercent": 28.05,
     "minimumPercent": 80,
-    "trackingIssue": "https://github.com/ADGLx/midnight-mobile/issues/7",
+    "trackingIssue": "https://github.com/ADGLx/midnight-mobile/issues/40",
     "activeFromMilestone": "M1",
     "expiresAtMilestone": "M5",
-    "removalCondition": "Raise measured Rust runtime line coverage from 14.73 percent to at least 80 percent and enforce that threshold in required CI before M5 begins."
+    "removalCondition": "Raise measured Rust runtime line coverage from the M2 baseline of 28.06 percent to at least 80 percent and enforce that threshold in required CI before M5 begins."
   },
-  "typescriptCoverageException": {
+  "typescriptCoverage": {
     "rule": "typescript-coverage",
-    "trackingIssue": "https://github.com/ADGLx/midnight-mobile/issues/16",
-    "runner": "compiled-node-tests",
-    "activeFromMilestone": "M1",
-    "expiresAtMilestone": "M3",
-    "measuredPercent": {
-      "lines": 71.3,
-      "branches": 73.23,
-      "functions": 63.19
-    },
-    "requiredPercent": {
+    "runner": "compiled-production-node-tests",
+    "include": "packages/react-native/.staging-build/src/**/*.js",
+    "setupImport": "packages/react-native/test-support/register-peer-stubs.mjs",
+    "minimumPercent": {
       "lines": 85,
       "branches": 75,
       "functions": 85
-    },
-    "removalCondition": "Raise compiled React Native package coverage to at least 85 percent lines, 75 percent branches, and 85 percent functions, then enforce raw TypeScript coverage in required CI before M3 begins."
+    }
   }
 }

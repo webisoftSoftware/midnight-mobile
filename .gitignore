@@ -12,6 +12,7 @@ target/
 dist/
 build/
 .staging-build/
+.declaration-build/
 coverage/
 android/.gradle/
 android/local.properties

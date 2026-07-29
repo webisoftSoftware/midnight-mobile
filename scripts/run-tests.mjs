@@ -1,4 +1,5 @@
 import { existsSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { loadCoveragePolicy } from "./coverage-policy.mjs";
 import {
@@ -91,14 +92,17 @@ if (
         process.exitCode = 1;
         testsPassed = false;
       } else {
-        const baseline = coveragePolicy.typescript.measuredPercent;
+        const minimum = coveragePolicy.typescript.minimumPercent;
         testsPassed =
           runCommand("node", [
+            "--import",
+            resolve(coveragePolicy.typescript.setupImport),
             "--experimental-test-coverage",
             "--test",
-            `--test-coverage-lines=${String(baseline.lines)}`,
-            `--test-coverage-branches=${String(baseline.branches)}`,
-            `--test-coverage-functions=${String(baseline.functions)}`,
+            `--test-coverage-include=${coveragePolicy.typescript.include}`,
+            `--test-coverage-lines=${String(minimum.lines)}`,
+            `--test-coverage-branches=${String(minimum.branches)}`,
+            `--test-coverage-functions=${String(minimum.functions)}`,
             ...compiledTests,
           ]) && testsPassed;
       }
@@ -123,7 +127,7 @@ if (
         "--all-features",
         "--all-targets",
         "--fail-under-lines",
-        String(coveragePolicy.rust.measuredPercent),
+        String(coveragePolicy.rust.enforcedPercent),
         "--",
         "--test-threads=1",
       ]) && testsPassed;

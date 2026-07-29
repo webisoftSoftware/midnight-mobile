@@ -25,6 +25,7 @@ declare module "react" {
     dependencies: readonly unknown[],
   ): T;
   export function useState<T>(initial: T): [T, (value: T) => void];
+  export function __runEffectCleanups(): void;
 }
 
 declare module "react-native" {
@@ -33,5 +34,6 @@ declare module "react-native" {
       event: "change",
       listener: (state: string) => void,
     ): { remove(): void };
+    __emit(state: string): void;
   };
 }

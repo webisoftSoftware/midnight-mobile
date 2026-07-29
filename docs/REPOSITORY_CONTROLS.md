@@ -17,9 +17,8 @@ for it.
 to public repositories. Enable and verify it during the M6 visibility change;
 until then, `SECURITY.md` provides the private pre-release contact path.
 
-Except for controls explicitly assigned to the M6 visibility change, the
-settings below must be applied and verified in GitHub before the M1 source
-import pull request. Committing this document or a workflow does not configure
+Except for controls explicitly deferred below, the settings must be applied and
+verified in GitHub. Committing this document or a workflow does not configure
 server-side repository settings.
 
 ## Branch protection for `main`
@@ -30,19 +29,25 @@ Configure a ruleset or branch protection rule that:
 - requires at least one approving review;
 - dismisses stale approvals when reviewable content changes;
 - requires review from Code Owners;
-- requires the `Repository quality` status check;
-- requires branches to be up to date before merging;
 - requires all review conversations to be resolved;
 - blocks force pushes and branch deletion;
 - permits repository-owner or administrator merge authority for completed
-  agent-authored pull requests after primary review and passing required checks,
-  as defined in `AGENTS.md`;
+  agent-authored pull requests after primary review and a successful full local
+  `npm run quality`, as defined in `AGENTS.md`;
 - never permits bypass of a failing required check, unresolved third-party
   feedback, or an independent approval the user explicitly required.
 
-The quality workflow deliberately gives its required job the stable name
-`Repository quality`. Do not mark that check optional, warning-only, or
-skippable when applicable.
+Automatic pull-request and push triggers and required status checks are
+deliberately disabled during M1-M4 to control build cost. The quality workflow
+remains manually dispatchable and preserves the stable job name
+`Repository quality`. Every completed M1-M4 change must instead pass the full
+local `npm run quality` gate, with the result recorded during primary review.
+This temporary policy does not weaken or remove any local quality command.
+
+M5 must restore automatic pull-request CI, require `Repository quality` in
+branch protection, require protected branches to be up to date, and verify that
+the required check cannot be skipped, made warning-only, or bypassed after a
+failure.
 
 ## Ownership
 
@@ -93,13 +98,19 @@ details belong in a private security advisory.
 
 ## Verification record
 
-Before source import, record evidence that:
+Record evidence that:
 
 1. the repository remains private and `main` remains the default branch;
 2. branch protection or the equivalent ruleset is active;
-3. the required check resolves to the `Repository quality` job;
+3. during M1-M4, required status checks are absent by deliberate policy, the
+   workflow is manual-only, and completed changes have full local quality
+   evidence;
 4. CODEOWNERS review is requested on representative protected paths;
 5. issue forms apply their configured labels;
 6. before M6, the private pre-release contact path is reachable; during the M6
    visibility change, private vulnerability reporting is enabled and reachable;
 7. Dependabot alerts and security updates are enabled.
+
+At M5, add a new verification record proving that automatic pull-request
+triggers are restored and the required check resolves to the
+`Repository quality` job.

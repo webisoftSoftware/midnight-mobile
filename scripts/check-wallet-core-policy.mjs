@@ -11,29 +11,24 @@ export const MILESTONES = Object.freeze(
 const EXPECTED_CONTRACTS = Object.freeze({
   typescript: "packages/react-native/src/commands.ts",
   rust: "crates/runtime/src/runtime/types.rs",
-  extractionManifest: "scripts/m1-sanitized-target-manifest.json",
+  extractionManifest: "scripts/m2-sanitized-target-manifest.json",
 });
 const EXPECTED_RUST_EXCEPTION = Object.freeze({
   rule: "rust-line-coverage",
-  measuredPercent: 14.73,
+  measuredPercent: 28.06,
+  enforcedPercent: 28.05,
   minimumPercent: 80,
-  trackingIssue: "https://github.com/ADGLx/midnight-mobile/issues/7",
+  trackingIssue: "https://github.com/ADGLx/midnight-mobile/issues/40",
   activeFromMilestone: "M1",
   expiresAtMilestone: "M5",
 });
-const EXPECTED_TYPESCRIPT_EXCEPTION = Object.freeze({
+const EXPECTED_TYPESCRIPT_COVERAGE = Object.freeze({
   rule: "typescript-coverage",
-  trackingIssue: "https://github.com/ADGLx/midnight-mobile/issues/16",
-  runner: "compiled-node-tests",
-  activeFromMilestone: "M1",
-  expiresAtMilestone: "M3",
+  runner: "compiled-production-node-tests",
+  include: "packages/react-native/.staging-build/src/**/*.js",
+  setupImport: "packages/react-native/test-support/register-peer-stubs.mjs",
 });
-const EXPECTED_TYPESCRIPT_MEASURED = Object.freeze({
-  lines: 71.3,
-  branches: 73.23,
-  functions: 63.19,
-});
-const EXPECTED_TYPESCRIPT_REQUIRED = Object.freeze({
+const EXPECTED_TYPESCRIPT_MINIMUM = Object.freeze({
   lines: 85,
   branches: 75,
   functions: 85,
@@ -152,33 +147,20 @@ function validateRustException(manifest, current, errors) {
   }
 }
 
-function validateTypescriptException(manifest, current, errors) {
-  const typescript = manifest.typescriptCoverageException;
+function validateTypescriptCoverage(manifest, errors) {
+  const typescript = manifest.typescriptCoverage;
   checkExpected(
     typescript,
-    EXPECTED_TYPESCRIPT_EXCEPTION,
-    "typescriptCoverageException",
+    EXPECTED_TYPESCRIPT_COVERAGE,
+    "typescriptCoverage",
     errors,
   );
   checkExpected(
-    typescript?.measuredPercent,
-    EXPECTED_TYPESCRIPT_MEASURED,
-    "typescriptCoverageException.measuredPercent",
+    typescript?.minimumPercent,
+    EXPECTED_TYPESCRIPT_MINIMUM,
+    "typescriptCoverage.minimumPercent",
     errors,
   );
-  checkExpected(
-    typescript?.requiredPercent,
-    EXPECTED_TYPESCRIPT_REQUIRED,
-    "typescriptCoverageException.requiredPercent",
-    errors,
-  );
-  checkRemovalCondition(typescript, "typescriptCoverageException", errors);
-  const typescriptExpiry = MILESTONES.indexOf(typescript?.expiresAtMilestone);
-  if (current >= typescriptExpiry && typescriptExpiry >= 0) {
-    errors.push(
-      `TypeScript coverage exception expired at ${typescript.expiresAtMilestone}`,
-    );
-  }
 }
 
 export function validatePolicyManifest(manifest) {
@@ -189,6 +171,6 @@ export function validatePolicyManifest(manifest) {
   validateBoundaryInputs(manifest, errors);
   const current = MILESTONES.indexOf(manifest.currentMilestone);
   validateRustException(manifest, current, errors);
-  validateTypescriptException(manifest, current, errors);
+  validateTypescriptCoverage(manifest, errors);
   return errors;
 }
