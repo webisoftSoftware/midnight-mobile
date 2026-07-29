@@ -14,9 +14,10 @@ contain wallet-core functionality only. Social features, FT/NFT support,
 contract verifier artifacts, 1AM gateway authentication, and private fast sync
 are explicitly out of scope.
 
-Repository controls and quality tooling are established; runtime extraction is
-the current workstream. See [PLAN.md](./PLAN.md) for the accepted extraction,
-security, packaging, and release plan.
+Repository controls, quality tooling, and the allowlisted runtime extraction are
+established. Wallet-core hardening is the current workstream. See
+[PLAN.md](./PLAN.md) for the accepted extraction, security, packaging, and
+release plan.
 
 For the milestone-by-milestone delivery roadmap, see
 [docs/LONG_TERM_PROJECT_PLAN.md](./docs/LONG_TERM_PROJECT_PLAN.md).
@@ -24,7 +25,8 @@ For the milestone-by-milestone delivery roadmap, see
 ## Status
 
 - Repository bootstrap: complete
-- Sanitized source extraction: ready for a fresh source-state bracket
+- Allowlisted source extraction: complete
+- Wallet-core sanitization: in progress
 - Public release: not started
 
 ## License

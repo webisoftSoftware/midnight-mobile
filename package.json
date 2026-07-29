@@ -17,9 +17,12 @@
     "lint:shell": "node scripts/run-shellcheck.mjs",
     "check:source-policy": "node scripts/check-source-policy.mjs",
     "check:extraction-allowlist": "node scripts/check-extraction-allowlist.mjs",
+    "check:bindings": "node scripts/check-uniffi-bindings.mjs",
+    "generate:bindings": "node scripts/check-uniffi-bindings.mjs --write",
     "typecheck": "node scripts/run-typecheck.mjs",
     "test": "node scripts/run-tests.mjs",
-    "quality": "npm run format:check && npm run lint:markdown && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm run check:source-policy && npm run check:extraction-allowlist && npm run typecheck && npm test"
+    "quality": "npm run format:check && npm run lint:markdown && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm run check:source-policy && npm run check:extraction-allowlist && npm run check:wallet-core-boundary && npm run check:bindings && npm run typecheck && npm test",
+    "check:wallet-core-boundary": "node scripts/check-wallet-core-boundary.mjs"
   },
   "overrides": {
     "brace-expansion@<2": "1.1.17",

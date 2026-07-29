@@ -1,0 +1,37 @@
+declare module "expo-modules-core" {
+  export function requireNativeModule(name: string): unknown;
+}
+
+declare module "react" {
+  export type ReactNode = object | string | number | boolean | null | undefined;
+  export interface Context<T> {
+    readonly Provider: {
+      readonly contextValue?: T;
+    };
+  }
+  export function createContext<T>(value: T): Context<T>;
+  export function createElement(
+    type: object,
+    props: object,
+    children?: ReactNode,
+  ): ReactNode;
+  export function useContext<T>(context: Context<T>): T;
+  export function useEffect(
+    effect: () => undefined | (() => undefined),
+    dependencies: readonly unknown[],
+  ): void;
+  export function useMemo<T>(
+    factory: () => T,
+    dependencies: readonly unknown[],
+  ): T;
+  export function useState<T>(initial: T): [T, (value: T) => void];
+}
+
+declare module "react-native" {
+  export const AppState: {
+    addEventListener(
+      event: "change",
+      listener: (state: string) => void,
+    ): { remove(): void };
+  };
+}

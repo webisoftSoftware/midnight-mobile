@@ -1,0 +1,52 @@
+{
+  "name": "@1am/midnight-mobile",
+  "version": "0.1.0-alpha.1",
+  "description": "Community-maintained Midnight wallet runtime for React Native and Expo",
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "expo-module.config.json",
+    "ios/ExpoMidnightNative.podspec",
+    "ios/ExpoMidnightNativeModule.swift",
+    "ios/generated",
+    "ios/build/MidnightNativeRuntime.xcframework",
+    "android/build.gradle",
+    "android/src/main",
+    "android/generated"
+  ],
+  "sideEffects": false,
+  "peerDependencies": {
+    "expo": ">=55.0.0 <56.0.0",
+    "expo-modules-core": ">=55.0.0 <56.0.0",
+    "react": ">=19.2.0 <20.0.0",
+    "react-native": ">=0.83.0 <0.84.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.14",
+    "expo": "55.0.23",
+    "expo-modules-core": "55.0.25",
+    "react": "19.2.0",
+    "react-native": "0.83.6",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.staging.json --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test .staging-build/tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

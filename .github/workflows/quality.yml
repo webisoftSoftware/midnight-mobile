@@ -31,5 +31,10 @@ jobs:
       - name: Install pinned dependencies
         run: npm ci
 
+      - name: Install pinned Rust coverage tooling
+        run: |
+          rustup component add llvm-tools-preview
+          cargo install cargo-llvm-cov --version 0.8.6 --locked
+
       - name: Run repository quality gate
         run: npm run quality
