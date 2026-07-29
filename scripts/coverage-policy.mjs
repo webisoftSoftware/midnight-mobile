@@ -2,17 +2,13 @@ import { existsSync, readFileSync } from "node:fs";
 
 export const COVERAGE_MANIFEST_PATH =
   "scripts/wallet-core-boundary-manifest.json";
-export const TYPESCRIPT_M1_BASELINE = Object.freeze({
-  lines: 71.3,
-  branches: 73.23,
-  functions: 63.19,
-});
 export const TYPESCRIPT_TARGET = Object.freeze({
   lines: 85,
   branches: 75,
   functions: 85,
 });
-export const RUST_M1_BASELINE = 14.73;
+export const RUST_M2_MEASURED = 28.06;
+export const RUST_M2_ENFORCED = 28.05;
 export const RUST_TARGET = 80;
 
 const MILESTONES = Object.freeze([
@@ -95,74 +91,48 @@ function validateActiveWindow(exception, currentMilestone, field) {
   }
 }
 
-function validateTypeScriptException(value, currentMilestone) {
-  const field = "typescriptCoverageException";
-  const exception = requireObject(value, field);
-  requireExactString(exception.rule, "typescript-coverage", `${field}.rule`);
+function validateTypeScriptCoverage(value) {
+  const field = "typescriptCoverage";
+  const coverage = requireObject(value, field);
+  requireExactString(coverage.rule, "typescript-coverage", `${field}.rule`);
   requireExactString(
-    exception.trackingIssue,
-    "https://github.com/ADGLx/midnight-mobile/issues/16",
-    `${field}.trackingIssue`,
-  );
-  requireExactString(
-    exception.runner,
-    "compiled-node-tests",
+    coverage.runner,
+    "compiled-production-node-tests",
     `${field}.runner`,
   );
   requireExactString(
-    exception.activeFromMilestone,
-    "M1",
-    `${field}.activeFromMilestone`,
+    coverage.include,
+    "packages/react-native/.staging-build/src/**/*.js",
+    `${field}.include`,
   );
   requireExactString(
-    exception.expiresAtMilestone,
-    "M3",
-    `${field}.expiresAtMilestone`,
+    coverage.setupImport,
+    "packages/react-native/test-support/register-peer-stubs.mjs",
+    `${field}.setupImport`,
   );
-  requireConcreteText(exception.removalCondition, `${field}.removalCondition`);
-  validateActiveWindow(exception, currentMilestone, field);
-  const measured = requireObject(
-    exception.measuredPercent,
-    `${field}.measuredPercent`,
-  );
-  const required = requireObject(
-    exception.requiredPercent,
-    `${field}.requiredPercent`,
+  const minimum = requireObject(
+    coverage.minimumPercent,
+    `${field}.minimumPercent`,
   );
   return {
-    runner: exception.runner,
-    measuredPercent: {
+    runner: coverage.runner,
+    include: coverage.include,
+    setupImport: coverage.setupImport,
+    minimumPercent: {
       lines: requirePercentage(
-        measured.lines,
-        TYPESCRIPT_M1_BASELINE.lines,
-        `${field}.measuredPercent.lines`,
-      ),
-      branches: requirePercentage(
-        measured.branches,
-        TYPESCRIPT_M1_BASELINE.branches,
-        `${field}.measuredPercent.branches`,
-      ),
-      functions: requirePercentage(
-        measured.functions,
-        TYPESCRIPT_M1_BASELINE.functions,
-        `${field}.measuredPercent.functions`,
-      ),
-    },
-    requiredPercent: {
-      lines: requirePercentage(
-        required.lines,
+        minimum.lines,
         TYPESCRIPT_TARGET.lines,
-        `${field}.requiredPercent.lines`,
+        `${field}.minimumPercent.lines`,
       ),
       branches: requirePercentage(
-        required.branches,
+        minimum.branches,
         TYPESCRIPT_TARGET.branches,
-        `${field}.requiredPercent.branches`,
+        `${field}.minimumPercent.branches`,
       ),
       functions: requirePercentage(
-        required.functions,
+        minimum.functions,
         TYPESCRIPT_TARGET.functions,
-        `${field}.requiredPercent.functions`,
+        `${field}.minimumPercent.functions`,
       ),
     },
   };
@@ -174,7 +144,7 @@ function validateRustException(value, currentMilestone) {
   requireExactString(exception.rule, "rust-line-coverage", `${field}.rule`);
   requireExactString(
     exception.trackingIssue,
-    "https://github.com/ADGLx/midnight-mobile/issues/7",
+    "https://github.com/ADGLx/midnight-mobile/issues/40",
     `${field}.trackingIssue`,
   );
   requireExactString(
@@ -192,8 +162,13 @@ function validateRustException(value, currentMilestone) {
   return {
     measuredPercent: requirePercentage(
       exception.measuredPercent,
-      RUST_M1_BASELINE,
+      RUST_M2_MEASURED,
       `${field}.measuredPercent`,
+    ),
+    enforcedPercent: requirePercentage(
+      exception.enforcedPercent,
+      RUST_M2_ENFORCED,
+      `${field}.enforcedPercent`,
     ),
     requiredPercent: requirePercentage(
       exception.minimumPercent,
@@ -211,10 +186,7 @@ export function validateCoverageManifest(value) {
     manifest.rustCoverageException,
     currentMilestone,
   );
-  const typescript = validateTypeScriptException(
-    manifest.typescriptCoverageException,
-    currentMilestone,
-  );
+  const typescript = validateTypeScriptCoverage(manifest.typescriptCoverage);
   return {
     currentMilestone,
     typescript,

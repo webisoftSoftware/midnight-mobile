@@ -1,5 +1,3 @@
-use super::*;
-
 #[test]
 fn command_decoder_accepts_exactly_the_wallet_core_union() {
     let accepted = [
@@ -55,6 +53,7 @@ fn operation_step_embeds_results_as_objects_for_native_decoders() {
 
 #[test]
 fn snapshot_and_command_json_match_the_typescript_contract() {
+    let _runtime = isolated_runtime();
     let command: RuntimeCommand = serde_json::from_str(
         r#"{"kind":"createSyncRequest","stream":"dust","fromOffset":7,"limit":20}"#,
     )
@@ -85,6 +84,7 @@ fn snapshot_and_command_json_match_the_typescript_contract() {
 
 #[test]
 fn sign_data_result_matches_the_typescript_hex_contract() {
+    let _runtime = isolated_runtime();
     let handle = open_wallet_session(
         r#"{"networkId":"preview","walletFingerprint":"signer","unshieldedAddress":"address"}"#
             .to_owned(),

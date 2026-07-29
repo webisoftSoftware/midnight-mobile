@@ -349,10 +349,10 @@ function main() {
     `scan groups: maintained=${groups.get("maintained")}, generated=${groups.get("generated")}, package=${groups.get("package")}`,
   );
   console.log(
-    "temporary Rust line-coverage exception active for M1-M4; expires at M5; tracking issue #7",
+    "temporary Rust line-coverage exception active through M4; measured 28.06%; expires at M5; tracking issue #40",
   );
   console.log(
-    "temporary TypeScript coverage exception active for M1-M2; measured 71.30/73.23/63.19; expires at M3; tracking issue #16",
+    "TypeScript production coverage enforced at 85% lines, 75% branches, and 85% functions",
   );
 }
 

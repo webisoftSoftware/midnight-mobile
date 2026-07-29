@@ -26,6 +26,7 @@ const EXPECTED_ORIGINS = Object.freeze([
 ]);
 const OUTPUT_DIRECTORIES = new Set([
   "_input",
+  ".declaration-build",
   ".staging-build",
   "build",
   "dist",

@@ -183,5 +183,8 @@ pub fn close_wallet_session(session_id: u64, generation: u64) -> Result<(), Midn
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     include!("runtime/tests/sanitized.rs");
+    include!("runtime/tests/hardening.rs");
 }

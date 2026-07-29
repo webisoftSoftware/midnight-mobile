@@ -18,6 +18,8 @@ export default tseslint.config(
       "**/target/**",
       "**/dist/**",
       "**/build/**",
+      "**/.declaration-build/**",
+      "**/.staging-build/**",
       "**/artifacts/**",
       "**/coverage/**",
       "**/generated/**",

@@ -74,7 +74,7 @@ function stringArray(
   value: unknown,
   decode: (item: unknown) => string,
 ): string[] {
-  return Array.isArray(value) ? value.map(decode) : invalid();
+  return Array.isArray(value) ? value.map((item) => decode(item)) : invalid();
 }
 
 function optionalText(source: RecordValue, key: string): string | undefined {

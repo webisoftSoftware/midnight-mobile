@@ -42,14 +42,22 @@ pub fn open_wallet_session(
             return Err(MidnightRuntimeError::Unavailable);
         }
         if let Some(checkpoint) = &checkpoint {
-            runtime.next_generation = runtime
-                .next_generation
-                .max(checkpoint.generation.saturating_add(1));
+            let checkpoint_successor = checkpoint
+                .generation
+                .checked_add(1)
+                .ok_or(MidnightRuntimeError::StateIncompatible)?;
+            runtime.next_generation = runtime.next_generation.max(checkpoint_successor);
         }
         let id = runtime.next_id;
-        runtime.next_id = runtime.next_id.saturating_add(1);
         let generation = runtime.next_generation;
-        runtime.next_generation = runtime.next_generation.saturating_add(1);
+        let next_id = id
+            .checked_add(1)
+            .ok_or(MidnightRuntimeError::Unavailable)?;
+        let next_generation = generation
+            .checked_add(1)
+            .ok_or(MidnightRuntimeError::Unavailable)?;
+        runtime.next_id = next_id;
+        runtime.next_generation = next_generation;
 
         let mut offsets = HashMap::new();
         let mut applied_batches = HashMap::new();

@@ -143,13 +143,19 @@ Status: complete.
    - confirmation that no 1AM-private feature was introduced.
 6. Configure labels for milestones, workstreams, platform, security, blocked
    work, and external demand.
-7. Protect `main` before implementation begins:
-   - pull requests required;
-   - required CI checks;
+7. Prepare `main` protection for the implementation program:
+   - pull requests remain the review boundary;
+   - full `npm run quality` evidence is required locally for every completed
+     M1-M4 change;
+   - automatic pull-request and push CI is deliberately disabled during M1-M4 to
+     control build cost, while the preserved quality workflow remains manually
+     dispatchable;
+   - M5 must re-enable and require the repository quality check before release;
    - no force pushes or branch deletion;
    - one maintainer approval for ordinary contributor changes;
    - repository-owner merge authority for completed agent-authored pull requests
-     after primary review and passing required checks.
+     after primary review and a passing full local gate through M4, or passing
+     required checks from M5 onward.
 8. Add `CODEOWNERS` for Rust, React Native, native packaging, security docs, and
    workflows when maintainers are assigned.
 9. Keep repository-authored bootstrap material under the existing provisional
@@ -166,7 +172,9 @@ Exit criteria:
 - Scope, provenance, and roadmap are committed.
 - No runtime source has been copied.
 - Branch controls are ready before the source-import pull request.
-- Markdown, workflow, shell, and source-policy checks run locally and in CI.
+- Markdown, workflow, shell, and source-policy checks run in the full local
+  gate; the preserved workflow is manually dispatchable until automatic CI
+  returns at M5.
 - Final extracted-source licensing remains an explicit destination-migration
   release gate rather than an internal source-import blocker.
 
@@ -225,7 +233,7 @@ Exit criteria:
 
 ### M2 — Wallet-core sanitization and API hardening
 
-Status: in progress.
+Status: complete.
 
 Goal: make private capabilities impossible to invoke or recover from the public
 source and binaries.
@@ -260,6 +268,10 @@ source and binaries.
     decoders. Keep `unknown` inside decoder boundaries only.
 12. Add a forbidden-content scanner for source, TypeScript declarations,
     generated Swift/Kotlin, Rust symbols, binary strings, and npm contents.
+    During M2 the scanner builds and inspects a host runtime library plus a
+    deterministic staging npm pack containing fresh JavaScript, declarations,
+    and current native metadata. Platform release binaries remain absent until
+    M4 and are not claimed as inspected early.
 
 Exit criteria:
 
@@ -268,6 +280,8 @@ Exit criteria:
 - Forbidden-content scans find no private feature implementation or credential.
 - Public declarations contain no `unknown` command results.
 - Checkpoint and signing threat-model tests pass.
+- Production-only TypeScript coverage is enforced at 85% lines, 75% branches,
+  and 85% functions; compiled test files do not contribute to the threshold.
 
 ### M3 — React Native package and standard host transport
 
@@ -678,7 +692,8 @@ above each unsafe block.
   tracking issue.
 - Use Rust `#[expect(lint, reason = "...")]` on the smallest item possible.
 - Generated files may contain generator-owned suppressions but must carry a
-  generated-file marker and reproduce byte-for-byte in CI.
+  generated-file marker and reproduce byte-for-byte in the local quality gate
+  and in required CI from M5 onward.
 - `TODO` and `FIXME` comments require a GitHub issue reference.
 - CI rejects unused suppressions and undocumented exceptions.
 
@@ -711,8 +726,9 @@ above each unsafe block.
 - Do not merge commented-out code, unexplained magic values, hidden fallback
   behavior, or logging that may contain seeds, checkpoints, signatures, or
   transaction payloads.
-- A pull request is not complete while a required quality check is skipped,
-  flaky, warning-only, or disabled.
+- During M1-M4, primary review must record a successful full local quality run.
+  Once automatic CI becomes required at M5, a pull request is not complete while
+  that check is skipped, flaky, warning-only, or disabled.
 
 ## 7. Issue breakdown
 
@@ -754,6 +770,10 @@ remain intact.
 ## 8. Branching and release policy
 
 - `main` is always releasable and protected.
+- During M1-M4, every completed change must pass the full local
+  `npm run quality` gate even though automatic GitHub CI triggers are disabled.
+- M5 must restore automatic pull-request CI and make the repository quality job
+  a required branch-protection check before any release work proceeds.
 - Use short-lived feature branches and pull requests.
 - Keep extraction, sanitization, transport, native packaging, and CI changes in
   reviewable commits rather than one bulk import.
@@ -779,7 +799,7 @@ remain intact.
 | Alpha diverges from the 1AM implementation              | Manual provenance-tracked ports; revisit only after demand gate       | No              |
 | Upstream Ledger change breaks wire compatibility        | Exact pinning and per-release compatibility matrix                    | Yes             |
 | Generated bindings become accidental stable APIs        | Mark internal and postpone direct-native distribution                 | No              |
-| Quality rules are bypassed to accelerate extraction     | Required checks, explicit exceptions, and no warning-only gates       | Yes             |
+| Quality rules are bypassed to accelerate extraction     | Full local gate through M4; required CI at M5; explicit exceptions    | Yes             |
 
 ## 10. Definition of done for every milestone
 
@@ -793,14 +813,18 @@ A milestone is complete only when:
 6. The working 1AM repository remains unchanged.
 7. Follow-up risks and deferred work are recorded as issues rather than hidden
    in implementation notes.
-8. Formatting, linting, source-size, type, test, and coverage gates pass without
-   undocumented suppression.
+8. Formatting, linting, source-size, type, test, and coverage gates pass locally
+   without undocumented suppression. From M5 onward the same gate must also pass
+   as required pull-request CI.
 
 ## 11. Current next action
 
-M0 repository controls and the pinned quality toolchain are complete. The
-reviewed M1 extraction allowlist and dependency inventory are enforced by the
-repository quality gate. Begin the sanitized M1 source extraction from the
-pinned commit under a fresh section 2.1 source-state bracket. Final copyright,
-attribution, and distribution terms remain deferred to the destination
-repository and do not block private internal implementation.
+M0-M2 are complete. The immutable M1 extraction evidence remains preserved,
+while the live M2 target manifest, wallet threat tests, production-only
+TypeScript coverage gate, declaration scan, deterministic staging npm-pack
+inspection, and host binary-string scan enforce the sanitized wallet boundary.
+Begin M3 by completing the consumable React Native package and mocked Expo
+example. Full `npm run quality` remains mandatory locally; automatic
+pull-request CI stays disabled until M5, when it must be re-enabled and
+required. Final copyright, attribution, and distribution terms remain deferred
+to the destination repository and do not block private internal implementation.

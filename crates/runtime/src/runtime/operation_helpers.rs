@@ -108,7 +108,10 @@ fn register_operation(
         return Err(MidnightRuntimeError::Unavailable);
     }
     let operation_id = runtime.next_id;
-    runtime.next_id = runtime.next_id.saturating_add(1);
+    let next_id = operation_id
+        .checked_add(1)
+        .ok_or(MidnightRuntimeError::Unavailable)?;
+    runtime.next_id = next_id;
     let effect_id = format!("{generation}:{operation_id}:1");
     runtime.operations.insert(
         operation_id,
