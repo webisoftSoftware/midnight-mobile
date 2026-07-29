@@ -139,8 +139,15 @@ Publish one npm artifact: `@1am/midnight-mobile@0.1.0-alpha.1`.
 
 For every pull request:
 
-- Run Rust formatting, clippy, wallet-core tests, source policy checks,
-  TypeScript type checking, linting, Jest, and API type tests.
+- Run the pinned repository quality command covering Markdown, TypeScript,
+  Rust, shell scripts, GitHub Actions, formatting, type checking, and tests.
+- Enforce a 500-physical-line maximum for handwritten source files, with
+  reviewed exceptions only for generated bindings, lockfiles, vendored code,
+  and machine-generated fixtures.
+- Reject unqualified lint suppressions, TypeScript `any`, unsafe Rust without a
+  documented safety invariant, and warnings from supported toolchains.
+- Run strict Rust clippy, strict TypeScript/ESLint rules, wallet-core tests,
+  coverage gates, and API type tests.
 - Run dependency, license, secret, and forbidden-symbol scans.
 - Build Android native libraries and an Android release example.
 - Build the iOS simulator framework and example on macOS.

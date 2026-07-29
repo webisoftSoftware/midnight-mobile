@@ -100,6 +100,8 @@ Status: in progress.
    workflows when maintainers are assigned.
 9. Decide licensing only after the ownership audit. Add `LICENSE-MIT`,
    `LICENSE-APACHE`, and `NOTICE` before source lands.
+10. Add the pinned code-quality toolchain and required `npm run quality`
+    command described in section 6 before importing runtime source.
 
 Exit criteria:
 
@@ -107,6 +109,7 @@ Exit criteria:
 - Scope, provenance, and roadmap are committed.
 - No runtime source has been copied.
 - Branch controls are ready before the source-import pull request.
+- Markdown, workflow, shell, and source-policy checks run locally and in CI.
 
 ### M1 — Allowlisted source extraction
 
@@ -154,6 +157,8 @@ Exit criteria:
 - Every copied file appears in the allowlist and provenance record.
 - No app code or private Git history is present.
 - The working 1AM repository has the same commit and clean status as before.
+- Imported handwritten source satisfies the quality policy or has a
+  time-bounded reviewed exception.
 
 ### M2 — Wallet-core sanitization and API hardening
 
@@ -299,13 +304,15 @@ Goal: make every public change and release reviewable and reproducible.
 
 Pull-request CI:
 
-1. Rust format, clippy, host tests, and source policy.
-2. TypeScript format, lint, type checking, Jest, and API declaration tests.
-3. Generated-binding reproducibility.
-4. Android native build and example release build.
-5. iOS simulator framework and example build.
-6. Secret, dependency, vulnerability, license, and forbidden-content scans.
-7. npm pack-list verification and package-size reporting.
+1. Run the root `npm run quality` command without warnings or skipped checks.
+2. Run Rust host tests and TypeScript Jest/API declaration tests with the
+   coverage thresholds defined in section 6.
+3. Verify generated bindings are reproducible.
+4. Build Android native libraries and the Android release example.
+5. Build the iOS simulator framework and example.
+6. Run secret, dependency, vulnerability, license, and forbidden-content
+   scans.
+7. Verify the npm pack list and report package sizes.
 
 Release CI:
 
@@ -456,41 +463,226 @@ Any proposal requires:
 - binary-size impact;
 - explicit external use case.
 
-## 6. Issue breakdown
+## 6. Code quality standard
+
+Establish the quality toolchain during M0, before runtime source is imported.
+Pin tool versions and commit the root `package-lock.json` so local and CI
+results are identical.
+
+### 6.1 Required tools
+
+Use Node.js 22 and a private root `package.json` for repository tooling. Add
+these tools and configurations:
+
+- `prettier` for Markdown, JSON, YAML, JavaScript, and TypeScript formatting;
+- `markdownlint-cli2` for all maintained Markdown;
+- ESLint 9 flat configuration with type-aware `typescript-eslint`,
+  `eslint-config-expo`, and React Hooks rules;
+- TypeScript compiler checks with the strict options below;
+- `rustfmt` and `cargo clippy` for all Rust targets and features;
+- `actionlint` for GitHub Actions;
+- ShellCheck for maintained shell scripts;
+- `cargo llvm-cov` and Jest coverage reporting;
+- `scripts/check-source-policy.mjs` for file-size and suppression policy.
+
+Expose one stable command surface:
+
+```json
+{
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint:markdown": "markdownlint-cli2 \"**/*.md\"",
+    "lint:ts": "eslint . --max-warnings 0",
+    "lint:rust": "node scripts/run-rust-quality.mjs",
+    "lint:workflows": "node scripts/run-actionlint.mjs",
+    "lint:shell": "node scripts/run-shellcheck.mjs",
+    "check:source-policy": "node scripts/check-source-policy.mjs",
+    "typecheck": "node scripts/run-typecheck.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "quality": "npm run format:check && npm run lint:markdown && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm run check:source-policy && npm run typecheck && npm test"
+  }
+}
+```
+
+The wrappers must execute the exact underlying tools described above when their
+workstream exists. Before a workstream is added, its wrapper prints an explicit
+`not applicable: no matching files` result and exits successfully. A wrapper
+must fail if matching files exist but the required configuration or executable
+is missing. This keeps `npm run quality` stable from the documentation-only
+bootstrap through the complete SDK without silently skipping relevant checks.
+
+### 6.2 Source-size and complexity limits
+
+Implement `scripts/check-source-policy.mjs` with these rules:
+
+1. Handwritten production source files may not exceed 500 physical lines.
+2. TypeScript/JavaScript functions may not exceed 80 logical lines, ignoring
+   blank lines and comments.
+3. TypeScript cyclomatic complexity may not exceed 15 and nesting depth may not
+   exceed four.
+4. Rust functions trigger an error through clippy's `too_many_lines` lint above
+   80 lines. Keep `too_many_arguments` enabled.
+5. Split files by responsibility; do not satisfy limits through compressed
+   formatting, multiple statements per line, or moving code into an unrelated
+   utility module.
+
+Apply the 500-line rule to `.rs`, `.ts`, `.tsx`, `.js`, `.mjs`, `.swift`,
+`.kt`, and maintained Gradle source. Exempt only:
+
+- generated UniFFI, Swift, and Kotlin bindings;
+- lockfiles;
+- vendored third-party source;
+- machine-generated fixtures and snapshots;
+- generated release manifests.
+
+Every exemption must be listed in
+`scripts/source-policy-exceptions.json` with:
+
+- exact repository-relative path;
+- rule being waived;
+- concrete justification;
+- tracking issue;
+- expiry milestone or removal condition.
+
+Glob exemptions are forbidden. CI fails for stale exception paths, missing
+tracking issues, or exemptions whose removal condition has passed.
+
+### 6.3 TypeScript rules
+
+Enable these compiler options:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "useUnknownInCatchVariables": true
+  }
+}
+```
+
+Treat these as errors:
+
+- explicit `any`, unsafe assignment, and unsafe member access;
+- unhandled or floating promises;
+- misused promises in callbacks;
+- non-exhaustive command/result switches;
+- unnecessary conditions and non-null assertions;
+- unused imports, variables, and disable directives;
+- React Hooks dependency or ordering violations;
+- imports that cross documented package boundaries.
+
+Use `unknown` only at external/native decoding boundaries and narrow it before
+returning. Public APIs must expose concrete types.
+
+### 6.4 Rust rules
+
+Run `rustfmt --check` and clippy for the workspace, all targets, and all
+features. Deny warnings and enable:
+
+- `clippy::unwrap_used`;
+- `clippy::expect_used`;
+- `clippy::panic`;
+- `clippy::todo`;
+- `clippy::unimplemented`;
+- `clippy::dbg_macro`;
+- `clippy::print_stdout`;
+- `clippy::print_stderr`;
+- `unsafe_op_in_unsafe_fn`.
+
+Tests may use `unwrap` or `expect` when failure text improves the test, but
+production library paths may not. Limit handwritten `unsafe` code to the FFI
+boundary and require a `SAFETY:` comment stating every invariant immediately
+above each unsafe block.
+
+### 6.5 Suppressions and technical debt
+
+- Do not use file-wide `eslint-disable`, `@ts-ignore`, blanket Rust
+  `#![allow(...)]`, or configuration-wide warning suppression.
+- Use `@ts-expect-error` only with a description explaining the expected
+  compiler error.
+- Use the narrowest possible ESLint suppression with an adjacent explanation
+  and tracking issue.
+- Use Rust `#[expect(lint, reason = "...")]` on the smallest item possible.
+- Generated files may contain generator-owned suppressions but must carry a
+  generated-file marker and reproduce byte-for-byte in CI.
+- `TODO` and `FIXME` comments require a GitHub issue reference.
+- CI rejects unused suppressions and undocumented exceptions.
+
+### 6.6 Tests and coverage
+
+- Every behavior change requires a success test and the relevant error,
+  cancellation, stale-handle, or malformed-input tests.
+- Every bug fix requires a regression test that fails without the fix.
+- TypeScript handwritten source must maintain at least 85% line, statement, and
+  function coverage and 75% branch coverage.
+- Rust handwritten runtime source must maintain at least 80% line coverage
+  under `cargo llvm-cov`.
+- Generated bindings, fixtures, examples, and FFI declaration glue are excluded
+  from coverage calculations.
+- Coverage may increase but may not drop below the recorded default-branch
+  percentage, even when it remains above the numeric threshold.
+- Security-sensitive parsing, checkpoint validation, signing transcripts,
+  command decoding, and submission-state transitions require explicit positive
+  and negative tests rather than relying only on aggregate coverage.
+
+### 6.7 Review and architecture requirements
+
+- Keep Rust free of network, persistent-storage, UI, and platform lifecycle
+  I/O.
+- Keep endpoint and credential configuration outside the runtime.
+- Prefer dependency injection at I/O and time boundaries.
+- Keep modules single-purpose and public APIs smaller than their internal
+  implementation surfaces.
+- Update API documentation, examples, and compatibility notes in the same pull
+  request as a public behavior change.
+- Do not merge commented-out code, unexplained magic values, hidden fallback
+  behavior, or logging that may contain seeds, checkpoints, signatures, or
+  transaction payloads.
+- A pull request is not complete while a required quality check is skipped,
+  flaky, warning-only, or disabled.
+
+## 7. Issue breakdown
 
 Create implementation issues in this order:
 
 1. `M0: configure branch protection and repository templates`
-2. `M0: complete ownership and dual-license audit`
-3. `M1: define the source extraction allowlist`
-4. `M1: inventory dependencies and redistribution obligations`
-5. `M1: import the compiling wallet runtime snapshot`
-6. `M1: reproduce UniFFI bindings in the new workspace`
-7. `M2: remove social and private identity capabilities`
-8. `M2: remove FT/NFT and verifier capabilities`
-9. `M2: remove gateway authentication, IPFS, and private fast sync`
-10. `M2: introduce the typed Rust wallet-core command enum`
-11. `M2: add typed TypeScript command result mapping`
-12. `M2: harden domain-separated signing and opaque checkpoints`
-13. `M2: add forbidden-content scans`
-14. `M3: package the Expo module and public TypeScript API`
-15. `M3: implement the standard indexer/proof/node transport`
-16. `M3: add injected logging and checkpoint host interfaces`
-17. `M3: build the mocked clean Expo example`
-18. `M4: produce and validate the dynamic Apple XCFramework`
-19. `M4: produce and validate Android native libraries`
-20. `M4: assemble prebuilt binaries into the npm tarball`
-21. `M5: add pull-request CI and security scans`
-22. `M5: add release CI, SBOM, checksums, and provenance`
-23. `M5: complete public API, architecture, and security documentation`
-24. `M6: run the private alpha release candidate`
-25. `M6: publish 0.1.0-alpha.1 and make the repository public`
-26. `M7: onboard and document the first external integration`
+2. `M0: add pinned linters, formatters, and source-quality policy`
+3. `M0: complete ownership and dual-license audit`
+4. `M1: define the source extraction allowlist`
+5. `M1: inventory dependencies and redistribution obligations`
+6. `M1: import the compiling wallet runtime snapshot`
+7. `M1: reproduce UniFFI bindings in the new workspace`
+8. `M2: remove social and private identity capabilities`
+9. `M2: remove FT/NFT and verifier capabilities`
+10. `M2: remove gateway authentication, IPFS, and private fast sync`
+11. `M2: introduce the typed Rust wallet-core command enum`
+12. `M2: add typed TypeScript command result mapping`
+13. `M2: harden domain-separated signing and opaque checkpoints`
+14. `M2: add forbidden-content scans`
+15. `M3: package the Expo module and public TypeScript API`
+16. `M3: implement the standard indexer/proof/node transport`
+17. `M3: add injected logging and checkpoint host interfaces`
+18. `M3: build the mocked clean Expo example`
+19. `M4: produce and validate the dynamic Apple XCFramework`
+20. `M4: produce and validate Android native libraries`
+21. `M4: assemble prebuilt binaries into the npm tarball`
+22. `M5: add pull-request CI and security scans`
+23. `M5: add release CI, SBOM, checksums, and provenance`
+24. `M5: complete public API, architecture, and security documentation`
+25. `M6: run the private alpha release candidate`
+26. `M6: publish 0.1.0-alpha.1 and make the repository public`
+27. `M7: onboard and document the first external integration`
 
 An issue may be split into smaller pull requests, but its exit criteria must
 remain intact.
 
-## 7. Branching and release policy
+## 8. Branching and release policy
 
 - `main` is always releasable and protected.
 - Use short-lived feature branches and pull requests.
@@ -504,7 +696,7 @@ remain intact.
   practical.
 - Record compatibility changes in release notes and the support matrix.
 
-## 8. Risk register
+## 9. Risk register
 
 | Risk | Mitigation | Release blocker |
 |---|---|---|
@@ -518,8 +710,9 @@ remain intact.
 | Alpha diverges from the 1AM implementation | Manual provenance-tracked ports; revisit only after demand gate | No |
 | Upstream Ledger change breaks wire compatibility | Exact pinning and per-release compatibility matrix | Yes |
 | Generated bindings become accidental stable APIs | Mark internal and postpone direct-native distribution | No |
+| Quality rules are bypassed to accelerate extraction | Required checks, explicit exceptions, and no warning-only gates | Yes |
 
-## 9. Definition of done for every milestone
+## 10. Definition of done for every milestone
 
 A milestone is complete only when:
 
@@ -531,9 +724,12 @@ A milestone is complete only when:
 6. The working 1AM repository remains unchanged.
 7. Follow-up risks and deferred work are recorded as issues rather than hidden
    in implementation notes.
+8. Formatting, linting, source-size, type, test, and coverage gates pass without
+   undocumented suppression.
 
-## 10. Current next action
+## 11. Current next action
 
-Complete M0 repository controls and the dual-license ownership audit. The first
-source-code task must then be `M1: define the source extraction allowlist`; no
-runtime source should enter this repository before that allowlist is reviewed.
+Complete M0 repository controls, the pinned quality toolchain, and the
+dual-license ownership audit. The first source-code task must then be
+`M1: define the source extraction allowlist`; no runtime source should enter
+this repository before that allowlist is reviewed.
