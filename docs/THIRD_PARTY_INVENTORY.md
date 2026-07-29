@@ -31,6 +31,15 @@ Evidence read from the pinned commit:
 - Commit author/committer metadata identifies Alvaro Gonzalez for the assessed
   commit. Commit metadata and a podspec author field do not establish ownership
   of every assessed file or authority to license all contributions.
+- A 2026-07-29 GitHub commit-history query scoped to the assessed component and
+  ending at the pinned revision returned 47 commits. Every result identifies
+  GitHub account `ADGLx`, author name Alvaro Gonzalez, and the same author
+  email; no second component contributor was reported.
+- GitHub repository metadata identifies `webisoftSoftware` as the repository
+  owner and reports no detected repository license. Repository ownership and
+  sole Git authorship still do not establish whether copyright belongs to the
+  individual, the `1AM` podspec author, Webisoft Software, an employer, or
+  another commissioning party.
 
 The manifest declarations are evidence of intended MIT licensing, but they do
 not provide the required MIT notice or prove that the declarant owns or is
@@ -41,15 +50,16 @@ the M0 ownership audit and for copying or redistributing source.
 
 Record all of the following before source landing:
 
-1. The legal name of each relevant copyright owner, or a reviewed contributor
-   ownership record covering every allowlisted source file.
-2. Evidence that the owner or authorized licensor grants the assessed component
+1. The legal name of the relevant copyright owner and confirmation of the
+   relationship among Alvaro Gonzalez, `ADGLx`, `1AM`, and Webisoft Software.
+2. Confirmation that the 47-commit component history correctly represents sole
+   authorship and that no unlisted third-party source was incorporated into the
+   allowlisted files.
+3. Evidence that the owner or authorized licensor grants the assessed component
    under MIT at the pinned commit, including the exact copyright and permission
    notice to preserve.
-3. Confirmation that contributors assigned the necessary rights or submitted
-   their contributions under compatible terms.
-4. Review that an MIT-authorized derivative may be distributed by this project
-   under `MIT OR Apache-2.0` while preserving the upstream MIT notice.
+4. Explicit authorization or review that the derivative may be distributed under
+   `MIT OR Apache-2.0` while preserving the upstream MIT notice.
 5. A durable copy of the evidence or an immutable reference recorded in
    `PROVENANCE.md`.
 

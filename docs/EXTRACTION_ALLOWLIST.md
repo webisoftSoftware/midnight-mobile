@@ -33,15 +33,26 @@ path.
 
 ## Audit bracket status
 
-This is a candidate allowlist derived from immutable Git objects at the assessed
-commit. The 2026-07-29 read-only audit did not satisfy the required source-state
-bracket: the source checkout's HEAD remained unchanged, but its complete
-porcelain output changed during the audit. No source was copied.
+This candidate allowlist was derived from immutable Git objects at the assessed
+commit. An initial 2026-07-29 read-only audit stopped when the source checkout's
+complete porcelain output changed. A fresh audit then began with source-checkout
+HEAD `33c1b1e7040714bfc37e812f0ac0d0fd1cf58eeb` and 54 existing porcelain
+entries, all outside the assessed component. The final HEAD and complete
+porcelain output were byte-identical. The SHA-256 digest of that exact porcelain
+output, including its trailing newline, was
+`ca9a5dbf0172697e4f73367eb043f1d8bfd3f7a8bc25cd5f17e7e43ffa38029f`.
 
-Before this allowlist can authorize staging or landing, repeat the entire audit
-from a fresh HEAD and full-porcelain capture and require byte-identical
-post-audit output. The ownership and source-license blocker must also be
-resolved.
+The fresh audit proved that this document forms a closed-world partition of all
+110 files in the assessed component:
+
+- 69 exact candidate input paths;
+- 39 exact exclusions;
+- the component `.gitignore` and README excluded by the component-level rule;
+- no missing paths, overlaps, or uncovered files.
+
+No source was copied. A new source-state bracket is required around extraction,
+and the ownership/source-license blocker must be resolved before staging or
+landing.
 
 ## Package and native build basis
 
@@ -57,7 +68,7 @@ resolved.
 | Copy   | `apps/mobile/modules/expo-midnight-native/rust/bindgen/src/main.rs`             | UniFFI binding-generator entry point.                                                                   |
 | Copy   | `apps/mobile/modules/expo-midnight-native/rust/clippy.toml`                     | Assessed Rust lint configuration.                                                                       |
 | Copy   | `apps/mobile/modules/expo-midnight-native/rust/runtime/Cargo.toml`              | Private runtime crate and pinned Ledger dependency definitions.                                         |
-| Copy   | `apps/mobile/modules/expo-midnight-native/rust/uniffi.toml`                     | UniFFI binding configuration.                                                                           |
+| Copy   | `apps/mobile/modules/expo-midnight-native/rust/runtime/uniffi.toml`             | UniFFI binding configuration.                                                                           |
 | Copy   | `apps/mobile/modules/expo-midnight-native/rust/rustfmt.toml`                    | Assessed Rust formatting configuration.                                                                 |
 | Select | `apps/mobile/modules/expo-midnight-native/scripts/build-android.sh`             | CI-time Android native build basis; remove application-relative assumptions and consumer invocation.    |
 | Select | `apps/mobile/modules/expo-midnight-native/scripts/build-ios.sh`                 | CI-time Apple XCFramework build basis; remove application-relative assumptions and consumer invocation. |
@@ -185,9 +196,13 @@ The following exact paths are denied even for temporary selective sanitization:
 - `apps/mobile/modules/expo-midnight-native/fixtures/transaction-8.1.0.json`
 - `apps/mobile/modules/expo-midnight-native/fixtures/wallet-state-8.1.0.json`
 
-The component `.gitignore`, README, application UI, storage adapters,
-preferences, logger, endpoint constants, telemetry, and every path outside the
-component are also denied.
+The component-level rule denies exactly:
+
+- `apps/mobile/modules/expo-midnight-native/.gitignore`
+- `apps/mobile/modules/expo-midnight-native/README.md`
+
+Application UI, storage adapters, preferences, logger, endpoint constants,
+telemetry, and every path outside the component are also denied.
 
 ## Landing gates
 

@@ -24,8 +24,8 @@ For the milestone-by-milestone delivery roadmap, see
 ## Status
 
 - Repository bootstrap: in progress
-- Sanitized source extraction: blocked pending a stable source-state audit and
-  source ownership/redistribution authorization
+- Sanitized source extraction: blocked pending source ownership and
+  redistribution authorization
 - Public release: not started
 
 ## License

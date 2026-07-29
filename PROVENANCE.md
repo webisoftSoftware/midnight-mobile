@@ -22,11 +22,19 @@ clear that source-landing blocker is recorded in
 [`docs/THIRD_PARTY_INVENTORY.md`](./docs/THIRD_PARTY_INVENTORY.md). No
 source-derived material may land until it is resolved through review.
 
-The 2026-07-29 extraction audit bracket did not pass: the source checkout's HEAD
-remained unchanged, but its complete porcelain output changed while the
-read-only audit was in progress. The allowlist and dependency findings were
-derived from the immutable assessed commit, but the extraction audit must be
-repeated from a fresh pre/post capture before they can authorize source landing.
-No source material was copied.
+An initial 2026-07-29 extraction audit bracket did not pass because the source
+checkout's complete porcelain output changed during the read-only audit. A fresh
+audit was then started after capturing source-checkout HEAD
+`33c1b1e7040714bfc37e812f0ac0d0fd1cf58eeb` and all 54 porcelain entries. The
+full audit used only immutable objects at the assessed commit. Its final HEAD
+and complete porcelain output were byte-identical to the fresh capture, and no
+existing difference was inside the assessed component. The SHA-256 digest of the
+exact porcelain output, including its trailing newline, was
+`ca9a5dbf0172697e4f73367eb043f1d8bfd3f7a8bc25cd5f17e7e43ffa38029f`.
+
+That successful audit validated a closed-world partition of all 110 files in the
+assessed component: 69 candidate inputs, 39 exact exclusions, and two
+component-level exclusions. A new pre/post capture is still required around any
+future extraction. No source material was copied during either audit.
 
 This project is community-maintained and is not an official Midnight SDK.
