@@ -16,6 +16,9 @@ are explicitly out of scope.
 Implementation has not started. See [PLAN.md](./PLAN.md) for the accepted
 extraction, security, packaging, and release plan.
 
+For the milestone-by-milestone delivery roadmap, see
+[docs/LONG_TERM_PROJECT_PLAN.md](./docs/LONG_TERM_PROJECT_PLAN.md).
+
 ## Status
 
 - Repository bootstrap: complete
