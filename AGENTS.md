@@ -2,9 +2,8 @@
 
 ## Project Structure & Module Organization
 
-This is a planning-only bootstrap; implementation has not started. Read
-`PLAN.md` for scope, `docs/LONG_TERM_PROJECT_PLAN.md` for delivery gates, and
-`PROVENANCE.md` before importing code. The intended layout is:
+Read `PLAN.md` for scope, `docs/LONG_TERM_PROJECT_PLAN.md` for delivery gates,
+and `PROVENANCE.md` before changing imported code. The implemented layout is:
 
 - `crates/runtime/`: Rust wallet runtime and UniFFI boundary.
 - `packages/react-native/`: public React Native/Expo package.
@@ -17,16 +16,13 @@ behind injected TypeScript host interfaces.
 
 ## Build, Test, and Development Commands
 
-There is no executable toolchain yet. Build and test commands become valid after
-M0 adds the root `package.json` and lockfile:
-
 - `npm ci`: install the pinned Node.js 22 tooling.
 - `npm run format`: apply Prettier formatting.
 - `npm run quality`: run all formatting, lint, source-policy, type, and test
   gates.
 - `npm test`: run the repository test wrapper.
 
-For current documentation changes, run `git diff --check`.
+For documentation-only changes, also run `git diff --check`.
 
 ## Coding Style & Naming Conventions
 
@@ -48,11 +44,12 @@ line coverage. Use only deterministic synthetic fixtures.
 
 ## Commit Guidelines
 
-Work directly on `main`. Use the repository's Conventional Commit format, such
-as `docs: define code quality gates` or `feat: add wallet sync`. Include a
-commit description explaining what changed and why so the history is easy to
-follow. Commit each feature after its implementation is complete and its
-relevant checks and tests pass.
+Use a dedicated branch and pull request for implementation work. Use the
+repository's Conventional Commit format, such as
+`docs: define code quality gates` or `feat: add wallet sync`. Include a commit
+description explaining what changed and why so the history is easy to follow.
+Commit each feature after its implementation is complete and its relevant checks
+and tests pass.
 
 ## Agent Workflow
 

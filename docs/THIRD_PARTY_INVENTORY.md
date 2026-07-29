@@ -107,7 +107,7 @@ crates.io version records.
 | --------------------------- | ----------------------------------------------------- | ------------------- | ----------------- | -------------------------------------------- |
 | `anyhow`                    | `1.0.102`                                             | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
 | `bech32`                    | `0.11.1`                                              | `MIT`               | Runtime           | MIT notice.                                  |
-| `futures`                   | `0.3.32`                                              | `MIT OR Apache-2.0` | Declared, unused  | Remove from the sanitized direct graph.      |
+| `futures`                   | `0.3.32`                                              | `MIT OR Apache-2.0` | Assessed only     | Removed from the sanitized direct graph.     |
 | `flate2`                    | `1.1.9`, `default-features = false`, `rust_backend`   | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
 | `hex`                       | `0.4.3`                                               | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
 | `num-bigint`                | `0.4.8`, `default-features = false`                   | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
@@ -161,11 +161,11 @@ The enclosing assessed mobile application resolves this exact compatibility set:
 | `react`             | `19.2.0`                  | `MIT`            | Peer dependency; not bundled.                                              |
 | `react-native`      | `0.83.6`                  | `MIT`            | Peer dependency; not bundled.                                              |
 
-The target `@1am/midnight-mobile` manifest must explicitly declare and pin or
-constrain these relationships before TypeScript source lands. The exact
+The target `@1am/midnight-mobile` manifest now declares these exact versions as
+development dependencies and matching major/minor peer ranges. The exact
 CocoaPods constraint for `ExpoModulesCore` and the exact Gradle plugin
 resolution are not stated by the assessed component; they remain evidence gaps
-until the target package and clean Expo example resolve them reproducibly.
+until the clean Expo example resolves them reproducibly.
 
 React test tooling, Jest, and TypeScript are supplied by the enclosing upstream
 application rather than the assessed module. They are not direct runtime

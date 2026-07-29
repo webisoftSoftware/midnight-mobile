@@ -1,5 +1,4 @@
 import expoConfig from "eslint-config-expo/flat.js";
-import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint, { configs as tseslintConfigs } from "typescript-eslint";
 
@@ -10,6 +9,7 @@ const applicationFiles = [
   "packages/**/*.{js,jsx,ts,tsx}",
   "examples/**/*.{js,jsx,ts,tsx}",
 ];
+const reactNativePackageFiles = ["packages/react-native/**/*.{js,jsx,ts,tsx}"];
 
 export default tseslint.config(
   {
@@ -45,10 +45,10 @@ export default tseslint.config(
       "@typescript-eslint/ban-ts-comment": [
         "error",
         {
+          minimumDescriptionLength: 10,
           "ts-check": false,
           "ts-expect-error": {
             descriptionFormat: "^: .+ #[0-9]+$",
-            minimumDescriptionLength: 10,
           },
           "ts-ignore": true,
           "ts-nocheck": true,
@@ -108,9 +108,20 @@ export default tseslint.config(
   },
   {
     files: applicationFiles,
-    plugins: {
-      "react-hooks": reactHooks,
+    rules: {
+      "react-hooks/exhaustive-deps": "error",
+      "react-hooks/rules-of-hooks": "error",
     },
-    rules: reactHooks.configs.flat.recommended.rules,
+  },
+  {
+    files: reactNativePackageFiles,
+    rules: {
+      "import/no-unresolved": [
+        "error",
+        {
+          ignore: ["^expo-modules-core$", "^react$", "^react-native$"],
+        },
+      ],
+    },
   },
 );

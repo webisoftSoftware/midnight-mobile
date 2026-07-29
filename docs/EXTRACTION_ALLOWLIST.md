@@ -51,7 +51,16 @@ The fresh audit proved that this document forms a closed-world partition of all
 - the component `.gitignore` and README excluded by the component-level rule;
 - no missing paths, overlaps, or uncovered files.
 
-No source was copied. A new source-state bracket is required around extraction.
+The later M1 extraction used a fresh source-state bracket. Its successful retry
+began and ended at source-checkout HEAD
+`c4ac349ca8ddcc2188e5715507272decd4254c1b` with byte-identical, empty complete
+porcelain output. Exactly the 69 candidate inputs were archived from the
+assessed commit; the uncompressed archive's SHA-256 digest was
+`57f2cfd30d1d920ad3041a6db52bccbede90613930148e2b6e41fc5bb683fb74`. The raw
+archive remained in external temporary staging and only reviewed, sanitized
+target files may land in this repository. See
+[`PROVENANCE.md`](../PROVENANCE.md) for the complete extraction record.
+
 The deferred copyright decision does not block private internal staging or
 landing, but it blocks publication and public distribution.
 

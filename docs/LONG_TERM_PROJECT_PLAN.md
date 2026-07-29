@@ -172,6 +172,8 @@ Exit criteria:
 
 ### M1 — Allowlisted source extraction
 
+Status: complete.
+
 Goal: create the smallest compiling source snapshot without importing private
 history or unrelated application code.
 
@@ -222,6 +224,8 @@ Exit criteria:
   reviewed exception.
 
 ### M2 — Wallet-core sanitization and API hardening
+
+Status: in progress.
 
 Goal: make private capabilities impossible to invoke or recover from the public
 source and binaries.

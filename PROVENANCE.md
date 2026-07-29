@@ -42,4 +42,31 @@ assessed component: 69 candidate inputs, 39 exact exclusions, and two
 component-level exclusions. A new pre/post capture is still required around any
 future extraction. No source material was copied during either audit.
 
+## M1 extraction record
+
+The M1 extraction was completed on 2026-07-29 from immutable objects at the
+assessed commit. An initial extraction bracket was abandoned when the source
+checkout's porcelain output changed while the audit was in progress. None of
+that checkout state was repaired or modified by this project.
+
+The successful retry began and ended with source-checkout HEAD
+`c4ac349ca8ddcc2188e5715507272decd4254c1b` and an empty complete
+`git status --porcelain=v1 --untracked-files=all` output. The pre- and
+post-extraction captures were byte-identical.
+
+Exactly the 69 candidate paths recorded in
+[`docs/EXTRACTION_ALLOWLIST.md`](./docs/EXTRACTION_ALLOWLIST.md) were archived
+from source commit `dc9c0dd34dba9e19304859106ca2531f48590599`. The uncompressed
+candidate archive had SHA-256 digest
+`57f2cfd30d1d920ad3041a6db52bccbede90613930148e2b6e41fc5bb683fb74`. A second
+independently bracketed archive was byte-identical. The archive was expanded
+only in external temporary staging; denied source paths, Git history, and the
+source working tree did not enter this repository.
+
+Only reviewed, sanitized target files derived from those candidate inputs are
+eligible to land here. The raw archive and temporary staging directory are audit
+inputs, not repository or release artifacts. The exact landed Rust and React
+Native path set and each file's origin class are machine-checked in
+[`scripts/m1-sanitized-target-manifest.json`](./scripts/m1-sanitized-target-manifest.json).
+
 This project is community-maintained and is not an official Midnight SDK.

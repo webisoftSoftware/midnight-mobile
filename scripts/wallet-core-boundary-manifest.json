@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "currentMilestone": "M1",
+  "contracts": {
+    "typescript": "packages/react-native/src/commands.ts",
+    "rust": "crates/runtime/src/runtime/types.rs",
+    "extractionManifest": "scripts/m1-sanitized-target-manifest.json"
+  },
+  "commandKinds": [
+    "signData",
+    "createCheckPayload",
+    "parseCheckResult",
+    "createProvingPayload",
+    "canonicalizeTransaction",
+    "createSyncRequest",
+    "createShieldedSpentRequest",
+    "applyShieldedSpentResponse",
+    "setShieldedProtocolVersion",
+    "createDustSpendRequest",
+    "createDustCommitmentRequest",
+    "applyDustSpendResolution",
+    "transfer",
+    "dappTransfer",
+    "dappIntent",
+    "generateDust",
+    "balanceUnsealed",
+    "balanceSealed",
+    "submitFinalized"
+  ],
+  "textInputs": [
+    {
+      "group": "maintained",
+      "path": "Cargo.lock",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "Cargo.toml",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "clippy.toml",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "crates/runtime/Cargo.toml",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "crates/runtime/src",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "crates/runtime/uniffi.toml",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "packages/react-native/android/build.gradle",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "packages/react-native/android/src",
+      "requiredAtMilestone": "M3"
+    },
+    {
+      "group": "maintained",
+      "path": "packages/react-native/expo-module.config.json",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "packages/react-native/ios/ExpoMidnightNative.podspec",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "packages/react-native/ios/ExpoMidnightNativeModule.swift",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "packages/react-native/src",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "packages/react-native/tests",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "rustfmt.toml",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "tools/bindgen",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "generated",
+      "path": "packages/react-native/android/generated",
+      "requiredAtMilestone": "M4"
+    },
+    {
+      "group": "generated",
+      "path": "packages/react-native/ios/generated",
+      "requiredAtMilestone": "M4"
+    },
+    {
+      "group": "package",
+      "path": "packages/react-native/package.json",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "package",
+      "path": "packages/react-native/README.md",
+      "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "package",
+      "path": "packages/react-native/dist",
+      "requiredAtMilestone": null
+    }
+  ],
+  "rustCoverageException": {
+    "rule": "rust-line-coverage",
+    "measuredPercent": 14.73,
+    "minimumPercent": 80,
+    "trackingIssue": "https://github.com/ADGLx/midnight-mobile/issues/7",
+    "activeFromMilestone": "M1",
+    "expiresAtMilestone": "M5",
+    "removalCondition": "Raise measured Rust runtime line coverage from 14.73 percent to at least 80 percent and enforce that threshold in required CI before M5 begins."
+  },
+  "typescriptCoverageException": {
+    "rule": "typescript-coverage",
+    "trackingIssue": "https://github.com/ADGLx/midnight-mobile/issues/16",
+    "runner": "compiled-node-tests",
+    "activeFromMilestone": "M1",
+    "expiresAtMilestone": "M3",
+    "measuredPercent": {
+      "lines": 71.3,
+      "branches": 73.23,
+      "functions": 63.19
+    },
+    "requiredPercent": {
+      "lines": 85,
+      "branches": 75,
+      "functions": 85
+    },
+    "removalCondition": "Raise compiled React Native package coverage to at least 85 percent lines, 75 percent branches, and 85 percent functions, then enforce raw TypeScript coverage in required CI before M3 begins."
+  }
+}

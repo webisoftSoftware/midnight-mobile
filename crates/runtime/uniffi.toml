@@ -1,0 +1,9 @@
+[bindings.kotlin]
+package_name = "expo.modules.midnightnative.uniffi"
+cdylib_name = "midnight_native_runtime"
+android = true
+
+[bindings.swift]
+module_name = "MidnightNativeRuntime"
+ffi_module_name = "MidnightNativeRuntimeFFI"
+cdylib_name = "midnight_native_runtime"

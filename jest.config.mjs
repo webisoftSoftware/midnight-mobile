@@ -5,6 +5,7 @@ const config = {
     "packages/**/*.{js,jsx,ts,tsx}",
     "!packages/**/*.d.ts",
     "!packages/**/*.{test,spec}.{js,jsx,ts,tsx}",
+    "!packages/react-native/**",
     "!packages/**/generated/**",
     "!packages/**/*.generated.*",
     "!packages/**/index.{js,jsx,ts,tsx}",
@@ -12,10 +13,12 @@ const config = {
   coverageDirectory: "coverage",
   coveragePathIgnorePatterns: [
     "/node_modules/",
+    "/\\.staging-build/",
     "/examples/",
     "/fixtures?/",
     "/generated/",
   ],
+  modulePathIgnorePatterns: ["/\\.staging-build/"],
   coverageThreshold: {
     global: {
       branches: 75,
@@ -25,6 +28,11 @@ const config = {
     },
   },
   testMatch: ["**/?(*.)+(spec|test).[jt]s?(x)"],
+  testPathIgnorePatterns: [
+    "/node_modules/",
+    "/\\.staging-build/",
+    "/packages/react-native/",
+  ],
 };
 
 export default config;
