@@ -15,8 +15,8 @@ private fast sync, and all other 1AM application logic are excluded from the
 source, package, binaries, tests, and Git history.
 
 This alpha intentionally duplicates the sanitized wallet runtime. Shared-core
-migration, extensions, crates.io, checkpoint migration, and stable
-direct-native APIs are deferred until external demand is demonstrated.
+migration, extensions, crates.io, checkpoint migration, and stable direct-native
+APIs are deferred until external demand is demonstrated.
 
 ## Repository and sanitization
 
@@ -94,10 +94,10 @@ fetch, WebSocket, endpoint-header, timeout, and cancellation implementations.
 
 - Present checkpoints to JavaScript as opaque versioned bytes; keep the native
   representation private.
-- Provide optional `CheckpointStore` injection and an in-memory test adapter.
-  Do not ship AsyncStorage persistence or automatic migration.
-- Document that checkpoints contain privacy-sensitive wallet state and that
-  the internal checksum detects corruption, not tampering or disclosure.
+- Provide optional `CheckpointStore` injection and an in-memory test adapter. Do
+  not ship AsyncStorage persistence or automatic migration.
+- Document that checkpoints contain privacy-sensitive wallet state and that the
+  internal checksum detects corruption, not tampering or disclosure.
 - Require production adopters to implement authenticated, device-protected
   encryption.
 - Document accurately that seeds cross JavaScript, Swift/Kotlin, and Rust
@@ -105,8 +105,8 @@ fetch, WebSocket, endpoint-header, timeout, and cancellation implementations.
   their original buffers.
 - Use only deterministic synthetic fixtures. Remove or rename misleading
   `productionSecrets` and secret-key fixtures.
-- Scan allowlisted source, generated bindings, native binaries, the npm
-  tarball, and the initial source commit for secrets and forbidden content.
+- Scan allowlisted source, generated bindings, native binaries, the npm tarball,
+  and the initial source commit for secrets and forbidden content.
 - If a potentially live credential is discovered, exclude it and rotate it
   externally without changing the 1AM repository.
 - License the audited copy as `MIT OR Apache-2.0`; include both license texts,
@@ -139,11 +139,11 @@ Publish one npm artifact: `@1am/midnight-mobile@0.1.0-alpha.1`.
 
 For every pull request:
 
-- Run the pinned repository quality command covering Markdown, TypeScript,
-  Rust, shell scripts, GitHub Actions, formatting, type checking, and tests.
+- Run the pinned repository quality command covering Markdown, TypeScript, Rust,
+  shell scripts, GitHub Actions, formatting, type checking, and tests.
 - Enforce a 500-physical-line maximum for handwritten source files, with
-  reviewed exceptions only for generated bindings, lockfiles, vendored code,
-  and machine-generated fixtures.
+  reviewed exceptions only for generated bindings, lockfiles, vendored code, and
+  machine-generated fixtures.
 - Reject unqualified lint suppressions, TypeScript `any`, unsafe Rust without a
   documented safety invariant, and warnings from supported toolchains.
 - Run strict Rust clippy, strict TypeScript/ESLint rules, wallet-core tests,
@@ -165,8 +165,8 @@ For the `v0.1.0-alpha.1` release:
   `PATH`; build and launch both platforms.
 - Exercise wallet open, normal sync, snapshots and balances, checkpoint
   round-trip, shielded and unshielded transfers, DUST, dApp flows, proof
-  effects, cancellation, and accepted/rejected/unknown submissions on
-  controlled testnet fixtures.
+  effects, cancellation, and accepted/rejected/unknown submissions on controlled
+  testnet fixtures.
 - Require a negative scan showing no social or asset commands, verifier blobs,
   `1am:` social namespaces, gateway signing, private endpoints, credentials, or
   fast-sync routes in source, declarations, generated bindings, and binaries.

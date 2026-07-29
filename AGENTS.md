@@ -17,8 +17,8 @@ behind injected TypeScript host interfaces.
 
 ## Build, Test, and Development Commands
 
-There is no executable toolchain yet. Build and test commands become valid
-after M0 adds the root `package.json` and lockfile:
+There is no executable toolchain yet. Build and test commands become valid after
+M0 adds the root `package.json` and lockfile:
 
 - `npm ci`: install the pinned Node.js 22 tooling.
 - `npm run format`: apply Prettier formatting.
@@ -40,8 +40,8 @@ components, and `snake_case` for Rust modules.
 ## Testing Guidelines
 
 Every behavior change needs a success case and relevant failure, cancellation,
-or malformed-input coverage. Bug fixes require a regression test.
-Name TypeScript tests `*.test.ts` or `*.test.tsx`; keep Rust unit tests near the
+or malformed-input coverage. Bug fixes require a regression test. Name
+TypeScript tests `*.test.ts` or `*.test.tsx`; keep Rust unit tests near the
 module and integration tests under `crates/runtime/tests/`. Targets are 85%
 TypeScript line/statement/function coverage, 75% branch coverage, and 80% Rust
 line coverage. Use only deterministic synthetic fixtures.
@@ -58,5 +58,5 @@ relevant checks and tests pass.
 
 For coding tasks, delegate implementation to Luna sub-agents using `x-high`
 reasoning. The primary agent must review their work, run the relevant quality
-checks and tests, and correct anything incomplete or incorrect before
-committing the finished feature.
+checks and tests, and correct anything incomplete or incorrect before committing
+the finished feature.

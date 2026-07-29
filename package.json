@@ -1,0 +1,40 @@
+{
+  "name": "midnight-mobile-repository",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Private repository tooling for the Midnight Mobile SDK",
+  "engines": {
+    "node": "22.x"
+  },
+  "packageManager": "npm@11.12.1",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint:markdown": "markdownlint-cli2 \"**/*.md\"",
+    "lint:ts": "eslint . --max-warnings 0",
+    "lint:rust": "node scripts/run-rust-quality.mjs",
+    "lint:workflows": "node scripts/run-actionlint.mjs",
+    "lint:shell": "node scripts/run-shellcheck.mjs",
+    "check:source-policy": "node scripts/check-source-policy.mjs",
+    "typecheck": "node scripts/run-typecheck.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "quality": "npm run format:check && npm run lint:markdown && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm run check:source-policy && npm run typecheck && npm test"
+  },
+  "overrides": {
+    "brace-expansion@<2": "1.1.17",
+    "brace-expansion@>=2 <3": "2.1.3",
+    "brace-expansion@>=5 <6": "5.0.8"
+  },
+  "devDependencies": {
+    "@tktco/node-actionlint": "1.6.0",
+    "eslint": "9.39.5",
+    "eslint-config-expo": "55.0.1",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "16.5.0",
+    "jest": "30.4.2",
+    "markdownlint-cli2": "0.23.2",
+    "prettier": "3.9.6",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.65.0"
+  }
+}

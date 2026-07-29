@@ -5,15 +5,15 @@
 This document turns the accepted SDK scope in [`PLAN.md`](../PLAN.md) into an
 implementation program that can be executed issue by issue.
 
-The first objective is a privately tested, then publicly released,
-React Native-first alpha:
+The first objective is a privately tested, then publicly released, React
+Native-first alpha:
 
 ```text
 @1am/midnight-mobile@0.1.0-alpha.1
 ```
 
-The alpha contains wallet-core functionality only. It is a fresh, sanitized
-copy derived from the assessed 1AM runtime. The working 1AM repository remains
+The alpha contains wallet-core functionality only. It is a fresh, sanitized copy
+derived from the assessed 1AM runtime. The working 1AM repository remains
 unchanged and does not consume this SDK during the alpha program.
 
 ## 2. Fixed constraints
@@ -41,14 +41,15 @@ These constraints remain in force unless the accepted product plan is revised:
 
 Use the following repository only as a read-only source reference:
 
-- Repository: [`webisoftSoftware/one-am-wallet`](https://github.com/webisoftSoftware/one-am-wallet)
+- Repository:
+  [`webisoftSoftware/one-am-wallet`](https://github.com/webisoftSoftware/one-am-wallet)
 - Assessed commit: `dc9c0dd34dba9e19304859106ca2531f48590599`
 - Assessed component: `apps/mobile/modules/expo-midnight-native`
 - Provenance record: [`PROVENANCE.md`](../PROVENANCE.md)
 
-The commit hash is authoritative. Do not read from a moving branch, pull a
-newer revision, or silently substitute the current working tree. Updating the
-source revision requires a reviewed change to `PROVENANCE.md`, the extraction
+The commit hash is authoritative. Do not read from a moving branch, pull a newer
+revision, or silently substitute the current working tree. Updating the source
+revision requires a reviewed change to `PROVENANCE.md`, the extraction
 allowlist, dependency inventory, and compatibility record.
 
 Permitted source-repository operations are limited to:
@@ -85,8 +86,8 @@ user-owned and must be preserved. Extract committed content from the pinned
 commit with `git show` or `git archive`, not from modified working-tree files.
 
 All copied files must enter a temporary directory outside the source repository
-before sanitization, formatting, dependency installation, generation, builds,
-or tests begin. All project writes occur in this repository.
+before sanitization, formatting, dependency installation, generation, builds, or
+tests begin. All project writes occur in this repository.
 
 ## 3. Program outcomes
 
@@ -103,22 +104,22 @@ The program is complete when all of the following are true:
   repository history pass the security and forbidden-content gates.
 - Release artifacts are reproducible from the tagged source and include
   checksums, an SBOM, provenance, and an explicit compatibility record.
-- At least two independent external applications complete an integration
-  before shared-core or stable direct-native work is approved.
+- At least two independent external applications complete an integration before
+  shared-core or stable direct-native work is approved.
 
 ## 4. Milestone map
 
-| Milestone | Result | Blocking gate |
-|---|---|---|
-| M0 — Bootstrap | Private planning repository and controls | Scope and provenance reviewed |
-| M1 — Allowlisted extraction | Compiling wallet runtime copied without history | Source and license inventory complete |
-| M2 — Wallet-core sanitization | Private features physically absent | Forbidden-content and wallet tests pass |
-| M3 — React Native API | Typed SDK, standard transport, and example | Example works against mocked services |
-| M4 — Native distribution | Prebuilt iOS and Android payloads in npm | Clean consumer builds without Rust |
-| M5 — Security and CI | Auditable pull-request and release pipelines | All required checks enforced |
-| M6 — Alpha release | Private RC followed by public `0.1.0-alpha.1` | Release checklist and maintainer approval |
-| M7 — External validation | Evidence from real third-party integrations | Demand gate measured and documented |
-| M8 — Demand-led evolution | Shared core or native APIs only when justified | Separate design review for each expansion |
+| Milestone                     | Result                                          | Blocking gate                             |
+| ----------------------------- | ----------------------------------------------- | ----------------------------------------- |
+| M0 — Bootstrap                | Private planning repository and controls        | Scope and provenance reviewed             |
+| M1 — Allowlisted extraction   | Compiling wallet runtime copied without history | Source and license inventory complete     |
+| M2 — Wallet-core sanitization | Private features physically absent              | Forbidden-content and wallet tests pass   |
+| M3 — React Native API         | Typed SDK, standard transport, and example      | Example works against mocked services     |
+| M4 — Native distribution      | Prebuilt iOS and Android payloads in npm        | Clean consumer builds without Rust        |
+| M5 — Security and CI          | Auditable pull-request and release pipelines    | All required checks enforced              |
+| M6 — Alpha release            | Private RC followed by public `0.1.0-alpha.1`   | Release checklist and maintainer approval |
+| M7 — External validation      | Evidence from real third-party integrations     | Demand gate measured and documented       |
+| M8 — Demand-led evolution     | Shared core or native APIs only when justified  | Separate design review for each expansion |
 
 Milestones are sequential. Work inside a milestone may run in parallel, but no
 later milestone may weaken an earlier security or isolation gate.
@@ -151,8 +152,8 @@ Status: in progress.
    workflows when maintainers are assigned.
 9. Decide licensing only after the ownership audit. Add `LICENSE-MIT`,
    `LICENSE-APACHE`, and `NOTICE` before source lands.
-10. Add the pinned code-quality toolchain and required `npm run quality`
-    command described in section 6 before importing runtime source.
+10. Add the pinned code-quality toolchain and required `npm run quality` command
+    described in section 6 before importing runtime source.
 
 Exit criteria:
 
@@ -210,8 +211,8 @@ Exit criteria:
 - No app code or private Git history is present.
 - The working 1AM repository has exactly the same HEAD and complete porcelain
   status output captured before extraction.
-- Imported handwritten source satisfies the quality policy or has a
-  time-bounded reviewed exception.
+- Imported handwritten source satisfies the quality policy or has a time-bounded
+  reviewed exception.
 
 ### M2 — Wallet-core sanitization and API hardening
 
@@ -288,8 +289,8 @@ Goal: make the wallet-core runtime usable from a normal Expo development build.
    - bounded effect-loop execution;
    - timeout and abort propagation;
    - deterministic rejection versus ambiguous `statusUnknown` handling.
-5. Require all service URLs and credentials from the adopter. Do not provide
-   1AM defaults.
+5. Require all service URLs and credentials from the adopter. Do not provide 1AM
+   defaults.
 6. Provide only an in-memory checkpoint adapter for examples and tests.
 7. Build an Expo example that demonstrates:
    - runtime creation and disposal;
@@ -299,8 +300,8 @@ Goal: make the wallet-core runtime usable from a normal Expo development build.
    - checkpoint round-trip;
    - transaction/proof/submission flow;
    - cancellation and recoverable errors.
-8. Use mock services by default. Live preview-network tests require explicit
-   CI secrets and never run for untrusted pull requests.
+8. Use mock services by default. Live preview-network tests require explicit CI
+   secrets and never run for untrusted pull requests.
 
 Exit criteria:
 
@@ -363,8 +364,7 @@ Pull-request CI:
 3. Verify generated bindings are reproducible.
 4. Build Android native libraries and the Android release example.
 5. Build the iOS simulator framework and example.
-6. Run secret, dependency, vulnerability, license, and forbidden-content
-   scans.
+6. Run secret, dependency, vulnerability, license, and forbidden-content scans.
 7. Verify the npm pack list and report package sizes.
 
 Release CI:
@@ -377,8 +377,7 @@ Release CI:
 4. Re-run clean consumer builds from the packed tarball.
 5. Require manual approval before npm publication or repository visibility
    changes.
-6. Publish npm with trusted provenance and create matching GitHub release
-   notes.
+6. Publish npm with trusted provenance and create matching GitHub release notes.
 
 Required documentation:
 
@@ -414,12 +413,11 @@ Exit criteria:
    - build and prove a transaction;
    - submit or intentionally cancel it;
    - confirm accepted, rejected, and ambiguous submission handling.
-6. Verify no production or maintainer wallet material entered logs or
-   artifacts.
+6. Verify no production or maintainer wallet material entered logs or artifacts.
 7. Tag `v0.1.0-alpha.1`.
 8. Publish the npm package with provenance and the matching GitHub release.
-9. Change repository visibility to public only after publication approval and
-   a final secret scan.
+9. Change repository visibility to public only after publication approval and a
+   final secret scan.
 10. Monitor install failures, native crashes, package size, documentation gaps,
     and security reports.
 
@@ -459,8 +457,8 @@ Goal: gather evidence before expanding the architecture.
 
 Exit criteria:
 
-- At least two independent applications complete an integration, or a
-  documented external requirement justifies the next investment.
+- At least two independent applications complete an integration, or a documented
+  external requirement justifies the next investment.
 - Known defects, unsupported cases, and compatibility limits are documented.
 - Maintainers can support releases without relying on private 1AM systems.
 
@@ -580,8 +578,8 @@ Implement `scripts/check-source-policy.mjs` with these rules:
    formatting, multiple statements per line, or moving code into an unrelated
    utility module.
 
-Apply the 500-line rule to `.rs`, `.ts`, `.tsx`, `.js`, `.mjs`, `.swift`,
-`.kt`, and maintained Gradle source. Exempt only:
+Apply the 500-line rule to `.rs`, `.ts`, `.tsx`, `.js`, `.mjs`, `.swift`, `.kt`,
+and maintained Gradle source. Exempt only:
 
 - generated UniFFI, Swift, and Kotlin bindings;
 - lockfiles;
@@ -589,8 +587,7 @@ Apply the 500-line rule to `.rs`, `.ts`, `.tsx`, `.js`, `.mjs`, `.swift`,
 - machine-generated fixtures and snapshots;
 - generated release manifests.
 
-Every exemption must be listed in
-`scripts/source-policy-exceptions.json` with:
+Every exemption must be listed in `scripts/source-policy-exceptions.json` with:
 
 - exact repository-relative path;
 - rule being waived;
@@ -659,8 +656,8 @@ above each unsafe block.
   `#![allow(...)]`, or configuration-wide warning suppression.
 - Use `@ts-expect-error` only with a description explaining the expected
   compiler error.
-- Use the narrowest possible ESLint suppression with an adjacent explanation
-  and tracking issue.
+- Use the narrowest possible ESLint suppression with an adjacent explanation and
+  tracking issue.
 - Use Rust `#[expect(lint, reason = "...")]` on the smallest item possible.
 - Generated files may contain generator-owned suppressions but must carry a
   generated-file marker and reproduce byte-for-byte in CI.
@@ -674,8 +671,8 @@ above each unsafe block.
 - Every bug fix requires a regression test that fails without the fix.
 - TypeScript handwritten source must maintain at least 85% line, statement, and
   function coverage and 75% branch coverage.
-- Rust handwritten runtime source must maintain at least 80% line coverage
-  under `cargo llvm-cov`.
+- Rust handwritten runtime source must maintain at least 80% line coverage under
+  `cargo llvm-cov`.
 - Generated bindings, fixtures, examples, and FFI declaration glue are excluded
   from coverage calculations.
 - Coverage may increase but may not drop below the recorded default-branch
@@ -686,8 +683,7 @@ above each unsafe block.
 
 ### 6.7 Review and architecture requirements
 
-- Keep Rust free of network, persistent-storage, UI, and platform lifecycle
-  I/O.
+- Keep Rust free of network, persistent-storage, UI, and platform lifecycle I/O.
 - Keep endpoint and credential configuration outside the runtime.
 - Prefer dependency injection at I/O and time boundaries.
 - Keep modules single-purpose and public APIs smaller than their internal
@@ -751,19 +747,19 @@ remain intact.
 
 ## 9. Risk register
 
-| Risk | Mitigation | Release blocker |
-|---|---|---|
-| Private feature or credential leaks into public history | Allowlist copy, fresh history, secret and forbidden scans | Yes |
-| Extracted code cannot build independently | Compile before sanitization; preserve pinned revisions initially | Yes |
-| Static Apple archive makes npm impractical | Dynamic XCFramework and enforced size budget | Yes |
-| Consumers unexpectedly compile Rust | Package prebuilt binaries; clean build with Rust absent | Yes |
-| Checkpoints expose wallet activity | Opaque format, no default persistence, production encryption contract | Yes |
-| Seed copies survive across FFI boundaries | Threat model, best-effort wiping, caller ownership documentation | Yes |
-| Transport failures misreport submission status | Explicit `statusUnknown` and end-to-end failure tests | Yes |
-| Alpha diverges from the 1AM implementation | Manual provenance-tracked ports; revisit only after demand gate | No |
-| Upstream Ledger change breaks wire compatibility | Exact pinning and per-release compatibility matrix | Yes |
-| Generated bindings become accidental stable APIs | Mark internal and postpone direct-native distribution | No |
-| Quality rules are bypassed to accelerate extraction | Required checks, explicit exceptions, and no warning-only gates | Yes |
+| Risk                                                    | Mitigation                                                            | Release blocker |
+| ------------------------------------------------------- | --------------------------------------------------------------------- | --------------- |
+| Private feature or credential leaks into public history | Allowlist copy, fresh history, secret and forbidden scans             | Yes             |
+| Extracted code cannot build independently               | Compile before sanitization; preserve pinned revisions initially      | Yes             |
+| Static Apple archive makes npm impractical              | Dynamic XCFramework and enforced size budget                          | Yes             |
+| Consumers unexpectedly compile Rust                     | Package prebuilt binaries; clean build with Rust absent               | Yes             |
+| Checkpoints expose wallet activity                      | Opaque format, no default persistence, production encryption contract | Yes             |
+| Seed copies survive across FFI boundaries               | Threat model, best-effort wiping, caller ownership documentation      | Yes             |
+| Transport failures misreport submission status          | Explicit `statusUnknown` and end-to-end failure tests                 | Yes             |
+| Alpha diverges from the 1AM implementation              | Manual provenance-tracked ports; revisit only after demand gate       | No              |
+| Upstream Ledger change breaks wire compatibility        | Exact pinning and per-release compatibility matrix                    | Yes             |
+| Generated bindings become accidental stable APIs        | Mark internal and postpone direct-native distribution                 | No              |
+| Quality rules are bypassed to accelerate extraction     | Required checks, explicit exceptions, and no warning-only gates       | Yes             |
 
 ## 10. Definition of done for every milestone
 
