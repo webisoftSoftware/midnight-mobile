@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "currentMilestone": "M3",
+  "currentMilestone": "M4",
   "contracts": {
     "typescript": "packages/react-native/src/commands.ts",
     "rust": "crates/runtime/src/runtime/types.rs",
-    "extractionManifest": "scripts/m3-sanitized-target-manifest.json"
+    "extractionManifest": "scripts/m4-sanitized-target-manifest.json"
   },
   "commandKinds": [
     "signData",
@@ -100,8 +100,53 @@
     },
     {
       "group": "maintained",
+      "path": "rust-toolchain.toml",
+      "requiredAtMilestone": "M4"
+    },
+    {
+      "group": "maintained",
       "path": "rustfmt.toml",
       "requiredAtMilestone": "M1"
+    },
+    {
+      "group": "maintained",
+      "path": "scripts/apple-consumer.mjs",
+      "requiredAtMilestone": "M4"
+    },
+    {
+      "group": "maintained",
+      "path": "scripts/apple-expo-consumer.mjs",
+      "requiredAtMilestone": "M4"
+    },
+    {
+      "group": "maintained",
+      "path": "scripts/apple-native.mjs",
+      "requiredAtMilestone": "M4"
+    },
+    {
+      "group": "maintained",
+      "path": "scripts/build-android-native.mjs",
+      "requiredAtMilestone": "M4"
+    },
+    {
+      "group": "maintained",
+      "path": "scripts/build-apple-xcframework.mjs",
+      "requiredAtMilestone": "M4"
+    },
+    {
+      "group": "maintained",
+      "path": "scripts/check-apple-xcframework.mjs",
+      "requiredAtMilestone": "M4"
+    },
+    {
+      "group": "maintained",
+      "path": "scripts/check-native-distribution.mjs",
+      "requiredAtMilestone": "M4"
+    },
+    {
+      "group": "maintained",
+      "path": "scripts/native-build-config.json",
+      "requiredAtMilestone": "M4"
     },
     {
       "group": "maintained",

@@ -8,8 +8,10 @@ version = '0.1.0-alpha.1'
 
 android {
   namespace 'expo.modules.midnightnative'
+  ndkVersion '27.1.12297006'
 
   defaultConfig {
+    minSdk 24
     versionCode 1
     versionName '0.1.0-alpha.1'
     ndk {

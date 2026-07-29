@@ -16,6 +16,7 @@ build/
 coverage/
 android/.gradle/
 android/local.properties
+packages/react-native/android/src/main/jniLibs/
 ios/Pods/
 ios/DerivedData/
 

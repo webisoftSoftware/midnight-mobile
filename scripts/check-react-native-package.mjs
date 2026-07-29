@@ -23,6 +23,7 @@ const EXPECTED_FILES = Object.freeze([
   "expo-module.config.json",
   "ios/ExpoMidnightNative.podspec",
   "ios/ExpoMidnightNativeModule.swift",
+  "ios/build/MidnightNativeRuntime.xcframework",
   "ios/generated",
   "android/build.gradle",
   "android/src/main",
@@ -47,19 +48,23 @@ const REQUIRED_PACKED_FILES = Object.freeze([
   "README.md",
   "android/build.gradle",
   "android/generated/README.md",
+  "android/src/main/jniLibs/arm64-v8a/libmidnight_native_runtime.so",
+  "android/src/main/jniLibs/x86_64/libmidnight_native_runtime.so",
   "android/src/main/java/expo/modules/midnightnative/ExpoMidnightNativeModule.kt",
   "dist/index.d.ts",
   "dist/index.js",
   "expo-module.config.json",
   "ios/ExpoMidnightNative.podspec",
   "ios/ExpoMidnightNativeModule.swift",
+  "ios/build/MidnightNativeRuntime.xcframework/Info.plist",
   "ios/generated/README.md",
   "package.json",
 ]);
 const ALLOWED_PACKED_PATH =
-  /^(?:README\.md|package\.json|dist\/|expo-module\.config\.json$|android\/(?:build\.gradle$|generated\/|src\/main\/)|ios\/(?:ExpoMidnightNative\.podspec$|ExpoMidnightNativeModule\.swift$|generated\/))/u;
-const NATIVE_BINARY_PATH =
-  /\.(?:a|aar|dll|dylib|framework|so|xcframework)(?:\/|$)/u;
+  /^(?:README\.md|package\.json|dist\/|expo-module\.config\.json$|android\/(?:build\.gradle$|generated\/|src\/main\/)|ios\/(?:ExpoMidnightNative\.podspec$|ExpoMidnightNativeModule\.swift$|build\/MidnightNativeRuntime\.xcframework\/|generated\/))/u;
+const ALLOWED_NATIVE_BINARY_PATH =
+  /^(?:android\/src\/main\/jniLibs\/(?:arm64-v8a|x86_64)\/libmidnight_native_runtime\.so|ios\/build\/MidnightNativeRuntime\.xcframework\/[^/]+\/MidnightNativeRuntime\.framework\/MidnightNativeRuntime)$/u;
+const NATIVE_BINARY_PATH = /\.(?:a|aar|dll|dylib|so)(?:\/|$)/u;
 
 function isObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -160,6 +165,9 @@ export function validatePackageMetadata(metadata, autolinking) {
       errors.push(`${field} must be absent`);
     }
   }
+  if (metadata.scripts?.postinstall !== undefined) {
+    errors.push("scripts.postinstall must be absent");
+  }
   validateExact(
     autolinking,
     {
@@ -190,8 +198,11 @@ export function validatePackEntries(entries) {
     if (!ALLOWED_PACKED_PATH.test(path)) {
       errors.push(`npm tarball contains non-allowlisted path: ${path}`);
     }
-    if (NATIVE_BINARY_PATH.test(path)) {
-      errors.push(`M4 native binary is premature in M3 tarball: ${path}`);
+    if (
+      NATIVE_BINARY_PATH.test(path) &&
+      !ALLOWED_NATIVE_BINARY_PATH.test(path)
+    ) {
+      errors.push(`npm tarball contains unsupported native binary: ${path}`);
     }
   }
   return errors;

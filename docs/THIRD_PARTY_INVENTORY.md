@@ -193,9 +193,10 @@ Any release smoke application or redistributed native aggregate that contains
 JNA must include the JNA license/attribution, retain notices, and mark
 modifications under Apache 2.0. The JNA 5.17.0 tag has no `NOTICE` file.
 
-The AAR's checksum is not pinned in the assessed component. Capture the resolved
-artifact checksum in the target dependency lock/verification metadata before the
-Android binary gate.
+The M4 native build contract pins the resolved JNA 5.17.0 AAR to SHA-256
+`4dbeffffa665d97ad5aa7eee297531d3c841a86716ab7f774fd6956422b3cf38`. The clean
+Android consumer gate resolves the exact coordinate and fails if the cached AAR
+does not match that checksum.
 
 ## Source and binary release requirements
 

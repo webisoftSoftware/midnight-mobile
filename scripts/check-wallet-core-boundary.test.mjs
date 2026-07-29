@@ -16,12 +16,13 @@ import { validateSanitizedTargetManifest } from "./check-wallet-core-targets.mjs
 const legacyTargetManifests = [
   "./m1-sanitized-target-manifest.json",
   "./m2-sanitized-target-manifest.json",
+  "./m3-sanitized-target-manifest.json",
 ].map((path) =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")),
 );
 const targetManifest = JSON.parse(
   readFileSync(
-    new URL("./m3-sanitized-target-manifest.json", import.meta.url),
+    new URL("./m4-sanitized-target-manifest.json", import.meta.url),
     "utf8",
   ),
 );

@@ -14,6 +14,9 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "build:native": "npm run build:native:apple && npm run build:native:android",
+    "build:native:android": "node scripts/build-android-native.mjs",
+    "build:native:apple": "node scripts/build-apple-xcframework.mjs",
     "build:package": "npm run build --workspace @1am/midnight-mobile",
     "lint:markdown": "markdownlint-cli2 \"**/*.md\"",
     "lint:ts": "eslint . --max-warnings 0",
@@ -24,11 +27,12 @@
     "check:extraction-allowlist": "node scripts/check-extraction-allowlist.mjs",
     "check:bindings": "node scripts/check-uniffi-bindings.mjs",
     "check:example": "npm run build --workspace @1am/midnight-mobile && npm run validate:platforms --workspace @1am/midnight-mobile-example",
+    "check:native": "node scripts/check-apple-xcframework.mjs && node scripts/check-native-distribution.mjs",
     "check:package": "node scripts/check-react-native-package.mjs",
     "generate:bindings": "node scripts/check-uniffi-bindings.mjs --write",
     "typecheck": "node scripts/run-typecheck.mjs",
     "test": "node scripts/run-tests.mjs",
-    "quality": "npm run build:package && npm run format:check && npm run lint:markdown && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm run check:source-policy && npm run check:extraction-allowlist && npm run check:wallet-core-boundary && npm run check:bindings && npm run check:package && npm run check:example && npm run typecheck && npm test",
+    "quality": "npm run build:native && npm run build:package && npm run format:check && npm run lint:markdown && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm run check:source-policy && npm run check:extraction-allowlist && npm run check:wallet-core-boundary && npm run check:bindings && npm run check:package && npm run check:native && npm run check:example && npm run typecheck && npm test",
     "check:wallet-core-boundary": "node scripts/check-wallet-core-boundary.mjs && node scripts/check-wallet-core-artifacts.mjs"
   },
   "overrides": {

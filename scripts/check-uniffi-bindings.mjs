@@ -23,6 +23,8 @@ export const EXPECTED_ABI = Object.freeze([
   "open_wallet_session",
   "resume_operation",
 ]);
+const SWIFT_MODULE = "MidnightNativeRuntime";
+const SWIFT_FFI_FILENAME = "MidnightNativeRuntimeFFI";
 
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_DIRECTORY, "..");
@@ -41,6 +43,32 @@ const KOTLIN_TARGET = "packages/react-native/android/generated";
 
 function fail(message) {
   throw new Error(`UniFFI binding gate: ${message}`);
+}
+
+export function swiftModuleContractErrors(configuration, swift, modulemap) {
+  const errors = [];
+  if (!/^ffi_module_name = "MidnightNativeRuntime"$/mu.test(configuration)) {
+    errors.push("Swift ffi_module_name must match the framework module");
+  }
+  if (
+    !/^ffi_module_filename = "MidnightNativeRuntimeFFI"$/mu.test(configuration)
+  ) {
+    errors.push("Swift ffi_module_filename must preserve reviewed filenames");
+  }
+  if (
+    !swift.includes(
+      `#if canImport(${SWIFT_MODULE})\nimport ${SWIFT_MODULE}\n#endif`,
+    )
+  ) {
+    errors.push("generated Swift must import the framework module");
+  }
+  if (!modulemap.startsWith(`module ${SWIFT_MODULE} {`)) {
+    errors.push("generated module map must declare the framework module name");
+  }
+  if (!modulemap.includes(`header "${SWIFT_FFI_FILENAME}.h"`)) {
+    errors.push("generated module map must retain the reviewed FFI header");
+  }
+  return errors;
 }
 
 function run(command, argumentsList, capture = false) {
@@ -231,11 +259,20 @@ export function assertExactGeneratedAbi(swift, kotlin, header) {
 function assertAbi(generatedRoot) {
   const swiftDirectory = join(generatedRoot, "swift");
   const kotlinDirectory = join(generatedRoot, "kotlin");
+  const swift = readFileSync(join(swiftDirectory, SWIFT_FILES[0]), "utf8");
+  const header = readFileSync(join(swiftDirectory, SWIFT_FILES[1]), "utf8");
+  const modulemap = readFileSync(join(swiftDirectory, SWIFT_FILES[2]), "utf8");
   assertExactGeneratedAbi(
-    readFileSync(join(swiftDirectory, SWIFT_FILES[0]), "utf8"),
+    swift,
     readFileSync(join(kotlinDirectory, ...KOTLIN_FILES[0].split("/")), "utf8"),
-    readFileSync(join(swiftDirectory, SWIFT_FILES[1]), "utf8"),
+    header,
   );
+  const moduleErrors = swiftModuleContractErrors(
+    readFileSync(join(REPOSITORY_ROOT, "crates/runtime/uniffi.toml"), "utf8"),
+    swift,
+    modulemap,
+  );
+  if (moduleErrors.length > 0) fail(moduleErrors.join("\n"));
 }
 
 function targetFiles(directory) {

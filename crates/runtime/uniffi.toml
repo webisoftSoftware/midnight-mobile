@@ -5,5 +5,6 @@ android = true
 
 [bindings.swift]
 module_name = "MidnightNativeRuntime"
-ffi_module_name = "MidnightNativeRuntimeFFI"
+ffi_module_name = "MidnightNativeRuntime"
+ffi_module_filename = "MidnightNativeRuntimeFFI"
 cdylib_name = "midnight_native_runtime"

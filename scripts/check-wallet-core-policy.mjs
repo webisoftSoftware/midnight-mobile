@@ -11,7 +11,7 @@ export const MILESTONES = Object.freeze(
 const EXPECTED_CONTRACTS = Object.freeze({
   typescript: "packages/react-native/src/commands.ts",
   rust: "crates/runtime/src/runtime/types.rs",
-  extractionManifest: "scripts/m3-sanitized-target-manifest.json",
+  extractionManifest: "scripts/m4-sanitized-target-manifest.json",
 });
 const EXPECTED_RUST_EXCEPTION = Object.freeze({
   rule: "rust-line-coverage",
@@ -48,7 +48,16 @@ maintained|packages/react-native/ios/ExpoMidnightNative.podspec|M1
 maintained|packages/react-native/ios/ExpoMidnightNativeModule.swift|M1
 maintained|packages/react-native/src|M1
 maintained|packages/react-native/tests|M1
+maintained|rust-toolchain.toml|M4
 maintained|rustfmt.toml|M1
+maintained|scripts/apple-consumer.mjs|M4
+maintained|scripts/apple-expo-consumer.mjs|M4
+maintained|scripts/apple-native.mjs|M4
+maintained|scripts/build-android-native.mjs|M4
+maintained|scripts/build-apple-xcframework.mjs|M4
+maintained|scripts/check-apple-xcframework.mjs|M4
+maintained|scripts/check-native-distribution.mjs|M4
+maintained|scripts/native-build-config.json|M4
 maintained|tools/bindgen|M1
 generated|packages/react-native/android/generated|M4
 generated|packages/react-native/ios/generated|M4

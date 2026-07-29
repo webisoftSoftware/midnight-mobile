@@ -7,8 +7,10 @@ Pod::Spec.new do |s|
   s.version          = package['version']
   s.summary          = package['description']
   s.description      = package['description']
+  s.author           = '1AM contributors'
+  s.homepage         = 'https://github.com/ADGLx/midnight-mobile'
   s.license          = package['license']
-  s.source           = { :git => 'https://github.com/webisoftSoftware/midnight-mobile.git',
+  s.source           = { :git => 'https://github.com/ADGLx/midnight-mobile.git',
                          :tag => "v#{s.version}" }
   s.platforms        = { :ios => '15.1' }
   s.swift_version    = '5.9'
