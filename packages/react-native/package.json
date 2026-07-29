@@ -20,6 +20,7 @@
     "expo-module.config.json",
     "ios/ExpoMidnightNative.podspec",
     "ios/ExpoMidnightNativeModule.swift",
+    "ios/build/MidnightNativeRuntime.xcframework",
     "ios/generated",
     "android/build.gradle",
     "android/src/main",

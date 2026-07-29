@@ -26,6 +26,7 @@ const metadata = {
     "expo-module.config.json",
     "ios/ExpoMidnightNative.podspec",
     "ios/ExpoMidnightNativeModule.swift",
+    "ios/build/MidnightNativeRuntime.xcframework",
     "ios/generated",
     "android/build.gradle",
     "android/src/main",
@@ -57,7 +58,7 @@ const autolinking = {
   },
 };
 
-await test("package metadata enforces the M3 consumer contract", () => {
+await test("package metadata enforces the M4 consumer contract", () => {
   assert.deepEqual(validatePackageMetadata(metadata, autolinking), []);
   assert.match(
     validatePackageMetadata(
@@ -76,19 +77,29 @@ await test("package metadata enforces the M3 consumer contract", () => {
     )[0] ?? "",
     /peerDependencies/u,
   );
+  assert.match(
+    validatePackageMetadata(
+      { ...metadata, scripts: { postinstall: "download-native-binaries" } },
+      autolinking,
+    ).join("\n"),
+    /scripts\.postinstall must be absent/u,
+  );
 });
 
-await test("tarball inspection rejects source leaks and premature binaries", () => {
+await test("tarball inspection requires and allowlists M4 native binaries", () => {
   const required = [
     "README.md",
     "android/build.gradle",
     "android/generated/README.md",
+    "android/src/main/jniLibs/arm64-v8a/libmidnight_native_runtime.so",
+    "android/src/main/jniLibs/x86_64/libmidnight_native_runtime.so",
     "android/src/main/java/expo/modules/midnightnative/ExpoMidnightNativeModule.kt",
     "dist/index.d.ts",
     "dist/index.js",
     "expo-module.config.json",
     "ios/ExpoMidnightNative.podspec",
     "ios/ExpoMidnightNativeModule.swift",
+    "ios/build/MidnightNativeRuntime.xcframework/Info.plist",
     "ios/generated/README.md",
     "package.json",
   ].map((path) => ({ path }));
@@ -96,14 +107,16 @@ await test("tarball inspection rejects source leaks and premature binaries", () 
   const errors = validatePackEntries([
     ...required,
     { path: "src/private.ts" },
-    { path: "ios/build/MidnightNativeRuntime.xcframework/runtime" },
+    {
+      path: "ios/build/MidnightNativeRuntime.xcframework/slice/unsupported.dylib",
+    },
   ]);
   assert.equal(
     errors.some((error) => error.includes("non-allowlisted")),
     true,
   );
   assert.equal(
-    errors.some((error) => error.includes("premature")),
+    errors.some((error) => error.includes("unsupported native binary")),
     true,
   );
 });

@@ -67,6 +67,12 @@ await test("staging package validation requires compiled entrypoints", () => {
     findStagingPackageErrors([
       { path: "dist/index.js" },
       { path: "dist/index.d.ts" },
+      {
+        path: "android/src/main/jniLibs/arm64-v8a/libmidnight_native_runtime.so",
+      },
+      {
+        path: "ios/build/MidnightNativeRuntime.xcframework/ios-arm64/MidnightNativeRuntime.framework/MidnightNativeRuntime",
+      },
     ]),
     [],
   );
@@ -80,7 +86,7 @@ await test("staging package validation requires compiled entrypoints", () => {
       { path: "dist/index.d.ts" },
       { path: "ios/build/runtime.xcframework/runtime" },
     ]).join("\n"),
-    /premature before M4/u,
+    /outside the M4 allowlist/u,
   );
 });
 

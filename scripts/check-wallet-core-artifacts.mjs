@@ -24,6 +24,8 @@ const RUST_ARTIFACT_PATTERN =
   /(?:^|\/)(?:lib)?midnight_native_runtime(?:[-.][^/]*)?\.(?:dll|dylib|so)$/u;
 const NATIVE_PACKAGE_PATTERN =
   /\.(?:a|aar|dll|dylib|framework|so|xcframework)(?:\/|$)/u;
+const ALLOWED_NATIVE_PACKAGE_PATTERN =
+  /^(?:android\/src\/main\/jniLibs\/(?:arm64-v8a|x86_64)\/libmidnight_native_runtime\.so|ios\/build\/MidnightNativeRuntime\.xcframework\/(?:Info\.plist|[^/]+\/MidnightNativeRuntime\.framework(?:\/|$)))/u;
 
 function artifactError(result, label) {
   if (result.error !== undefined) return `${label}: ${result.error.message}`;
@@ -229,8 +231,13 @@ export function findStagingPackageErrors(entries) {
     }
   }
   for (const path of paths) {
-    if (NATIVE_PACKAGE_PATTERN.test(path)) {
-      errors.push(`npm:${path}: native release binary is premature before M4`);
+    if (
+      NATIVE_PACKAGE_PATTERN.test(path) &&
+      !ALLOWED_NATIVE_PACKAGE_PATTERN.test(path)
+    ) {
+      errors.push(
+        `npm:${path}: native release binary is outside the M4 allowlist`,
+      );
     }
   }
   return errors;

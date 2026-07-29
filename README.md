@@ -16,9 +16,9 @@ are explicitly out of scope.
 
 Repository controls, quality tooling, the allowlisted wallet-core runtime, the
 consumable TypeScript package, and the mock-first Expo integration example are
-established. Prebuilt native distribution is the current workstream. See
-[PLAN.md](./PLAN.md) for the accepted extraction, security, packaging, and
-release plan.
+established. Prebuilt native distribution is complete; security, documentation,
+and continuous integration are the current workstream. See [PLAN.md](./PLAN.md)
+for the accepted extraction, security, packaging, and release plan.
 
 For the milestone-by-milestone delivery roadmap, see
 [docs/LONG_TERM_PROJECT_PLAN.md](./docs/LONG_TERM_PROJECT_PLAN.md).
@@ -29,7 +29,7 @@ For the milestone-by-milestone delivery roadmap, see
 - Allowlisted source extraction: complete
 - Wallet-core sanitization: complete
 - React Native package and mocked Expo example: complete
-- Prebuilt native distribution: not started
+- Prebuilt native distribution: complete
 - Public release: not started
 
 ## License

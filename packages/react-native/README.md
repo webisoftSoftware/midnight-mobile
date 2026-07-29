@@ -3,12 +3,14 @@
 `@1am/midnight-mobile` is a community-maintained wallet-core runtime for Expo 55
 and React Native 0.83 development builds. The package publishes compiled
 ECMAScript modules, TypeScript declarations, Expo autolinking metadata, and the
-reviewed native bridge sources.
+reviewed native bridge sources, and prebuilt Apple and Android wallet runtime
+libraries.
 
-The repository's M3 package intentionally has no prebuilt native runtime.
-Platform binaries and clean native release builds are M4 deliverables. The M3
-Expo example therefore validates both platform bundles and runs the complete
-wallet lifecycle against its injected mock runtime.
+The M4 package embeds a dynamic XCFramework for iOS device and simulator builds
+and `.so` libraries for Android `arm64-v8a` and `x86_64`. Consumers do not run
+Cargo or download binaries during installation. The Expo example validates both
+platform bundles and runs the complete wallet lifecycle against its injected
+mock runtime.
 
 ## Host configuration
 
@@ -92,10 +94,17 @@ seeds, checkpoints, credentials, signatures, or transaction payloads in logs.
 ## Maintainer verification
 
 `npm run check:package` builds the package twice, verifies byte-for-byte
-identical output, inspects the real npm tarball allowlist, rejects premature M4
-binaries, installs the tarball into an isolated offline consumer, resolves its
-declarations against the exact root-locked peer versions, and compiles the
-consumer against the packed declarations.
+identical output, inspects the real npm tarball allowlist, requires the exact M4
+native payload paths, installs the tarball into an isolated offline consumer,
+resolves its declarations against the exact root-locked peer versions, and
+compiles the consumer against the packed declarations.
+
+`npm run build:native` builds and inspects the pinned Apple and Android targets
+twice. `npm run check:native` verifies the standalone archives and checksums,
+assembles the npm tarball reproducibly, and performs clean release consumer
+builds with Rust unavailable. The repository's `docs/NATIVE_DISTRIBUTION.md`
+records the supported architectures, size budgets, and release artifact
+locations.
 
 Use `npm run generate:bindings` only after an intentional Rust ABI change. It
 builds the locked runtime, generates Swift and Kotlin twice, verifies

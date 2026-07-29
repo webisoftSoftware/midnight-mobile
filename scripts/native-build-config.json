@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "rust": {
+    "toolchain": "1.97.1",
+    "package": "midnight-native-runtime",
+    "libraryBaseName": "midnight_native_runtime",
+    "uniffiFunctions": [
+      "apply_sync_batch",
+      "begin_command",
+      "cancel_operation",
+      "close_wallet_session",
+      "export_wallet_checkpoint",
+      "get_wallet_snapshot",
+      "open_wallet_session",
+      "resume_operation"
+    ]
+  },
+  "apple": {
+    "deploymentTarget": "15.1",
+    "frameworkName": "MidnightNativeRuntime",
+    "moduleName": "MidnightNativeRuntime",
+    "installName": "@rpath/MidnightNativeRuntime.framework/MidnightNativeRuntime",
+    "targets": [
+      {
+        "rustTarget": "aarch64-apple-ios",
+        "sdk": "iphoneos",
+        "architecture": "arm64"
+      },
+      {
+        "rustTarget": "aarch64-apple-ios-sim",
+        "sdk": "iphonesimulator",
+        "architecture": "arm64"
+      },
+      {
+        "rustTarget": "x86_64-apple-ios",
+        "sdk": "iphonesimulator",
+        "architecture": "x86_64"
+      }
+    ],
+    "compressedBudgetBytes": 15728640
+  },
+  "android": {
+    "ndkVersion": "27.1.12297006",
+    "apiLevel": 24,
+    "targets": [
+      {
+        "rustTarget": "aarch64-linux-android",
+        "abi": "arm64-v8a",
+        "machine": "AArch64",
+        "clangPrefix": "aarch64-linux-android"
+      },
+      {
+        "rustTarget": "x86_64-linux-android",
+        "abi": "x86_64",
+        "machine": "Advanced Micro Devices X86-64",
+        "clangPrefix": "x86_64-linux-android"
+      }
+    ],
+    "neededLibraries": ["libc.so", "libdl.so", "libm.so"],
+    "jna": {
+      "coordinate": "net.java.dev.jna:jna:5.17.0@aar",
+      "sha256": "4dbeffffa665d97ad5aa7eee297531d3c841a86716ab7f774fd6956422b3cf38"
+    },
+    "combinedBudgetBytes": 31457280
+  }
+}

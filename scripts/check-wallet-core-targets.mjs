@@ -15,12 +15,14 @@ const BASE_ROOTS = Object.freeze([
 ]);
 const M3_ROOTS = Object.freeze([...BASE_ROOTS, "examples/expo"]);
 const EXPECTED_ROOT_SETS = Object.freeze([BASE_ROOTS, M3_ROOTS]);
-const EXPECTED_FILES = Object.freeze([
+const BASE_FILES = Object.freeze([
   "Cargo.lock",
   "Cargo.toml",
   "clippy.toml",
   "rustfmt.toml",
 ]);
+const M4_FILES = Object.freeze([...BASE_FILES, "rust-toolchain.toml"]);
+const EXPECTED_FILE_SETS = Object.freeze([BASE_FILES, M4_FILES]);
 const EXPECTED_ORIGINS = Object.freeze([
   "assessed-sanitized",
   "generated-sanitized",
@@ -35,6 +37,7 @@ const OUTPUT_DIRECTORIES = new Set([
   ".test-build",
   "build",
   "dist",
+  "jniLibs",
   "staging",
   "staging-build",
   "target",
@@ -107,8 +110,12 @@ function validateManifestHeader(manifest, errors) {
       "sanitized targetRoots must be the exact approved legacy or M3 roots",
     );
   }
-  if (!sameArray(manifest.targetFiles, EXPECTED_FILES)) {
-    errors.push("sanitized targetFiles must be the exact workspace files");
+  if (
+    !EXPECTED_FILE_SETS.some((files) => sameArray(manifest.targetFiles, files))
+  ) {
+    errors.push(
+      "sanitized targetFiles must be the exact approved legacy or M4 files",
+    );
   }
   if (!sameArray(manifest.originClasses, EXPECTED_ORIGINS)) {
     errors.push("sanitized originClasses must be the exact approved classes");
@@ -122,7 +129,8 @@ function validateManifestHeader(manifest, errors) {
 
 function isApprovedTarget(path, targetRoots) {
   return (
-    EXPECTED_FILES.includes(path) ||
+    BASE_FILES.includes(path) ||
+    M4_FILES.includes(path) ||
     targetRoots.some((root) => path === root || path.startsWith(`${root}/`))
   );
 }

@@ -6,6 +6,7 @@ import {
   assertExactGeneratedAbi,
   extractGeneratedAbi,
   normalizeGeneratedText,
+  swiftModuleContractErrors,
 } from "./check-uniffi-bindings.mjs";
 
 function camelCase(value) {
@@ -77,4 +78,35 @@ await test("normalizes generated text deterministically", () => {
   const normalized = "first\nsecond\n";
   assert.equal(normalizeGeneratedText(unnormalized), normalized);
   assert.equal(normalizeGeneratedText(normalized), normalized);
+});
+
+await test("pins the generated Swift module name separately from filenames", () => {
+  const configuration = `[bindings.swift]
+module_name = "MidnightNativeRuntime"
+ffi_module_name = "MidnightNativeRuntime"
+ffi_module_filename = "MidnightNativeRuntimeFFI"
+`;
+  const swift = `#if canImport(MidnightNativeRuntime)
+import MidnightNativeRuntime
+#endif
+`;
+  const modulemap = `module MidnightNativeRuntime {
+  header "MidnightNativeRuntimeFFI.h"
+}
+`;
+  assert.deepEqual(
+    swiftModuleContractErrors(configuration, swift, modulemap),
+    [],
+  );
+  assert.match(
+    swiftModuleContractErrors(
+      configuration.replace(
+        'ffi_module_name = "MidnightNativeRuntime"',
+        'ffi_module_name = "MidnightNativeRuntimeFFI"',
+      ),
+      swift,
+      modulemap,
+    ).join("\n"),
+    /must match the framework module/u,
+  );
 });

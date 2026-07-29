@@ -1,4 +1,4 @@
-module MidnightNativeRuntimeFFI {
+module MidnightNativeRuntime {
     header "MidnightNativeRuntimeFFI.h"
     export *
     use "Darwin"
