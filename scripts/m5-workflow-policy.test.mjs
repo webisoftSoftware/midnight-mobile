@@ -58,6 +58,7 @@ java-version: 17.0.19+10
 npm@11.12.1
 toolchain install 1.97.1
 cargo-llvm-cov --version 0.8.6
+cargo fetch --locked
 uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
 cmdline-tools-version: "14742923"
 gem install --user-install cocoapods --version 1.16.2

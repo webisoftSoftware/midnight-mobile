@@ -35,6 +35,7 @@ runs:
           --target aarch64-apple-ios,aarch64-apple-ios-sim,aarch64-linux-android,x86_64-apple-ios,x86_64-linux-android
         rustup default 1.97.1
         cargo install cargo-llvm-cov --version 0.8.6 --locked
+        cargo fetch --locked
 
     - name: Use Android command-line tools 14742923
       uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
