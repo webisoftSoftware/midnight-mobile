@@ -122,6 +122,8 @@ function validateNativeSetup(errors, contents) {
     'cmdline-tools-version: "14742923"',
     "gem install --user-install cocoapods --version 1.16.2",
     'echo "PATH=${gem_bin}:${PATH}" >> "$GITHUB_ENV"',
+    'echo "LANG=en_US.UTF-8" >> "$GITHUB_ENV"',
+    'echo "LC_ALL=en_US.UTF-8" >> "$GITHUB_ENV"',
     "cocoapods --version 1.16.2",
     '"ndk;27.1.12297006"',
     '"platforms;android-24"',

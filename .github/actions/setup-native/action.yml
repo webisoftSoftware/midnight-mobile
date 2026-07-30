@@ -50,6 +50,8 @@ runs:
         gem_bin="$(ruby -e 'require "rubygems"; print Gem.user_dir')/bin"
         echo "$gem_bin" >> "$GITHUB_PATH"
         echo "PATH=${gem_bin}:${PATH}" >> "$GITHUB_ENV"
+        echo "LANG=en_US.UTF-8" >> "$GITHUB_ENV"
+        echo "LC_ALL=en_US.UTF-8" >> "$GITHUB_ENV"
         sdkmanager --install "ndk;27.1.12297006" "platforms;android-24"
 
     - name: Verify every pinned toolchain
