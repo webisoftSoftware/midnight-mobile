@@ -18,8 +18,10 @@ behind injected TypeScript host interfaces.
 
 - `npm ci`: install the pinned Node.js 22 tooling.
 - `npm run format`: apply Prettier formatting.
-- `npm run quality`: run all formatting, lint, source-policy, type, and test
-  gates.
+- `npm run quality`: run the complete local gate, including native, packaging,
+  reproducibility, security, and release qualification.
+- `npm run quality:pr`: run the lightweight formatting, lint, policy, type,
+  unit-test, and coverage gate used by pull requests.
 - `npm test`: run the repository test wrapper.
 
 For documentation-only changes, also run `git diff --check`.
@@ -60,15 +62,16 @@ the finished feature.
 
 The primary agent is also authorized to complete the pull-request lifecycle for
 work within the user's requested scope. After implementation and review are
-complete, M1-M4 acceptance requires a recorded successful full local
-`npm run quality`, even while GitHub has no required status check. From M5
-onward, all required automated checks must also pass. Then mark a draft ready,
-record acceptance or approval where GitHub permits, merge it, and update the
-local target branch. When GitHub prohibits self-approval of an agent-authored
-pull request, completed primary-agent review plus the applicable passing gates
-counts as acceptance; use repository-owner or administrator merge authority if
-available. Do not leave completed work unmerged merely because the user did not
-separately request the merge. Never bypass a failing local or required check,
-unresolved third-party feedback, or an independent approval that the user
-explicitly asked to retain, and do not merge unrelated or third-party changes
-without explicit authorization.
+complete, every milestone acceptance requires a recorded successful full local
+`npm run quality`. From M5 onward, the lightweight GitHub `Repository quality`
+and separate `Dependency security` checks must also pass. Full native and
+release CI remains manual-only until the final release stage. Then mark a draft
+ready, record acceptance or approval where GitHub permits, merge it, and update
+the local target branch. When GitHub prohibits self-approval of an
+agent-authored pull request, completed primary-agent review plus the applicable
+passing gates counts as acceptance; use repository-owner or administrator merge
+authority if available. Do not leave completed work unmerged merely because the
+user did not separately request the merge. Never bypass a failing local or
+required check, unresolved third-party feedback, or an independent approval that
+the user explicitly asked to retain, and do not merge unrelated or third-party
+changes without explicit authorization.

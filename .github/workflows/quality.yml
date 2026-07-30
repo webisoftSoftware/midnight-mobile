@@ -14,33 +14,34 @@ concurrency:
   group: quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
-
 jobs:
   quality:
     name: Repository quality
-    runs-on: macos-15
-    timeout-minutes: 120
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: Check out repository and history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Install and verify pinned toolchains
-        uses: ./.github/actions/setup-native
-
-      - name: Run repository quality gate
-        run: npm run quality
-
-      - name: Upload verified build evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - name: Use Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          name: quality-evidence
-          path: |
-            artifacts/native
-            artifacts/release
-          if-no-files-found: error
-          retention-days: 14
+          node-version: 22
+
+      - name: Install exact Node dependencies
+        run: |
+          corepack enable
+          corepack prepare npm@11.12.1 --activate
+          npm ci
+
+      - name: Install pinned Rust quality tools
+        run: |
+          rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt,llvm-tools-preview
+          rustup default 1.97.1
+          cargo install cargo-llvm-cov --version 0.8.6 --locked
+          cargo fetch --locked
+
+      - name: Run lightweight pull-request gate
+        run: npm run quality:pr

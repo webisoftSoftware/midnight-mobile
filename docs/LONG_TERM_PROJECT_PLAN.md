@@ -163,12 +163,13 @@ Status: complete.
    - automatic pull-request and push CI is deliberately disabled during M1-M4 to
      control build cost, while the preserved quality workflow remains manually
      dispatchable;
-   - M5 must re-enable and require the repository quality check before release;
+   - M5 must re-enable and require the lightweight repository-quality and
+     dependency-security checks before release;
    - no force pushes or branch deletion;
    - one maintainer approval for ordinary contributor changes;
    - repository-owner merge authority for completed agent-authored pull requests
-     after primary review and a passing full local gate through M4, or passing
-     required checks from M5 onward.
+     after primary review, a recorded passing full local gate, and the required
+     lightweight checks from M5 onward.
 8. Add `CODEOWNERS` for Rust, React Native, native packaging, security docs, and
    workflows when maintainers are assigned.
 9. Keep repository-authored bootstrap material under the existing provisional
@@ -400,26 +401,32 @@ Goal: make every public change and release reviewable and reproducible.
 
 Pull-request CI:
 
-1. Run the root `npm run quality` command without warnings or skipped checks.
-2. Run Rust host tests and TypeScript Jest/API declaration tests with the
+1. Run `npm run quality:pr` in under 15 minutes with formatting, linting, source
+   and workflow policy, type checks, unit tests, and the Rust and TypeScript
    coverage thresholds defined in section 6.
-3. Verify generated bindings are reproducible.
-4. Build Android native libraries and the Android release example.
-5. Build the iOS simulator framework and example.
-6. Run secret, dependency, vulnerability, license, and forbidden-content scans.
-7. Verify the npm pack list and report package sizes.
+2. Keep native Apple/Android builds, reproducibility builds, clean Expo
+   consumers, archives/APKs, isolated package installs, SBOMs, and release
+   evidence out of pull-request CI.
+3. Run secret, dependency, vulnerability, license, and forbidden-content scans
+   in the separate required dependency-security workflow.
+4. Require a recorded successful full local `npm run quality` for milestone
+   acceptance.
 
-Release CI:
+Manual full and release qualification:
 
-1. Rebuild all native artifacts from a clean tagged checkout.
-2. Verify that package version, Git tag, generated bindings, and compatibility
+1. Keep the full `npm run quality` workflow dispatch-only until the final
+   release stage; it must never run on pull requests or normal pushes.
+2. Keep release publication automation dispatch-only until the final release
+   stage.
+3. Rebuild all native artifacts from a clean tagged checkout.
+4. Verify that package version, Git tag, generated bindings, and compatibility
    metadata agree.
-3. Produce the npm tarball, native archives, SHA-256 manifest, SBOM, license
+5. Produce the npm tarball, native archives, SHA-256 manifest, SBOM, license
    report, and build provenance.
-4. Re-run clean consumer builds from the packed tarball.
-5. Require manual approval before npm publication or repository visibility
+6. Re-run clean consumer builds from the packed tarball.
+7. Require manual approval before npm publication or repository visibility
    changes.
-6. Publish npm with trusted provenance and create matching GitHub release notes.
+8. Publish npm with trusted provenance and create matching GitHub release notes.
 
 Required documentation:
 
@@ -437,7 +444,10 @@ Required documentation:
 
 Exit criteria:
 
-- Required CI is green and enforced.
+- The lightweight repository-quality and dependency-security checks are green
+  and enforced, and a successful full local `npm run quality` is recorded.
+- Full native/release GitHub workflows are manual-only until the final release
+  stage.
 - A reviewer can trace every release artifact to tagged source.
 - Documentation is sufficient for an external developer with no 1AM context.
 - The npm package and example agree with the documented public API.
@@ -816,9 +826,10 @@ above each unsafe block.
 - Do not merge commented-out code, unexplained magic values, hidden fallback
   behavior, or logging that may contain seeds, checkpoints, signatures, or
   transaction payloads.
-- During M1-M4, primary review must record a successful full local quality run.
-  Once automatic CI becomes required at M5, a pull request is not complete while
-  that check is skipped, flaky, warning-only, or disabled.
+- Every milestone primary review must record a successful full local quality
+  run. From M5 onward, a pull request is not complete while the lightweight
+  repository-quality or dependency-security check is skipped, flaky,
+  warning-only, or disabled.
 
 ## 7. Issue breakdown
 
@@ -870,8 +881,10 @@ remain intact.
 - `main` is always releasable and protected.
 - During M1-M4, every completed change must pass the full local
   `npm run quality` gate even though automatic GitHub CI triggers are disabled.
-- M5 must restore automatic pull-request CI and make the repository quality job
-  a required branch-protection check before any release work proceeds.
+- M5 must restore lightweight automatic pull-request CI and make the repository
+  quality and dependency-security jobs required branch-protection checks.
+- Full native and release qualification workflows remain `workflow_dispatch`
+  only until the final release stage.
 - Use short-lived feature branches and pull requests.
 - Keep extraction, sanitization, transport, native packaging, and CI changes in
   reviewable commits rather than one bulk import.
@@ -911,9 +924,10 @@ A milestone is complete only when:
 6. The working 1AM repository remains unchanged.
 7. Follow-up risks and deferred work are recorded as issues rather than hidden
    in implementation notes.
-8. Formatting, linting, source-size, type, test, and coverage gates pass locally
-   without undocumented suppression. From M5 onward the same gate must also pass
-   as required pull-request CI.
+8. The complete `npm run quality` gate passes locally without undocumented
+   suppression. From M5 onward, the lightweight `npm run quality:pr` gate and
+   separate dependency-security gate must also pass as required pull-request
+   checks.
 
 ## 11. Current next action
 
@@ -924,11 +938,12 @@ contains reproducible prebuilt Apple and Android libraries for the exact
 supported architectures, with no binary download or consumer Rust toolchain.
 Clean Expo consumers build iOS and Android release variants from the tarball,
 and the release gates inspect ABI, dependencies, signing, architectures,
-package-size budgets, and SHA-256 manifests. Begin M5 by restoring required
-pull-request CI and adding the security, release, SBOM, provenance, and public
-documentation gates. Full `npm run quality` remains mandatory locally until that
-CI is required. Final copyright, attribution, and distribution terms remain
-deferred to the destination repository and do not block private internal
+package-size budgets, and SHA-256 manifests. M5 uses lightweight required
+pull-request quality and dependency-security checks, while full native and
+release qualification remains local or manually dispatched until the final
+release stage. Full `npm run quality` remains mandatory and recorded locally for
+every milestone merge. Final copyright, attribution, and distribution terms
+remain deferred to the destination repository and do not block private internal
 implementation. After M5, complete M6 release migration, M7 external validation,
 and M8 demand-led design gates in order. M9 is the final
 consumer-migration/equivalence gate before any 1AM code migration: its ordered

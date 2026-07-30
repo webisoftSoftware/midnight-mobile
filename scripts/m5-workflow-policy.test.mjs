@@ -13,9 +13,18 @@ branches:
 workflow_dispatch:
 permissions:
 timeout-minutes:
+runs-on: ubuntu-24.04
+timeout-minutes: 15
+npm run quality:pr
+cargo-llvm-cov --version 0.8.6 --locked
+uses: ${action}`,
+    fullQuality: `workflow_dispatch:
+permissions:
+timeout-minutes:
 runs-on: macos-15
-npm run quality
+DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 uses: ./.github/actions/setup-native
+npm run quality
 uses: ${action}`,
     dependencySecurity: `pull_request:
 push:
@@ -39,11 +48,10 @@ cargo audit --json --deny warnings
 --ignore RUSTSEC-2024-0436
 --ignore RUSTSEC-2025-0141
 artifacts/security/cargo-audit.json`,
-    release: `permissions:
+    release: `workflow_dispatch:
+permissions:
 timeout-minutes:
 DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
-tags:
-- "v*"
 environment: alpha-release
 npm run quality
 prepare-release-source.mjs
@@ -104,4 +112,39 @@ await test("dependency security rejects graph egress and partial offline mode", 
       error.includes("must not transmit"),
     ),
   );
+});
+
+await test("PR quality rejects native and release qualification commands", () => {
+  for (const forbidden of [
+    "npm run build:native",
+    "npm run check:native",
+    "npm run release:evidence",
+    "uses: ./.github/actions/setup-native",
+  ]) {
+    const inputs = fixture();
+    inputs.quality += `\n${forbidden}`;
+    assert.ok(
+      validateM5Workflows(inputs).some((error) =>
+        error.includes("quality workflow forbids"),
+      ),
+      forbidden,
+    );
+  }
+});
+
+await test("full qualification and release workflows reject automatic triggers", () => {
+  for (const key of ["fullQuality", "release"]) {
+    for (const trigger of ["pull_request:", "push:"]) {
+      const inputs = fixture();
+      inputs[key] += `\n${trigger}`;
+      assert.ok(
+        validateM5Workflows(inputs).some((error) =>
+          error.includes(
+            `${key === "release" ? "release" : "full quality"} workflow forbids`,
+          ),
+        ),
+        `${key} ${trigger}`,
+      );
+    }
+  }
 });

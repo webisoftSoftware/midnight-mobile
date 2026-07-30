@@ -36,6 +36,12 @@ function requireTokens(errors, contents, label, tokens) {
   }
 }
 
+function rejectTokens(errors, contents, label, tokens) {
+  for (const token of tokens) {
+    if (contents.includes(token)) errors.push(`${label} forbids ${token}`);
+  }
+}
+
 function validateQualityWorkflow(errors, contents) {
   commonWorkflow(errors, contents, "quality workflow");
   requireTokens(errors, contents, "quality workflow", [
@@ -44,9 +50,39 @@ function validateQualityWorkflow(errors, contents) {
     "branches:",
     "- main",
     "workflow_dispatch:",
+    "runs-on: ubuntu-24.04",
+    "timeout-minutes: 15",
+    "npm run quality:pr",
+    "cargo-llvm-cov --version 0.8.6 --locked",
+  ]);
+  rejectTokens(errors, contents, "quality workflow", [
+    "npm run quality\n",
+    "build:native",
+    "check:native",
+    "check:bindings",
+    "check:package",
+    "check:example",
+    "check:release",
+    "release:evidence",
+    "release:verify",
+    "setup-native",
+    "upload-artifact",
+    "DEVELOPER_DIR",
+  ]);
+}
+
+function validateFullQualityWorkflow(errors, contents) {
+  commonWorkflow(errors, contents, "full quality workflow");
+  requireTokens(errors, contents, "full quality workflow", [
+    "workflow_dispatch:",
     "runs-on: macos-15",
-    "npm run quality",
+    "DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer",
     "uses: ./.github/actions/setup-native",
+    "npm run quality",
+  ]);
+  rejectTokens(errors, contents, "full quality workflow", [
+    "pull_request:",
+    "push:",
   ]);
 }
 
@@ -90,9 +126,8 @@ function validateDependencyWorkflow(errors, contents) {
 function validateReleaseWorkflow(errors, contents) {
   commonWorkflow(errors, contents, "release workflow");
   requireTokens(errors, contents, "release workflow", [
+    "workflow_dispatch:",
     "DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer",
-    "tags:",
-    '- "v*"',
     "environment: alpha-release",
     "npm run quality",
     "prepare-release-source.mjs",
@@ -104,6 +139,10 @@ function validateReleaseWorkflow(errors, contents) {
     "--require-distribution-decision",
     "npm publish artifacts/native/npm/*.tgz --access public --provenance",
     'gh release create "$GITHUB_REF_NAME"',
+  ]);
+  rejectTokens(errors, contents, "release workflow", [
+    "pull_request:",
+    "push:",
   ]);
   const approval = contents.indexOf("--require-distribution-decision");
   const publication = contents.indexOf("npm publish");
@@ -139,6 +178,7 @@ function validateNativeSetup(errors, contents) {
 export function validateM5Workflows(inputs) {
   const errors = [];
   validateQualityWorkflow(errors, inputs.quality);
+  validateFullQualityWorkflow(errors, inputs.fullQuality);
   validateDependencyWorkflow(errors, inputs.dependencySecurity);
   validateReleaseWorkflow(errors, inputs.release);
   validateNativeSetup(errors, inputs.setupNative);

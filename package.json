@@ -33,11 +33,13 @@
     "check:release": "node scripts/check-release-inputs.mjs",
     "check:security": "node scripts/check-security.mjs",
     "check:m5-workflows": "node scripts/check-m5-workflows.mjs",
+    "check:wallet-core-policy": "node scripts/check-wallet-core-boundary.mjs",
     "generate:bindings": "node scripts/check-uniffi-bindings.mjs --write",
     "release:evidence": "node scripts/build-release-evidence.mjs",
     "release:verify": "node scripts/verify-release-evidence.mjs",
     "typecheck": "node scripts/run-typecheck.mjs",
     "test": "node scripts/run-tests.mjs",
+    "quality:pr": "npm run format:check && npm run lint:markdown && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm run check:m5-workflows && npm run check:source-policy && npm run check:extraction-allowlist && npm run check:wallet-core-policy && npm run typecheck && npm test",
     "quality": "npm run build:native && npm run build:package && npm run format:check && npm run lint:markdown && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm run check:m5-workflows && npm run check:source-policy && npm run check:extraction-allowlist && npm run check:wallet-core-boundary && npm run check:bindings && npm run check:package && npm run check:native && npm run check:example && npm run check:security && npm run check:release && npm run release:evidence && npm run release:verify && npm run typecheck && npm test",
     "check:wallet-core-boundary": "node scripts/check-wallet-core-boundary.mjs && node scripts/check-wallet-core-artifacts.mjs"
   },
