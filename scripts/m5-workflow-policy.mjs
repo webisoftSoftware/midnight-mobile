@@ -120,6 +120,7 @@ function validateNativeSetup(errors, contents) {
     "cargo-llvm-cov --version 0.8.6",
     "android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407",
     'cmdline-tools-version: "14742923"',
+    "gem install --user-install cocoapods --version 1.16.2",
     "cocoapods --version 1.16.2",
     '"ndk;27.1.12297006"',
     '"platforms;android-24"',

@@ -46,7 +46,8 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        sudo gem install cocoapods --version 1.16.2 --no-document
+        gem install --user-install cocoapods --version 1.16.2 --no-document
+        echo "$(ruby -e 'require "rubygems"; print Gem.user_dir')/bin" >> "$GITHUB_PATH"
         sdkmanager --install "ndk;27.1.12297006" "platforms;android-24"
 
     - name: Verify every pinned toolchain
