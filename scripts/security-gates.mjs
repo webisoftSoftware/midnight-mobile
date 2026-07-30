@@ -7,6 +7,26 @@ const EXPECTED_OVERRIDES = Object.freeze({
   "brace-expansion@>=5 <6": "5.0.8",
   uuid: "11.1.1",
 });
+const EXPECTED_RUSTSEC_INFORMATIONAL_ALLOWLIST = Object.freeze([
+  {
+    advisory: "RUSTSEC-2024-0436",
+    package: "paste",
+    version: "1.0.15",
+    kind: "unmaintained",
+    trackingIssue: "https://github.com/ADGLx/midnight-mobile/issues/47",
+    removalCondition:
+      "Remove when the pinned Ledger dependency graph no longer reaches paste 1.0.15 through midnight-curves, or a compatible maintained replacement is available.",
+  },
+  {
+    advisory: "RUSTSEC-2025-0141",
+    package: "bincode",
+    version: "2.0.1",
+    kind: "unmaintained",
+    trackingIssue: "https://github.com/ADGLx/midnight-mobile/issues/47",
+    removalCondition:
+      "Remove when the pinned Ledger dependency graph no longer reaches bincode 2.0.1 through midnight-zk-stdlib, or a compatible maintained replacement is available.",
+  },
+]);
 const SECRET_PATTERNS = Object.freeze([
   {
     name: "aws-access-key",
@@ -75,6 +95,12 @@ export function validateSecurityPolicy(policy) {
     errors,
   );
   exact(policy.cargoAuditVersion, "0.22.2", "cargoAuditVersion", errors);
+  exact(
+    policy.rustSecInformationalAllowlist,
+    EXPECTED_RUSTSEC_INFORMATIONAL_ALLOWLIST,
+    "rustSecInformationalAllowlist",
+    errors,
+  );
   const advisory = policy.braceExpansionAdvisory;
   exact(advisory?.advisory, "GHSA-mh99-v99m-4gvg", "advisory", errors);
   exact(advisory?.cve, "CVE-2026-14257", "cve", errors);

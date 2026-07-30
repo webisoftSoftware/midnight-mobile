@@ -48,6 +48,23 @@ await test("security policy fixes M5 advisory handling", () => {
     }).join("\n"),
     /currentMilestone/u,
   );
+  assert.match(
+    validateSecurityPolicy({
+      ...policy,
+      rustSecInformationalAllowlist: [
+        ...policy.rustSecInformationalAllowlist,
+        {
+          advisory: "RUSTSEC-synthetic",
+          package: "synthetic",
+          version: "0.0.0",
+          kind: "unmaintained",
+          trackingIssue: "https://example.invalid",
+          removalCondition: "synthetic",
+        },
+      ],
+    }).join("\n"),
+    /rustSecInformationalAllowlist/u,
+  );
 });
 
 await test("secret scanning recognizes supported credential families", () => {

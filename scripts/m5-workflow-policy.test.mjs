@@ -36,6 +36,8 @@ osv-scanner scan source --offline --no-resolve --format=json
 check-osv-findings.mjs
 cargo install cargo-audit --version 0.22.2 --locked
 cargo audit --json --deny warnings
+--ignore RUSTSEC-2024-0436
+--ignore RUSTSEC-2025-0141
 artifacts/security/cargo-audit.json`,
     release: `permissions:
 timeout-minutes:

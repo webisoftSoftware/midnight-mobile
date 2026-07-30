@@ -189,6 +189,24 @@ The root manifest temporarily owns two reviewed npm security overrides:
   fixed UUID release and a fresh lockfile plus offline OSV scan contain no
   affected UUID node.
 
+### M5 RustSec handling
+
+The runtime pins `anyhow@1.0.103`, which fixes the `Error::downcast_mut`
+unsoundness reported as `RUSTSEC-2026-0190`. The security workflow continues to
+deny all RustSec vulnerabilities and warnings except these two exact
+informational maintenance advisories, neither of which has a patched release:
+
+- `RUSTSEC-2024-0436` for `paste@1.0.15`, reached only through `midnight-curves`
+  and the pinned Ledger cryptography graph;
+- `RUSTSEC-2025-0141` for `bincode@2.0.1`, reached through `midnight-zk-stdlib`
+  and `midnight-transient-crypto`.
+
+Issue [#47](https://github.com/ADGLx/midnight-mobile/issues/47) tracks removal.
+Each ignore is fixed by advisory ID in the workflow and by advisory, package,
+version, kind, dependency path, removal condition, and tracking issue in the
+fail-closed security policy. Remove an ignore as soon as the pinned Ledger graph
+no longer contains the package or a compatible maintained replacement exists.
+
 React test tooling, Jest, and TypeScript were supplied by the enclosing upstream
 application rather than the assessed module. They are not direct runtime
 dependencies. The target package and Expo example now declare their exact
