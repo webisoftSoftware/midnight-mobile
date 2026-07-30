@@ -65,6 +65,7 @@ echo "PATH=\${gem_bin}:\${PATH}" >> "$GITHUB_ENV"
 echo "LANG=en_US.UTF-8" >> "$GITHUB_ENV"
 echo "LC_ALL=en_US.UTF-8" >> "$GITHUB_ENV"
 cocoapods --version 1.16.2
+Pod::VERSION == "1.16.2"
 "ndk;27.1.12297006"
 "platforms;android-24"
 "Xcode 16.4"
