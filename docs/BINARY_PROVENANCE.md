@@ -34,7 +34,7 @@ Reproduction requires:
 - Android command-line tools `14742923`, NDK `27.1.12297006`, API 24, and the
   two configured Rust targets;
 - JDK `17.0.19+10` for the Android consumer build;
-- Xcode 16.4 and CocoaPods 1.16.2 for the M5 release baseline; and
+- Xcode 26.3 and CocoaPods 1.16.2 for the M5 release baseline; and
 - JNA `5.17.0@aar` with its pinned SHA-256.
 
 The machine-readable native contract is
@@ -45,7 +45,7 @@ dependency drift requires a reviewed compatibility change; byte equality across
 different compiler/SDK versions is not promised.
 
 The historical local M4 acceptance run used Xcode 26.6 (`17F113`). It is local
-M4 evidence only and does not replace the Xcode 16.4/CocoaPods 1.16.2 M5 release
+M4 evidence only and does not replace the Xcode 26.3/CocoaPods 1.16.2 M5 release
 contract.
 
 ## Rebuild from a tag

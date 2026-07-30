@@ -90,7 +90,7 @@ function validateDependencyWorkflow(errors, contents) {
 function validateReleaseWorkflow(errors, contents) {
   commonWorkflow(errors, contents, "release workflow");
   requireTokens(errors, contents, "release workflow", [
-    "DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer",
+    "DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer",
     "tags:",
     '- "v*"',
     "environment: alpha-release",
@@ -131,7 +131,7 @@ function validateNativeSetup(errors, contents) {
     'Pod::VERSION == "1.16.2"',
     '"ndk;27.1.12297006"',
     '"platforms;android-24"',
-    '"Xcode 16.4"',
+    '"Xcode 26.3"',
     '"Temurin-17.0.19+10"',
   ]);
 }

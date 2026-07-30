@@ -13,7 +13,7 @@ const EXPECTED_TOOLCHAINS = Object.freeze({
   rust: "1.97.1",
   cargoLlvmCov: "0.8.6",
   jdk: "17.0.19+10",
-  xcode: "16.4",
+  xcode: "26.3",
   cocoaPods: "1.16.2",
   androidCommandLineTools: "14742923",
   androidNdk: "27.1.12297006",

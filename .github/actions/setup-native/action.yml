@@ -64,7 +64,7 @@ runs:
         rustc --version | grep -F "rustc 1.97.1"
         test "$(cargo llvm-cov --version | awk '{print $2}')" = "0.8.6"
         java -version 2>&1 | grep -F "Temurin-17.0.19+10"
-        xcodebuild -version | grep -F "Xcode 16.4"
+        xcodebuild -version | grep -F "Xcode 26.3"
         ruby -e 'gem "cocoapods", "=1.16.2"; require "cocoapods"; abort unless Pod::VERSION == "1.16.2"; puts Pod::VERSION'
         pod --version
         test -d "${ANDROID_SDK_ROOT}/ndk/27.1.12297006"

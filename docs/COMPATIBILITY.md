@@ -33,7 +33,7 @@ reporting a compatibility defect.
 | Simulator architectures | `arm64`, `x86_64`                                                                                |
 | Build product           | Dynamic `MidnightNativeRuntime.xcframework` embedded by CocoaPods                                |
 | Swift setting           | Swift `5.9` in the package podspec                                                               |
-| M5 release baseline     | Xcode `16.4`, CocoaPods `1.16.2`                                                                 |
+| M5 release baseline     | Xcode `26.3`, CocoaPods `1.16.2`                                                                 |
 | Integration             | Expo autolinking and CocoaPods through generated iOS project                                     |
 | Release validation      | Simulator/device link, framework embed, ad-hoc signature verification, generic App Store archive |
 
@@ -47,7 +47,7 @@ wallet smoke testing remain M6 release-candidate gates.
 
 The historical local M4 acceptance run used Xcode 26.6 (`17F113`). That is
 evidence for the M4 candidate, not the M5 release baseline. Required M5 CI and
-release evidence use Xcode 16.4 and CocoaPods 1.16.2.
+release evidence use Xcode 26.3 and CocoaPods 1.16.2.
 
 ## Android
 

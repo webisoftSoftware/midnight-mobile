@@ -41,7 +41,7 @@ cargo audit --json --deny warnings
 artifacts/security/cargo-audit.json`,
     release: `permissions:
 timeout-minutes:
-DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 tags:
 - "v*"
 environment: alpha-release
@@ -71,7 +71,7 @@ cocoapods --version 1.16.2
 Pod::VERSION == "1.16.2"
 "ndk;27.1.12297006"
 "platforms;android-24"
-"Xcode 16.4"
+"Xcode 26.3"
 "Temurin-17.0.19+10"`,
   };
 }
