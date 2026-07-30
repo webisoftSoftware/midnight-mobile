@@ -15,6 +15,7 @@ const EXPECTED_TOOLCHAINS = Object.freeze({
   jdk: "17.0.19+10",
   xcode: "16.4",
   cocoaPods: "1.16.2",
+  androidCommandLineTools: "14742923",
   androidNdk: "27.1.12297006",
   androidApi: 24,
 });

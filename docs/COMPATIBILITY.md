@@ -55,6 +55,7 @@ release evidence use Xcode 16.4 and CocoaPods 1.16.2.
 | ----------------------------- | ------------------------------------------------------------------ |
 | Minimum API                   | Android API `24`                                                   |
 | Native ABIs                   | `arm64-v8a`, `x86_64`                                              |
+| SDK command-line tools        | `14742923`                                                         |
 | NDK                           | `27.1.12297006`                                                    |
 | JDK for consumer release gate | JDK `17.0.19+10`                                                   |
 | Native runtime dependency     | `net.java.dev.jna:jna:5.17.0@aar`                                  |
