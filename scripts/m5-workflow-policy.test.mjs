@@ -23,6 +23,8 @@ workflow_dispatch:
 permissions:
 timeout-minutes:
 npm run check:security -- --source-only
+rustup toolchain install 1.97.1 --profile minimal
+cargo fetch --locked
 uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
 go-version: 1.26.2
 osv-scanner@v2.3.8
@@ -52,7 +54,7 @@ sbom-path: artifacts/release/sbom.cdx.json
 npm publish artifacts/native/npm/*.tgz --access public --provenance
 gh release create "$GITHUB_REF_NAME"`,
     setupNative: `node-version: 22
-java-version: 17.0.19+7
+java-version: 17.0.19+10
 npm@11.12.1
 toolchain install 1.97.1
 cargo-llvm-cov --version 0.8.6
@@ -60,7 +62,7 @@ cocoapods --version 1.16.2
 "ndk;27.1.12297006"
 "platforms;android-24"
 "Xcode 16.4"
-"Temurin-17.0.19+7"`,
+"Temurin-17.0.19+10"`,
   };
 }
 

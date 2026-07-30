@@ -57,6 +57,8 @@ function validateDependencyWorkflow(errors, contents) {
     "push:",
     "workflow_dispatch:",
     "npm run check:security -- --source-only",
+    "rustup toolchain install 1.97.1 --profile minimal",
+    "cargo fetch --locked",
     "actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
     "go-version: 1.26.2",
     "osv-scanner@v2.3.8",
@@ -112,7 +114,7 @@ function validateNativeSetup(errors, contents) {
   actionPins(errors, contents, "native setup action");
   requireTokens(errors, contents, "native setup action", [
     "node-version: 22",
-    "java-version: 17.0.19+7",
+    "java-version: 17.0.19+10",
     "npm@11.12.1",
     "toolchain install 1.97.1",
     "cargo-llvm-cov --version 0.8.6",
@@ -120,7 +122,7 @@ function validateNativeSetup(errors, contents) {
     '"ndk;27.1.12297006"',
     '"platforms;android-24"',
     '"Xcode 16.4"',
-    '"Temurin-17.0.19+7"',
+    '"Temurin-17.0.19+10"',
   ]);
 }
 

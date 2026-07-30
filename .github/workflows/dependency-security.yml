@@ -32,6 +32,12 @@ jobs:
           npm install --global npm@11.12.1
           npm ci
 
+      - name: Install pinned Rust and fetch locked public sources
+        run: |
+          rustup toolchain install 1.97.1 --profile minimal
+          rustup default 1.97.1
+          cargo fetch --locked
+
       - name: Run deterministic source and dependency policy
         run: npm run check:security -- --source-only
 
@@ -82,7 +88,6 @@ jobs:
 
       - name: Install pinned RustSec audit tool
         run: |
-          rustup toolchain install 1.97.1 --profile minimal
           cargo install cargo-audit --version 0.22.2 --locked
 
       - name: Reject RustSec vulnerabilities and warnings

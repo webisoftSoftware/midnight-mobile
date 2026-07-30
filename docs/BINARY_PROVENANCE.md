@@ -32,7 +32,7 @@ Reproduction requires:
 - `cargo-llvm-cov 0.8.6`;
 - Apple deployment target 15.1 and the three configured Rust targets;
 - Android NDK `27.1.12297006`, API 24, and the two configured Rust targets;
-- JDK `17.0.19+7` for the Android consumer build;
+- JDK `17.0.19+10` for the Android consumer build;
 - Xcode 16.4 and CocoaPods 1.16.2 for the M5 release baseline; and
 - JNA `5.17.0@aar` with its pinned SHA-256.
 

@@ -56,7 +56,7 @@ release evidence use Xcode 16.4 and CocoaPods 1.16.2.
 | Minimum API                   | Android API `24`                                                   |
 | Native ABIs                   | `arm64-v8a`, `x86_64`                                              |
 | NDK                           | `27.1.12297006`                                                    |
-| JDK for consumer release gate | JDK `17.0.19+7`                                                    |
+| JDK for consumer release gate | JDK `17.0.19+10`                                                   |
 | Native runtime dependency     | `net.java.dev.jna:jna:5.17.0@aar`                                  |
 | JNA AAR SHA-256               | `4dbeffffa665d97ad5aa7eee297531d3c841a86716ab7f774fd6956422b3cf38` |
 | Integration                   | Expo module Gradle plugin, generated Kotlin, packaged `jniLibs`    |
