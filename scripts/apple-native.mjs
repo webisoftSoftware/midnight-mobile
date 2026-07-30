@@ -36,6 +36,7 @@ export const GENERATED_SWIFT_ROOT = join(
   "packages/react-native/ios/generated",
 );
 export const SOURCE_DATE_EPOCH = 1_785_340_800;
+export const XCODE_BUILD_CONCURRENCY_ARGUMENTS = Object.freeze(["-jobs", "2"]);
 
 const ALLOWED_DEPENDENCIES = new Set([
   "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
@@ -46,6 +47,22 @@ const ALLOWED_DEPENDENCIES = new Set([
 
 export function fail(message) {
   throw new Error(`Apple native gate: ${message}`);
+}
+
+export function conciseFailureDetails(details) {
+  const diagnosticLines = details
+    .split("\n")
+    .filter((line) =>
+      /(?:^|\s)(?:error:|fatal error:|BUILD FAILED|Command .* failed)/iu.test(
+        line,
+      ),
+    )
+    .slice(-40);
+  const tail = details.length > 12_000 ? details.slice(-12_000) : details;
+  if (diagnosticLines.length === 0 || details.length <= 12_000) return tail;
+  return `Extracted diagnostics:\n${diagnosticLines.join(
+    "\n",
+  )}\n\nOutput tail:\n${tail}`;
 }
 
 export function run(command, argumentsList, options = {}) {
@@ -64,7 +81,7 @@ export function run(command, argumentsList, options = {}) {
       .filter((value) => typeof value === "string" && value.length > 0)
       .join("\n")
       .trim();
-    const concise = details.length > 12_000 ? details.slice(-12_000) : details;
+    const concise = conciseFailureDetails(details);
     fail(
       `${command} exited with status ${String(result.status)}${
         concise.length === 0 ? "" : `:\n${concise}`

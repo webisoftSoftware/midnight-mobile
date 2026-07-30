@@ -14,6 +14,7 @@ import {
   FRAMEWORK_BUNDLE,
   FRAMEWORK_NAME,
   run,
+  XCODE_BUILD_CONCURRENCY_ARGUMENTS,
 } from "./apple-native.mjs";
 
 function parsePlist(path) {
@@ -220,6 +221,7 @@ function xcodeBuild(project, root, destination, environment, action) {
     "AppleConsumer",
     "-configuration",
     "Release",
+    ...XCODE_BUILD_CONCURRENCY_ARGUMENTS,
     "-destination",
     destination,
     "-derivedDataPath",
