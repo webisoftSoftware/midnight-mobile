@@ -3,6 +3,7 @@
     "name": "Midnight Mobile Mock Lifecycle",
     "slug": "midnight-mobile-mock-lifecycle",
     "version": "0.1.0",
+    "scheme": "midnightmobileexample",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
