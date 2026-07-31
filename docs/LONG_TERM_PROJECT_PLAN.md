@@ -397,6 +397,8 @@ Exit criteria:
 
 ### M5 — Security, documentation, and continuous integration
 
+Status: complete.
+
 Goal: make every public change and release reviewable and reproducible.
 
 Pull-request CI:
@@ -931,7 +933,7 @@ A milestone is complete only when:
 
 ## 11. Current next action
 
-M0-M4 are complete. The immutable M1 and M2 extraction evidence remains
+M0-M5 are complete. The immutable M1 and M2 extraction evidence remains
 preserved while the live M4 target manifest extends the sanitized boundary
 through the Expo example and native distribution tooling. The npm tarball now
 contains reproducible prebuilt Apple and Android libraries for the exact
@@ -944,8 +946,14 @@ release qualification remains local or manually dispatched until the final
 release stage. Full `npm run quality` remains mandatory and recorded locally for
 every milestone merge. Final copyright, attribution, and distribution terms
 remain deferred to the destination repository and do not block private internal
-implementation. After M5, complete M6 release migration, M7 external validation,
-and M8 demand-led design gates in order. M9 is the final
+implementation. M6 is now the active milestone and is blocked on two owner
+decisions rather than on implementation: the destination repository for issue 37
+and the approved `docs/DISTRIBUTION_DECISION.json` record for issue 38, which
+must name the final copyright owner, the source and package license expressions,
+and the reviewer. Until that record exists and reports `approved`,
+`scripts/check-release-inputs.mjs --require-distribution-decision` fails closed
+and the release workflow cannot publish. After M6, complete M7 external
+validation and M8 demand-led design gates in order. M9 is the final
 consumer-migration/equivalence gate before any 1AM code migration: its ordered
 prerequisites preserve the permanent M5 Rust coverage baseline, prove real
 native and disposable checkpoint interoperability, add only the two narrow mint
