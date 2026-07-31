@@ -8,8 +8,8 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && node --import ./test-support/register-test-loader.mjs --test .staging-build/tests/*.test.js",
     "validate:platforms": "node ./scripts/validate-platforms.mjs",

@@ -43,6 +43,32 @@ const OUTPUT_DIRECTORIES = new Set([
   "target",
 ]);
 
+// Generated native projects, skipped by repository-relative path rather than by
+// directory name: `packages/react-native/android` and `.../ios` are maintained
+// source and must stay in scope, so a bare "android"/"ios" name skip would
+// silently drop the real bridge code from the boundary scan.
+//
+// This walk intentionally reads the filesystem instead of asking Git, so that a
+// file hidden by .gitignore cannot escape the sanitized-boundary check. That is
+// why these paths are listed explicitly here as well as in .gitignore.
+const GENERATED_PROJECT_PATHS = new Set([
+  "examples/expo/android",
+  "examples/expo/ios",
+]);
+
+// Machine-local environment files. Expo reads .env.local from the project root,
+// which sits inside the scanned boundary, so live endpoint configuration would
+// otherwise fail the scan on every developer machine.
+//
+// This exception is narrow and safe for three independent reasons: these files
+// are gitignored so they never enter history; `examples/expo` is a private
+// workspace that is never published, so they cannot reach a tarball; and the
+// package tarball contents are separately gated by check:package. The exception
+// covers only the .env family, not arbitrary undeclared files.
+function isLocalEnvironmentFile(name) {
+  return name === ".env" || name.startsWith(".env.");
+}
+
 function isObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -208,7 +234,16 @@ function walk(path, repositoryRoot, targets, visited) {
   } else if (stat.isDirectory()) {
     for (const entry of readdirSync(path, { withFileTypes: true })) {
       if (entry.isDirectory() && OUTPUT_DIRECTORIES.has(entry.name)) continue;
-      walk(resolve(path, entry.name), repositoryRoot, targets, visited);
+      const child = resolve(path, entry.name);
+      const relativePath = relative(repositoryRoot, child).replaceAll(
+        "\\",
+        "/",
+      );
+      if (entry.isDirectory() && GENERATED_PROJECT_PATHS.has(relativePath)) {
+        continue;
+      }
+      if (entry.isFile() && isLocalEnvironmentFile(entry.name)) continue;
+      walk(child, repositoryRoot, targets, visited);
     }
   } else if (stat.isFile()) {
     targets.push(relative(repositoryRoot, path).replaceAll("\\", "/"));

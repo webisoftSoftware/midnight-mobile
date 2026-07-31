@@ -20,6 +20,12 @@ packages/react-native/android/src/main/jniLibs/
 ios/Pods/
 ios/DerivedData/
 
+# `expo prebuild` output. These native projects are generated from app.json and
+# the installed modules, are recreated by `expo prebuild --clean`, and must not
+# be committed: they embed absolute local paths and NDK build caches.
+examples/expo/android/
+examples/expo/ios/
+
 # Generated release artifacts
 artifacts/
 *.xcarchive
@@ -28,6 +34,11 @@ artifacts/
 
 # Local configuration and secrets
 .env
+# Expo reads .env.local and .env.<mode>.local. Live endpoint URLs go there and
+# must stay out of Git: an indexer or proof-server URL can identify a tenant,
+# and the accepted scope forbids committing operated-service endpoints.
+.env.local
+.env.*.local
 .env.*
 !.env.example
 *.key
