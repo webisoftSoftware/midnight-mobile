@@ -85,16 +85,16 @@ function probeResult() {
   return logs.split("\n").findLast((line) => line.includes("PROBE_RESULT"));
 }
 
-function pullProof() {
+function pullAndValidate(name, destinationName, example) {
   const result = spawnSync(
     "adb",
-    ["exec-out", "run-as", packageName, "cat", "files/proof-v2.bin"],
+    ["exec-out", "run-as", packageName, "cat", `files/${name}`],
     { cwd: repositoryRoot, encoding: null, maxBuffer: 64 * 1024 * 1024 },
   );
   if (result.status !== 0)
     throw new Error("unable to pull proof from application storage");
-  const proofPath = resolve(targetRoot, "device-proof-v2.bin");
-  writeFileSync(proofPath, result.stdout);
+  const outputPath = resolve(targetRoot, destinationName);
+  writeFileSync(outputPath, result.stdout);
   run(
     "cargo",
     [
@@ -105,13 +105,13 @@ function pullProof() {
       "--package",
       "midnight-native-runtime",
       "--features",
-      "android-prover-spike",
+      "local-prover",
       "--example",
-      "validate_android_prover_proof",
+      example,
     ],
     { input: result.stdout },
   );
-  return proofPath;
+  return outputPath;
 }
 
 async function monitorProbe(started) {
@@ -147,7 +147,17 @@ function validateSuccessfulProof(resultLine, alive) {
     return { success: false };
   }
   try {
-    return { success: true, proofPath: pullProof() };
+    const checkPath = pullAndValidate(
+      "check-response.bin",
+      "device-check-response.bin",
+      "validate_android_prover_check",
+    );
+    const proofPath = pullAndValidate(
+      "proof-v2.bin",
+      "device-proof-v2.bin",
+      "validate_android_prover_proof",
+    );
+    return { success: true, proofPath, checkPath };
   } catch (error) {
     return { success: false, hostValidationError: String(error) };
   }
@@ -167,10 +177,8 @@ async function main() {
   const alive = tryShell(`pidof ${packageName}`).length > 0;
   const timedOut = resultLine === undefined && elapsedMillis >= timeoutMillis;
   const after = captureAfterSnapshot();
-  const { success, proofPath, hostValidationError } = validateSuccessfulProof(
-    resultLine,
-    alive,
-  );
+  const { success, proofPath, checkPath, hostValidationError } =
+    validateSuccessfulProof(resultLine, alive);
   const report = {
     schemaVersion: 1,
     timeoutMillis,
@@ -181,6 +189,7 @@ async function main() {
     processAlive: alive,
     resultLine: resultLine ?? null,
     proofPath: proofPath ?? null,
+    checkPath: checkPath ?? null,
     hostValidationError: hostValidationError ?? null,
     samples,
     peaks: {

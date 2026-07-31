@@ -197,7 +197,9 @@ function assembleStagingPackage(repositoryRoot, errors) {
     "android/src/main",
     "expo-module.config.json",
     "ios/ExpoMidnightNative.podspec",
+    "ios/ExpoMidnightLocalProverModule.swift",
     "ios/ExpoMidnightNativeModule.swift",
+    "ios/MidnightLocalProverFFI.h",
     "ios/generated",
   ]) {
     copyIfPresent(resolve(packageRoot, path), resolve(stagingRoot, path));

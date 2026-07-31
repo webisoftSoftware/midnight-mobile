@@ -40,8 +40,8 @@ The deterministic 578-byte `/prove` request has SHA-256
 node tools/android-prover-spike/scripts/prepare-artifacts.mjs
 MIDNIGHT_ANDROID_PROVER_ARTIFACT_DIR="$PWD/target/android-prover-spike/artifacts" \
   cargo test --offline --locked --release \
-  --package midnight-native-runtime --features android-prover-spike \
-  embedded_prover::tests::staged_artifacts_produce_a_tagged_v2_proof \
+  --package midnight-native-runtime --features local-prover \
+  local_prover::tests::staged_artifacts_produce_and_check_official_responses \
   -- --ignored --exact --nocapture
 GRADLE=/path/to/gradle-9.0.0/bin/gradle \
   node tools/android-prover-spike/scripts/build.mjs
@@ -58,14 +58,15 @@ process survival, and the final result line are recorded in
 
 | Item                            |      Bytes | SHA-256                                                            |
 | ------------------------------- | ---------: | ------------------------------------------------------------------ |
-| `libmidnight_native_runtime.so` | 12,918,144 | `5d48d5a20ae4e2fe97f7243bf450ec49e9971551271736731c4eb55bacc4f774` |
-| release APK                     | 33,195,434 | `a5b310319c1899b6db20b470e97f06c88d448bde319d3c921c4dfcebc3053fb3` |
+| `libmidnight_native_runtime.so` | 12,984,784 | `81fe02c2127d715fd06f02dc0b4830688c3cf4e3f3cc844907bcab7c437fc151` |
+| release APK                     | 33,197,380 | `0c1b0a9a62907f21795ae8c30273ab11557c19313f0e13024786b09a6e110e50` |
 | four proof artifacts            | 17,315,450 | See pinned-input table                                             |
 
 The native library targets `aarch64-linux-android` at API 24 and links only
 `libc.so`, `libdl.so`, and `libm.so`. The APK has minSdk 24, targetSdk 36,
-contains only `arm64-v8a`, asks for no permissions, and stores the request and
-all four proof artifacts uncompressed.
+contains only `arm64-v8a`, asks for no permissions, and stores both requests and
+all four proof artifacts uncompressed. The physical run used the shared SDK
+Kotlin bridge and production-shaped Rust C ABI for both `/check` and `/prove`.
 
 ## Physical-device result
 
@@ -76,16 +77,17 @@ all four proof artifacts uncompressed.
 | RAM                            | 7,640,540 KiB `MemTotal`                                                                                                |
 | Online CPU count               | 6 before and after the measured run                                                                                     |
 | Rust Rayon configuration       | Fixed two-thread pool                                                                                                   |
-| Battery                        | 100%; 29.2°C before and after; USB powered                                                                               |
-| Thermal                        | Status 0 before and after; AP 32.6°C to 42.2°C                                                                          |
-| Artifact validation/decoding   | 4,749 ms                                                                                                                |
-| Proving plus self-verification | 14,273 ms                                                                                                               |
-| Runner wall time               | 21,043 ms                                                                                                               |
-| Tagged proof                   | 4,860 bytes; SHA-256 `b9cadcb36bdaf2bfb543790a89dcfd6baf79dab57d89431a99893ee7eeee8fdd`; host V2 deserialization passed |
-| Peak PSS                       | 520,375 KiB                                                                                                             |
-| Peak RSS                       | 625,796 KiB                                                                                                             |
-| Peak `VmHWM`                   | 620,164 KiB                                                                                                             |
-| Peak observed process threads  | 38 total Android/runtime threads                                                                                        |
+| Battery                        | 100%; 27.8°C to 27.9°C; USB powered                                                                                     |
+| Thermal                        | Status 0 before and after; AP 30.5°C to 33.5°C                                                                          |
+| Artifact validation/decoding   | 16,272 ms                                                                                                               |
+| `/check`                       | 31 ms; 47 bytes; SHA-256 `18969d942d685cae2838d76a85199eb7f488b43ccba5ba8f4542120459451b5a`; host validation passed     |
+| Proving plus self-verification | 37,869 ms                                                                                                               |
+| Runner wall time               | 57,658 ms                                                                                                               |
+| Tagged proof                   | 4,860 bytes; SHA-256 `e88bb29157d6d52b9f1ca4b618a32f46c53e142bedfaba1615444502c915888e`; host V2 deserialization passed |
+| Peak PSS                       | 529,419 KiB                                                                                                             |
+| Peak RSS                       | 619,652 KiB                                                                                                             |
+| Peak `VmHWM`                   | 613,848 KiB                                                                                                             |
+| Peak observed process threads  | 31 total Android/runtime threads                                                                                        |
 | Process result                 | Alive after success; no OOM or native crash                                                                             |
 
 The fixed Rayon limit applies to proof parallelism, not to Android, JNA, Rust,
@@ -104,6 +106,6 @@ Recommendation: **go for production design work, not production shipment**. The
 measured run reports `success: true`, so this spike's feasibility gate is
 satisfied on the tested phone. A production implementation still needs live
 memory admission, cache-lifetime and secure-artifact handling, broader device
-qualification, UX requirements for roughly 20-second latency, and a deliberate
-cancellation/process-isolation design. The result does not establish support for
-every API-24-era device.
+qualification, UX requirements for roughly 38-second proof latency, and a
+deliberate cancellation/process-isolation design. The result does not establish
+support for every API-24-era device.

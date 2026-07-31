@@ -168,6 +168,29 @@ function validateAndroidDependencies(android, errors) {
   if (android?.combinedBudgetBytes !== 30 * 1024 * 1024) {
     errors.push("Android native payload budget must be exactly 30 MiB");
   }
+  validateAndroidLocalProver(android?.localProver, errors);
+}
+
+function validateAndroidLocalProver(localProver, errors) {
+  if (localProver?.enabled !== true) {
+    errors.push("Android local prover must be explicitly enabled");
+  }
+  if (!sameArray(localProver?.cargoFeatures, ["local-prover"])) {
+    errors.push(
+      "Android local prover Cargo feature must be exactly local-prover",
+    );
+  }
+  if (
+    !sameArray(localProver?.exportedFunctions, [
+      "midnight_local_prover_check",
+      "midnight_local_prover_close",
+      "midnight_local_prover_configure",
+      "midnight_local_prover_free",
+      "midnight_local_prover_prove",
+    ])
+  ) {
+    errors.push("Android local prover C ABI drifted");
+  }
 }
 
 export function parseElfReport(header, dynamic, symbols) {
@@ -183,11 +206,17 @@ export function parseElfReport(header, dynamic, symbols) {
   ]
     .map((match) => match[1])
     .sort();
+  const localProverFunctions = [
+    ...symbols.matchAll(/\b(midnight_local_prover_[a-z0-9_]+)$/gmu),
+  ]
+    .map((match) => match[1])
+    .sort();
   return {
     type: field("Type"),
     machine: field("Machine"),
     needed,
     functions,
+    localProverFunctions,
   };
 }
 
@@ -205,6 +234,14 @@ export function validateElfReport(report, target, config) {
   const functions = [...config.rust.uniffiFunctions].sort();
   if (!sameArray(report.functions, functions)) {
     errors.push(`${target.abi}: exported UniFFI function ABI drifted`);
+  }
+  if (
+    !sameArray(
+      report.localProverFunctions,
+      [...config.android.localProver.exportedFunctions].sort(),
+    )
+  ) {
+    errors.push(`${target.abi}: exported local prover C ABI drifted`);
   }
   return errors;
 }
@@ -288,6 +325,9 @@ function cargoEnvironment(toolchain, target, config) {
 }
 
 function cargoBuild(repositoryRoot, cargoTarget, target, config, toolchain) {
+  const featureArguments = config.android.localProver.enabled
+    ? ["--features", config.android.localProver.cargoFeatures.join(",")]
+    : [];
   runChecked(
     repositoryRoot,
     "cargo",
@@ -301,6 +341,7 @@ function cargoBuild(repositoryRoot, cargoTarget, target, config, toolchain) {
       target.rustTarget,
       "--target-dir",
       cargoTarget,
+      ...featureArguments,
     ],
     `${target.abi} Rust release build`,
     { env: cargoEnvironment(toolchain, target, config), stdio: "inherit" },
@@ -425,6 +466,8 @@ export function buildAndroidNativeDistribution(
     schemaVersion: 1,
     ndkVersion: config.android.ndkVersion,
     apiLevel: config.android.apiLevel,
+    cargoFeatures: config.android.localProver.cargoFeatures,
+    shippingBudgetBytes: config.android.combinedBudgetBytes,
     totalBytes,
     binaries,
   };

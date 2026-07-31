@@ -2,14 +2,13 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::io::Read;
 
-    use midnight_ledger::structure::ProofVersioned;
     use midnight_serialize::tagged_deserialize;
 
     let mut bytes = Vec::new();
     std::io::stdin().read_to_end(&mut bytes)?;
-    let proof: ProofVersioned = tagged_deserialize(&mut &bytes[..])?;
-    if !matches!(proof, ProofVersioned::V2(_)) {
-        return Err("proof is not ProofVersioned::V2".into());
+    let result: Vec<Option<u64>> = tagged_deserialize(&mut &bytes[..])?;
+    if result.is_empty() {
+        return Err("check response contains no public-input positions".into());
     }
     Ok(())
 }

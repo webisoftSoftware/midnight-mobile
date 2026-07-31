@@ -21,7 +21,7 @@ android {
 
   sourceSets {
     main {
-      java.srcDirs += ['src/main/java', 'generated']
+      java.srcDirs += ['src/main/java', 'generated', 'local-prover']
       jniLibs.srcDirs = ['src/main/jniLibs']
     }
   }

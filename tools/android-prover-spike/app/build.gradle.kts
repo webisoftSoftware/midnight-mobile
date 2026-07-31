@@ -6,6 +6,7 @@ plugins {
 val repositoryRoot = rootDir.resolve("../..").canonicalFile
 val spikeInput = repositoryRoot.resolve("target/android-prover-spike/app-input")
 val spikeArtifacts = repositoryRoot.resolve("target/android-prover-spike/artifacts")
+val sdkLocalProverBridge = repositoryRoot.resolve("packages/react-native/android/local-prover")
 
 android {
   namespace = "network.midnight.proverspike"
@@ -33,7 +34,7 @@ android {
 
   sourceSets {
     getByName("main") {
-      java.srcDir(spikeInput.resolve("generated/kotlin"))
+      java.srcDir(sdkLocalProverBridge)
       jniLibs.srcDir(spikeInput.resolve("jniLibs"))
       assets.srcDir(spikeArtifacts)
     }

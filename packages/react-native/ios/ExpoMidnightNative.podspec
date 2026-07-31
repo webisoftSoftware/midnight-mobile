@@ -18,10 +18,12 @@ Pod::Spec.new do |s|
   s.dependency 'ExpoModulesCore'
   s.source_files = [
     'ExpoMidnightNativeModule.swift',
+    'ExpoMidnightLocalProverModule.swift',
     'generated/MidnightNativeRuntime.swift'
   ]
   s.vendored_frameworks = 'build/MidnightNativeRuntime.xcframework'
   s.preserve_paths = [
+    'MidnightLocalProverFFI.h',
     'generated/*',
     'build/MidnightNativeRuntime.xcframework'
   ]

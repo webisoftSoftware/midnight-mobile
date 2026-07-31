@@ -114,6 +114,8 @@ function buildTarget(root, target) {
       "--release",
       "--package",
       NATIVE_CONFIGURATION.rust.package,
+      "--features",
+      APPLE_CONFIGURATION.localProver.cargoFeatures.join(","),
       "--target",
       target.rustTarget,
     ],

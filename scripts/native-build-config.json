@@ -37,7 +37,18 @@
         "architecture": "x86_64"
       }
     ],
-    "compressedBudgetBytes": 15728640
+    "compressedBudgetBytes": 15728640,
+    "localProver": {
+      "enabled": true,
+      "cargoFeatures": ["local-prover"],
+      "exportedFunctions": [
+        "midnight_local_prover_check",
+        "midnight_local_prover_close",
+        "midnight_local_prover_configure",
+        "midnight_local_prover_free",
+        "midnight_local_prover_prove"
+      ]
+    }
   },
   "android": {
     "ndkVersion": "27.1.12297006",
@@ -61,6 +72,17 @@
       "coordinate": "net.java.dev.jna:jna:5.17.0@aar",
       "sha256": "4dbeffffa665d97ad5aa7eee297531d3c841a86716ab7f774fd6956422b3cf38"
     },
-    "combinedBudgetBytes": 31457280
+    "combinedBudgetBytes": 31457280,
+    "localProver": {
+      "enabled": true,
+      "cargoFeatures": ["local-prover"],
+      "exportedFunctions": [
+        "midnight_local_prover_check",
+        "midnight_local_prover_close",
+        "midnight_local_prover_configure",
+        "midnight_local_prover_free",
+        "midnight_local_prover_prove"
+      ]
+    }
   }
 }

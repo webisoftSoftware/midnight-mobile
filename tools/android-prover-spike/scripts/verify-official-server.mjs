@@ -17,14 +17,47 @@ if (endpoint === undefined) {
 }
 
 const request = readFileSync(resolve(targetRoot, "artifacts/request.bin"));
-const response = await fetch(
-  new URL("prove", endpoint.endsWith("/") ? endpoint : `${endpoint}/`),
-  {
-    method: "POST",
-    headers: { "content-type": "application/octet-stream" },
-    body: request,
-  },
+const checkRequest = readFileSync(
+  resolve(targetRoot, "artifacts/check-request.bin"),
 );
+const base = endpoint.endsWith("/") ? endpoint : `${endpoint}/`;
+const checkResponse = await fetch(new URL("check", base), {
+  method: "POST",
+  headers: { "content-type": "application/octet-stream" },
+  body: checkRequest,
+});
+if (!checkResponse.ok) {
+  throw new Error(
+    `official /check returned HTTP ${String(checkResponse.status)}`,
+  );
+}
+const checked = Buffer.from(await checkResponse.arrayBuffer());
+const checkValidation = spawnSync(
+  "cargo",
+  [
+    "run",
+    "--offline",
+    "--locked",
+    "--quiet",
+    "--package",
+    "midnight-native-runtime",
+    "--features",
+    "local-prover",
+    "--example",
+    "validate_android_prover_check",
+  ],
+  { cwd: repositoryRoot, input: checked, encoding: "utf8" },
+);
+if (checkValidation.status !== 0) {
+  throw new Error(
+    `official response is not a tagged check result: ${checkValidation.stderr}`,
+  );
+}
+const response = await fetch(new URL("prove", base), {
+  method: "POST",
+  headers: { "content-type": "application/octet-stream" },
+  body: request,
+});
 if (!response.ok)
   throw new Error(`official /prove returned HTTP ${String(response.status)}`);
 const proof = Buffer.from(await response.arrayBuffer());
@@ -39,7 +72,7 @@ const validation = spawnSync(
     "--package",
     "midnight-native-runtime",
     "--features",
-    "android-prover-spike",
+    "local-prover",
     "--example",
     "validate_android_prover_proof",
   ],
@@ -49,6 +82,7 @@ if (validation.status !== 0) {
   throw new Error(`official response is not tagged V2: ${validation.stderr}`);
 }
 console.log(
-  `official /prove accepted request: bytes=${String(proof.length)} ` +
+  `official /check and /prove accepted requests: checkBytes=${String(checked.length)} ` +
+    `proofBytes=${String(proof.length)} ` +
     `sha256=${createHash("sha256").update(proof).digest("hex")}`,
 );

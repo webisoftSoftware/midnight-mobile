@@ -87,6 +87,7 @@ function validatePodspec(podspec) {
     : [spec.source_files];
   for (const required of [
     "ExpoMidnightNativeModule.swift",
+    "ExpoMidnightLocalProverModule.swift",
     `generated/${FRAMEWORK_NAME}.swift`,
   ]) {
     if (!sources.includes(required))

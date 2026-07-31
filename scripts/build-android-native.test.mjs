@@ -36,6 +36,7 @@ await test("ELF inspection requires the right ABI and eight functions", () => {
       (name) =>
         `0000000000000000 T uniffi_midnight_native_runtime_fn_func_${name}`,
     )
+    .concat(config.android.localProver.exportedFunctions)
     .join("\n");
   const report = parseElfReport(
     "  Type: DYN (Shared object file)\n  Machine: AArch64\n",
@@ -57,5 +58,13 @@ await test("ELF inspection requires the right ABI and eight functions", () => {
       config,
     ).join("\n"),
     /function ABI drifted/u,
+  );
+  assert.match(
+    validateElfReport(
+      { ...report, localProverFunctions: report.localProverFunctions.slice(1) },
+      config.android.targets[0],
+      config,
+    ).join("\n"),
+    /local prover C ABI drifted/u,
   );
 });

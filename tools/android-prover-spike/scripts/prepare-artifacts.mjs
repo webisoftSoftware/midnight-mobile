@@ -105,7 +105,7 @@ async function main() {
       "--package",
       "midnight-native-runtime",
       "--features",
-      "android-prover-spike",
+      "local-prover",
       "--example",
       "generate_android_prover_request",
     ],
@@ -115,7 +115,28 @@ async function main() {
       stdio: ["ignore", "pipe", "inherit"],
     },
   ).stdout;
+  const checkRequest = run(
+    "cargo",
+    [
+      "run",
+      "--offline",
+      "--locked",
+      "--quiet",
+      "--package",
+      "midnight-native-runtime",
+      "--features",
+      "local-prover",
+      "--example",
+      "generate_android_prover_check_request",
+    ],
+    {
+      encoding: null,
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "inherit"],
+    },
+  ).stdout;
   writeFileSync(resolve(outputRoot, "request.bin"), request);
+  writeFileSync(resolve(outputRoot, "check-request.bin"), checkRequest);
   const manifest = {
     schemaVersion: 1,
     source,
@@ -125,6 +146,11 @@ async function main() {
       path: "request.bin",
       sha256: createHash("sha256").update(request).digest("hex"),
       size: request.length,
+    },
+    checkRequest: {
+      path: "check-request.bin",
+      sha256: createHash("sha256").update(checkRequest).digest("hex"),
+      size: checkRequest.length,
     },
   };
   writeFileSync(

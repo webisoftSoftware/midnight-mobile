@@ -18,6 +18,11 @@ const metadata = {
       import: "./dist/index.js",
       default: "./dist/index.js",
     },
+    "./local-prover": {
+      types: "./dist/local-prover.d.ts",
+      import: "./dist/local-prover.js",
+      default: "./dist/local-prover.js",
+    },
     "./package.json": "./package.json",
   },
   files: [
@@ -25,10 +30,13 @@ const metadata = {
     "dist",
     "expo-module.config.json",
     "ios/ExpoMidnightNative.podspec",
+    "ios/ExpoMidnightLocalProverModule.swift",
     "ios/ExpoMidnightNativeModule.swift",
+    "ios/MidnightLocalProverFFI.h",
     "ios/build/MidnightNativeRuntime.xcframework",
     "ios/generated",
     "android/build.gradle",
+    "android/local-prover",
     "android/src/main",
     "android/generated",
   ],
@@ -52,9 +60,14 @@ const metadata = {
 };
 const autolinking = {
   platforms: ["apple", "android"],
-  apple: { modules: ["ExpoMidnightNativeModule"] },
+  apple: {
+    modules: ["ExpoMidnightNativeModule", "ExpoMidnightLocalProverModule"],
+  },
   android: {
-    modules: ["expo.modules.midnightnative.ExpoMidnightNativeModule"],
+    modules: [
+      "expo.modules.midnightnative.ExpoMidnightNativeModule",
+      "expo.modules.midnightlocalprover.ExpoMidnightLocalProverModule",
+    ],
   },
 };
 
@@ -91,14 +104,20 @@ await test("tarball inspection requires and allowlists M4 native binaries", () =
     "README.md",
     "android/build.gradle",
     "android/generated/README.md",
+    "android/local-prover/expo/modules/midnightlocalprover/LocalProverBridge.kt",
     "android/src/main/jniLibs/arm64-v8a/libmidnight_native_runtime.so",
     "android/src/main/jniLibs/x86_64/libmidnight_native_runtime.so",
     "android/src/main/java/expo/modules/midnightnative/ExpoMidnightNativeModule.kt",
+    "android/src/main/java/expo/modules/midnightlocalprover/ExpoMidnightLocalProverModule.kt",
     "dist/index.d.ts",
     "dist/index.js",
+    "dist/local-prover.d.ts",
+    "dist/local-prover.js",
     "expo-module.config.json",
     "ios/ExpoMidnightNative.podspec",
+    "ios/ExpoMidnightLocalProverModule.swift",
     "ios/ExpoMidnightNativeModule.swift",
+    "ios/MidnightLocalProverFFI.h",
     "ios/build/MidnightNativeRuntime.xcframework/Info.plist",
     "ios/generated/README.md",
     "package.json",

@@ -94,12 +94,36 @@ function inspectLibrary(library, toolchain) {
     library,
   ]).stdout;
   for (const symbol of [
-    "midnight_embedded_prover_probe",
-    "midnight_embedded_prover_free",
-    "uniffi_midnight_native_runtime_fn_func_run_embedded_prover_probe_owned",
+    "midnight_local_prover_check",
+    "midnight_local_prover_close",
+    "midnight_local_prover_configure",
+    "midnight_local_prover_free",
+    "midnight_local_prover_prove",
   ]) {
     if (!symbols.includes(symbol))
       throw new Error(`missing native symbol ${symbol}`);
+  }
+  const uniffiFunctions = [
+    ...symbols.matchAll(
+      /\buniffi_midnight_native_runtime_fn_func_([a-z0-9_]+)$/gmu,
+    ),
+  ]
+    .map((match) => match[1])
+    .sort();
+  const expectedUniFfiFunctions = [
+    "apply_sync_batch",
+    "begin_command",
+    "cancel_operation",
+    "close_wallet_session",
+    "export_wallet_checkpoint",
+    "get_wallet_snapshot",
+    "open_wallet_session",
+    "resume_operation",
+  ];
+  if (
+    JSON.stringify(uniffiFunctions) !== JSON.stringify(expectedUniFfiFunctions)
+  ) {
+    throw new Error(`UniFFI ABI drifted: ${uniffiFunctions.join(", ")}`);
   }
   return needed;
 }
@@ -116,7 +140,7 @@ function buildRust(toolchain) {
       "--package",
       "midnight-native-runtime",
       "--features",
-      "android-prover-spike",
+      "local-prover",
       "--target",
       rustTarget,
       "--target-dir",
@@ -129,58 +153,6 @@ function buildRust(toolchain) {
   mkdirSync(dirname(destination), { recursive: true });
   copyFileSync(library, destination);
   return destination;
-}
-
-function generateBindings() {
-  const output = resolve(appInput, "generated/kotlin");
-  const hostTarget = resolve(targetRoot, "bindgen-target");
-  run(
-    "cargo",
-    [
-      "build",
-      "--offline",
-      "--locked",
-      "--package",
-      "midnight-native-runtime",
-      "--features",
-      "android-prover-spike",
-      "--target-dir",
-      hostTarget,
-    ],
-    { stdio: "inherit" },
-  );
-  const candidates = [
-    resolve(hostTarget, "debug/libmidnight_native_runtime.dylib"),
-    resolve(hostTarget, "debug/libmidnight_native_runtime.so"),
-    resolve(hostTarget, "debug/midnight_native_runtime.dll"),
-  ].filter(existsSync);
-  if (candidates.length !== 1) {
-    throw new Error(
-      "expected one host runtime library for spike-only UniFFI generation",
-    );
-  }
-  rmSync(output, { force: true, recursive: true });
-  mkdirSync(output, { recursive: true });
-  run(
-    "cargo",
-    [
-      "run",
-      "--offline",
-      "--locked",
-      "--quiet",
-      "--package",
-      "midnight-native-bindgen",
-      "--",
-      "generate",
-      candidates[0],
-      "--language",
-      "kotlin",
-      "--out-dir",
-      output,
-      "--no-format",
-    ],
-    { stdio: "inherit" },
-  );
 }
 
 function gradleExecutable() {
@@ -206,6 +178,7 @@ function buildApk() {
   const listing = run("unzip", ["-lv", destination]).stdout;
   const assetPaths = [
     "assets/request.bin",
+    "assets/check-request.bin",
     "assets/bls_midnight_2p15",
     "assets/zswap/9/spend.prover",
     "assets/zswap/9/spend.verifier",
@@ -292,7 +265,6 @@ function main() {
   const toolchain = findNdkToolchain();
   const library = buildRust(toolchain);
   const needed = inspectLibrary(library, toolchain);
-  generateBindings();
   const apk = buildApk();
   const report = sizeReport(apk, library, needed);
   console.log(

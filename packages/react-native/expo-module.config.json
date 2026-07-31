@@ -1,9 +1,12 @@
 {
   "platforms": ["apple", "android"],
   "apple": {
-    "modules": ["ExpoMidnightNativeModule"]
+    "modules": ["ExpoMidnightNativeModule", "ExpoMidnightLocalProverModule"]
   },
   "android": {
-    "modules": ["expo.modules.midnightnative.ExpoMidnightNativeModule"]
+    "modules": [
+      "expo.modules.midnightnative.ExpoMidnightNativeModule",
+      "expo.modules.midnightlocalprover.ExpoMidnightLocalProverModule"
+    ]
   }
 }

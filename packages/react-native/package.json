@@ -12,6 +12,11 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./local-prover": {
+      "types": "./dist/local-prover.d.ts",
+      "import": "./dist/local-prover.js",
+      "default": "./dist/local-prover.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -19,10 +24,13 @@
     "dist",
     "expo-module.config.json",
     "ios/ExpoMidnightNative.podspec",
+    "ios/ExpoMidnightLocalProverModule.swift",
     "ios/ExpoMidnightNativeModule.swift",
+    "ios/MidnightLocalProverFFI.h",
     "ios/build/MidnightNativeRuntime.xcframework",
     "ios/generated",
     "android/build.gradle",
+    "android/local-prover",
     "android/src/main",
     "android/generated"
   ],

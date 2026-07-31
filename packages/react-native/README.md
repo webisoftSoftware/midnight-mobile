@@ -114,6 +114,23 @@ best-effort wipe their temporary copies, but the caller owns the original
 buffers and must clear them after `openWalletSession` settles. Never place
 seeds, checkpoints, credentials, signatures, or transaction payloads in logs.
 
+## Experimental mobile local prover
+
+The separate `@1am/midnight-mobile/local-prover` entrypoint configures
+application-supplied proof parameters and circuit files, executes the exact
+Ledger 8.1.0 binary `/check` and `/prove` operations locally, and can route only
+those two effects through the standard transport. Android maps uncompressed APK
+assets or absolute sandbox files read-only; iOS maps bundle resources or
+absolute application-sandbox files read-only. Both validate declared sizes and
+SHA-256 hashes. The SDK does not bundle or download proof artifacts.
+
+This entrypoint has no cancellation contract and does not handle
+`proveAndBalance`, `balance`, or local fee balancing. Those effects remain
+remote. Applications must close the prover after outstanding operations settle.
+See the platform guides for [Android](../../docs/LOCAL_PROVER_ANDROID.md) and
+[iOS](../../docs/LOCAL_PROVER_IOS.md) artifact, memory, error, and lifecycle
+details.
+
 ## Maintainer verification
 
 `npm run check:package` builds the package twice, verifies byte-for-byte
@@ -141,6 +158,8 @@ verification without modifying files.
 - [Architecture and resumable effects](../../docs/ARCHITECTURE.md)
 - [Public API and errors](../../docs/API_REFERENCE.md)
 - [Network and proof-server configuration](../../docs/NETWORK_CONFIGURATION.md)
+- [Experimental Android local prover](../../docs/LOCAL_PROVER_ANDROID.md)
+- [Experimental iOS local prover](../../docs/LOCAL_PROVER_IOS.md)
 - [Checkpoint storage and encryption](../../docs/CHECKPOINTS.md)
 - [Seed lifecycle threat model](../../docs/SEED_THREAT_MODEL.md)
 - [Compatibility matrix](../../docs/COMPATIBILITY.md)

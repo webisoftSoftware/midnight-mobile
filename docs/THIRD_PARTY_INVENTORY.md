@@ -103,41 +103,42 @@ Versions, checksums, and sources are fixed by the assessed runtime
 `Cargo.toml`/`Cargo.lock`. Registry SPDX values were checked against the exact
 crates.io version records.
 
-| Dependency                  | Exact version/source                                  | Declared license    | Scope             | Distribution treatment                       |
-| --------------------------- | ----------------------------------------------------- | ------------------- | ----------------- | -------------------------------------------- |
-| `anyhow`                    | `1.0.102`                                             | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
-| `bech32`                    | `0.11.1`                                              | `MIT`               | Runtime           | MIT notice.                                  |
-| `futures`                   | `0.3.32`                                              | `MIT OR Apache-2.0` | Assessed only     | Removed from the sanitized direct graph.     |
-| `futures-executor`          | `0.3.32`                                              | `MIT OR Apache-2.0` | Prover spike only | Select MIT or Apache-2.0; include notices.   |
-| `flate2`                    | `1.1.9`, `default-features = false`, `rust_backend`   | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
-| `hex`                       | `0.4.3`                                               | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
-| `num-bigint`                | `0.4.8`, `default-features = false`                   | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
-| `rand`                      | `0.8.7`                                               | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
-| `serde`                     | `1.0.228`, `derive`                                   | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
-| `serde_json`                | `1.0.145`                                             | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
-| `sha2`                      | `0.10.9`                                              | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
-| `thiserror`                 | `2.0.17`                                              | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
-| `uniffi`                    | `0.32.0`; runtime and bindgen (`cli`)                 | `MPL-2.0`           | Runtime and build | MPL-2.0 source/executable-form obligations.  |
-| `zeroize`                   | `1.9.0`, `default-features = false`                   | `Apache-2.0 OR MIT` | Runtime           | Select Apache-2.0 or MIT; include notices.   |
-| `proptest`                  | `1.11.0`                                              | `MIT OR Apache-2.0` | Test only         | Build/test only; do not place in binaries.   |
-| `rayon`                     | `1.12.0`                                              | `MIT OR Apache-2.0` | Prover spike only | Select MIT or Apache-2.0; include notices.   |
-| `midnight-ledger`           | `8.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
-| `midnight-onchain-runtime`  | `3.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
-| `midnight-base-crypto`      | `1.0.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
-| `midnight-coin-structure`   | `2.0.1` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
-| `midnight-serialize`        | `1.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
-| `midnight-storage`          | `2.0.1` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
-| `midnight-transient-crypto` | `2.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
-| `midnight-zswap`            | `8.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
-| `midnight-zkir`             | `2.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Prover spike only | Apache-2.0; include license and attribution. |
+| Dependency                  | Exact version/source                                  | Declared license    | Scope               | Distribution treatment                       |
+| --------------------------- | ----------------------------------------------------- | ------------------- | ------------------- | -------------------------------------------- |
+| `anyhow`                    | `1.0.102`                                             | `MIT OR Apache-2.0` | Runtime             | Select MIT or Apache-2.0; include notices.   |
+| `bech32`                    | `0.11.1`                                              | `MIT`               | Runtime             | MIT notice.                                  |
+| `futures`                   | `0.3.32`                                              | `MIT OR Apache-2.0` | Assessed only       | Removed from the sanitized direct graph.     |
+| `futures-executor`          | `0.3.32`                                              | `MIT OR Apache-2.0` | Mobile local prover | Select MIT or Apache-2.0; include notices.   |
+| `flate2`                    | `1.1.9`, `default-features = false`, `rust_backend`   | `MIT OR Apache-2.0` | Runtime             | Select MIT or Apache-2.0; include notices.   |
+| `hex`                       | `0.4.3`                                               | `MIT OR Apache-2.0` | Runtime             | Select MIT or Apache-2.0; include notices.   |
+| `num-bigint`                | `0.4.8`, `default-features = false`                   | `MIT OR Apache-2.0` | Runtime             | Select MIT or Apache-2.0; include notices.   |
+| `rand`                      | `0.8.7`                                               | `MIT OR Apache-2.0` | Runtime             | Select MIT or Apache-2.0; include notices.   |
+| `serde`                     | `1.0.228`, `derive`                                   | `MIT OR Apache-2.0` | Runtime             | Select MIT or Apache-2.0; include notices.   |
+| `serde_json`                | `1.0.145`                                             | `MIT OR Apache-2.0` | Runtime             | Select MIT or Apache-2.0; include notices.   |
+| `sha2`                      | `0.10.9`                                              | `MIT OR Apache-2.0` | Runtime             | Select MIT or Apache-2.0; include notices.   |
+| `thiserror`                 | `2.0.17`                                              | `MIT OR Apache-2.0` | Runtime             | Select MIT or Apache-2.0; include notices.   |
+| `uniffi`                    | `0.32.0`; runtime and bindgen (`cli`)                 | `MPL-2.0`           | Runtime and build   | MPL-2.0 source/executable-form obligations.  |
+| `zeroize`                   | `1.9.0`, `default-features = false`                   | `Apache-2.0 OR MIT` | Runtime             | Select Apache-2.0 or MIT; include notices.   |
+| `proptest`                  | `1.11.0`                                              | `MIT OR Apache-2.0` | Test only           | Build/test only; do not place in binaries.   |
+| `rayon`                     | `1.12.0`                                              | `MIT OR Apache-2.0` | Mobile local prover | Select MIT or Apache-2.0; include notices.   |
+| `midnight-proofs`           | `0.7.2`                                               | `MIT OR Apache-2.0` | Mobile local prover | Select MIT or Apache-2.0; include notices.   |
+| `midnight-ledger`           | `8.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime             | Apache-2.0; include license and attribution. |
+| `midnight-onchain-runtime`  | `3.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime             | Apache-2.0; include license and attribution. |
+| `midnight-base-crypto`      | `1.0.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime             | Apache-2.0; include license and attribution. |
+| `midnight-coin-structure`   | `2.0.1` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime             | Apache-2.0; include license and attribution. |
+| `midnight-serialize`        | `1.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime             | Apache-2.0; include license and attribution. |
+| `midnight-storage`          | `2.0.1` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime             | Apache-2.0; include license and attribution. |
+| `midnight-transient-crypto` | `2.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime             | Apache-2.0; include license and attribution. |
+| `midnight-zswap`            | `8.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime             | Apache-2.0; include license and attribution. |
+| `midnight-zkir`             | `2.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Mobile local prover | Apache-2.0; include license and attribution. |
 
 The pinned Midnight Ledger workspace manifest declares
 `workspace.package.license = "Apache-2.0"` and includes an Apache 2.0 `LICENSE`;
 no `NOTICE` exists at that revision. Default runtime builds use eight direct
-workspace crates; the private `android-prover-spike` feature adds
-`midnight-zkir`. The resulting native libraries also contain their transitive
-dependency graph. A complete release SBOM and transitive license report remain
-mandatory.
+workspace crates; the private `local-prover` feature adds `midnight-zkir`,
+`midnight-proofs`, and Rayon. The resulting native libraries also contain their
+transitive dependency graph. A complete release SBOM and transitive license
+report remain mandatory.
 
 UniFFI is the only direct MPL dependency identified here. Before distributing
 native binaries, record the exact UniFFI source archive/commit corresponding to

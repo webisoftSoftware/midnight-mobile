@@ -24,7 +24,7 @@
     "generated-sanitized",
     "repository-authored"
   ],
-  "entryCount": 119,
+  "entryCount": 127,
   "entries": [
     {
       "targetPath": "Cargo.lock",
@@ -43,7 +43,15 @@
       "originClass": "assessed-sanitized"
     },
     {
+      "targetPath": "crates/runtime/examples/generate_android_prover_check_request.rs",
+      "originClass": "repository-authored"
+    },
+    {
       "targetPath": "crates/runtime/examples/generate_android_prover_request.rs",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "crates/runtime/examples/validate_android_prover_check.rs",
       "originClass": "repository-authored"
     },
     {
@@ -55,20 +63,20 @@
       "originClass": "assessed-sanitized"
     },
     {
-      "targetPath": "crates/runtime/src/embedded_prover.rs",
-      "originClass": "repository-authored"
-    },
-    {
-      "targetPath": "crates/runtime/src/embedded_prover/ffi.rs",
-      "originClass": "repository-authored"
-    },
-    {
-      "targetPath": "crates/runtime/src/embedded_prover/tests.rs",
-      "originClass": "repository-authored"
-    },
-    {
       "targetPath": "crates/runtime/src/lib.rs",
       "originClass": "assessed-sanitized"
+    },
+    {
+      "targetPath": "crates/runtime/src/local_prover.rs",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "crates/runtime/src/local_prover/ffi.rs",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "crates/runtime/src/local_prover/tests.rs",
+      "originClass": "repository-authored"
     },
     {
       "targetPath": "crates/runtime/src/runtime.rs",
@@ -339,6 +347,14 @@
       "originClass": "generated-sanitized"
     },
     {
+      "targetPath": "packages/react-native/android/local-prover/expo/modules/midnightlocalprover/LocalProverBridge.kt",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "packages/react-native/android/src/main/java/expo/modules/midnightlocalprover/ExpoMidnightLocalProverModule.kt",
+      "originClass": "repository-authored"
+    },
+    {
       "targetPath": "packages/react-native/android/src/main/java/expo/modules/midnightnative/ExpoMidnightNativeModule.kt",
       "originClass": "assessed-sanitized"
     },
@@ -347,12 +363,20 @@
       "originClass": "assessed-sanitized"
     },
     {
+      "targetPath": "packages/react-native/ios/ExpoMidnightLocalProverModule.swift",
+      "originClass": "repository-authored"
+    },
+    {
       "targetPath": "packages/react-native/ios/ExpoMidnightNative.podspec",
       "originClass": "assessed-sanitized"
     },
     {
       "targetPath": "packages/react-native/ios/ExpoMidnightNativeModule.swift",
       "originClass": "assessed-sanitized"
+    },
+    {
+      "targetPath": "packages/react-native/ios/MidnightLocalProverFFI.h",
+      "originClass": "repository-authored"
     },
     {
       "targetPath": "packages/react-native/ios/generated/MidnightNativeRuntime.swift",
@@ -403,6 +427,10 @@
       "originClass": "assessed-sanitized"
     },
     {
+      "targetPath": "packages/react-native/src/local-prover.ts",
+      "originClass": "repository-authored"
+    },
+    {
       "targetPath": "packages/react-native/src/native-module.ts",
       "originClass": "assessed-sanitized"
     },
@@ -448,6 +476,10 @@
     },
     {
       "targetPath": "packages/react-native/tests/foundation.test.ts",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "packages/react-native/tests/local-prover.test.ts",
       "originClass": "repository-authored"
     },
     {
