@@ -24,7 +24,7 @@
     "generated-sanitized",
     "repository-authored"
   ],
-  "entryCount": 114,
+  "entryCount": 119,
   "entries": [
     {
       "targetPath": "Cargo.lock",
@@ -43,8 +43,28 @@
       "originClass": "assessed-sanitized"
     },
     {
+      "targetPath": "crates/runtime/examples/generate_android_prover_request.rs",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "crates/runtime/examples/validate_android_prover_proof.rs",
+      "originClass": "repository-authored"
+    },
+    {
       "targetPath": "crates/runtime/src/codec.rs",
       "originClass": "assessed-sanitized"
+    },
+    {
+      "targetPath": "crates/runtime/src/embedded_prover.rs",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "crates/runtime/src/embedded_prover/ffi.rs",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "crates/runtime/src/embedded_prover/tests.rs",
+      "originClass": "repository-authored"
     },
     {
       "targetPath": "crates/runtime/src/lib.rs",

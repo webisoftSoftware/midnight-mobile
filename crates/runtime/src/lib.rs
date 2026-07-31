@@ -7,10 +7,17 @@ use num_bigint::BigUint;
 use zeroize::Zeroize;
 
 mod codec;
+#[cfg(feature = "android-prover-spike")]
+mod embedded_prover;
 mod runtime;
 mod transaction;
 mod wallet_state;
 
+#[cfg(feature = "android-prover-spike")]
+pub use embedded_prover::{
+    EmbeddedProofResult, EmbeddedProverError, deterministic_zswap_spend_request,
+    run_embedded_prover_probe,
+};
 pub use runtime::{
     RuntimeSessionHandle, apply_sync_batch, begin_command, cancel_operation, close_wallet_session,
     export_wallet_checkpoint, get_wallet_snapshot, open_wallet_session, resume_operation,

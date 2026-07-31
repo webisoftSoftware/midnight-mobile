@@ -5,6 +5,14 @@ edition.workspace = true
 license.workspace = true
 publish = false
 
+[features]
+default = []
+android-prover-spike = [
+  "dep:futures-executor",
+  "dep:midnight-zkir",
+  "dep:rayon",
+]
+
 [lib]
 name = "midnight_native_runtime"
 crate-type = ["staticlib", "cdylib", "rlib"]
@@ -34,6 +42,9 @@ midnight-serialize = { git = "https://github.com/midnightntwrk/midnight-ledger.g
 midnight-storage = { git = "https://github.com/midnightntwrk/midnight-ledger.git", rev = "02716c2c95d50654aeb3cb63bfd8386046e4ca7d", default-features = false }
 midnight-transient-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger.git", rev = "02716c2c95d50654aeb3cb63bfd8386046e4ca7d", default-features = false }
 midnight-zswap = { git = "https://github.com/midnightntwrk/midnight-ledger.git", rev = "02716c2c95d50654aeb3cb63bfd8386046e4ca7d", default-features = false }
+midnight-zkir = { git = "https://github.com/midnightntwrk/midnight-ledger.git", rev = "02716c2c95d50654aeb3cb63bfd8386046e4ca7d", default-features = false, optional = true }
+futures-executor = { version = "=0.3.32", optional = true }
+rayon = { version = "=1.12.0", optional = true }
 
 [dev-dependencies]
 proptest = "=1.11.0"

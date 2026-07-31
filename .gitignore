@@ -15,6 +15,7 @@ build/
 .declaration-build/
 coverage/
 android/.gradle/
+tools/android-prover-spike/.gradle/
 android/local.properties
 packages/react-native/android/src/main/jniLibs/
 ios/Pods/

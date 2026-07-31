@@ -108,6 +108,7 @@ crates.io version records.
 | `anyhow`                    | `1.0.102`                                             | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
 | `bech32`                    | `0.11.1`                                              | `MIT`               | Runtime           | MIT notice.                                  |
 | `futures`                   | `0.3.32`                                              | `MIT OR Apache-2.0` | Assessed only     | Removed from the sanitized direct graph.     |
+| `futures-executor`          | `0.3.32`                                              | `MIT OR Apache-2.0` | Prover spike only | Select MIT or Apache-2.0; include notices.   |
 | `flate2`                    | `1.1.9`, `default-features = false`, `rust_backend`   | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
 | `hex`                       | `0.4.3`                                               | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
 | `num-bigint`                | `0.4.8`, `default-features = false`                   | `MIT OR Apache-2.0` | Runtime           | Select MIT or Apache-2.0; include notices.   |
@@ -119,6 +120,7 @@ crates.io version records.
 | `uniffi`                    | `0.32.0`; runtime and bindgen (`cli`)                 | `MPL-2.0`           | Runtime and build | MPL-2.0 source/executable-form obligations.  |
 | `zeroize`                   | `1.9.0`, `default-features = false`                   | `Apache-2.0 OR MIT` | Runtime           | Select Apache-2.0 or MIT; include notices.   |
 | `proptest`                  | `1.11.0`                                              | `MIT OR Apache-2.0` | Test only         | Build/test only; do not place in binaries.   |
+| `rayon`                     | `1.12.0`                                              | `MIT OR Apache-2.0` | Prover spike only | Select MIT or Apache-2.0; include notices.   |
 | `midnight-ledger`           | `8.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
 | `midnight-onchain-runtime`  | `3.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
 | `midnight-base-crypto`      | `1.0.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
@@ -127,11 +129,13 @@ crates.io version records.
 | `midnight-storage`          | `2.0.1` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
 | `midnight-transient-crypto` | `2.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
 | `midnight-zswap`            | `8.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Runtime           | Apache-2.0; include license and attribution. |
+| `midnight-zkir`             | `2.1.0` at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d` | `Apache-2.0`        | Prover spike only | Apache-2.0; include license and attribution. |
 
 The pinned Midnight Ledger workspace manifest declares
 `workspace.package.license = "Apache-2.0"` and includes an Apache 2.0 `LICENSE`;
-no `NOTICE` exists at that revision. The runtime uses eight direct workspace
-crates, but the resulting native libraries also contain their transitive
+no `NOTICE` exists at that revision. Default runtime builds use eight direct
+workspace crates; the private `android-prover-spike` feature adds
+`midnight-zkir`. The resulting native libraries also contain their transitive
 dependency graph. A complete release SBOM and transitive license report remain
 mandatory.
 
