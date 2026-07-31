@@ -155,9 +155,9 @@ For every pull request:
 
 - Run the pinned repository quality command covering Markdown, TypeScript, Rust,
   shell scripts, GitHub Actions, formatting, type checking, and tests.
-- Enforce a 500-physical-line maximum for handwritten source files, with
-  reviewed exceptions only for generated bindings, lockfiles, vendored code, and
-  machine-generated fixtures.
+- Enforce a 500-physical-line maximum for handwritten source files, or 800 for
+  Rust, with reviewed exceptions only for generated bindings, lockfiles,
+  vendored code, and machine-generated fixtures.
 - Reject unqualified lint suppressions, TypeScript `any`, unsafe Rust without a
   documented safety invariant, and warnings from supported toolchains.
 - Run strict Rust clippy, strict TypeScript/ESLint rules, wallet-core tests,

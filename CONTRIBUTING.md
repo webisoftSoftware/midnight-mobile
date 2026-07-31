@@ -73,7 +73,8 @@ Follow these repository conventions:
   boundaries.
 - Keep network, persistence, UI, and lifecycle I/O out of Rust.
 - Avoid `unwrap`, `expect`, and undocumented `unsafe` in production Rust.
-- Keep handwritten production files under 500 physical lines.
+- Keep handwritten production files under 500 physical lines, or 800 for Rust.
+  Split with ordinary modules, never with `include!`.
 - Add success and relevant failure, cancellation, stale-handle, or
   malformed-input tests for behavior changes.
 - Add a regression test for every bug fix.

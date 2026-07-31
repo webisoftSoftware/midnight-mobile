@@ -4,6 +4,18 @@ import { extname } from "node:path";
 import { listRepositoryFiles } from "./quality-utils.mjs";
 
 const MAX_PHYSICAL_LINES = 500;
+// Rust gets a higher ceiling than the other languages. At 500 lines the runtime
+// was forced into statement-level `include!("...")` splices to stay compliant,
+// which is not real module structure: the included fragments are not valid Rust
+// on their own and confuse rustfmt, clippy spans, and IDE navigation. The
+// ceiling exists to stop files becoming unreviewable, not to push code into text
+// substitution. Unwinding the existing splices into ordinary `mod` items is
+// tracked separately; this limit is the precondition for that work.
+const MAX_PHYSICAL_LINES_RUST = 800;
+
+function maxPhysicalLines(file) {
+  return extname(file) === ".rs" ? MAX_PHYSICAL_LINES_RUST : MAX_PHYSICAL_LINES;
+}
 const EXCEPTIONS_PATH = "scripts/source-policy-exceptions.json";
 const MILESTONES = ["M0", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9"];
 const SOURCE_EXTENSIONS = new Set([
@@ -252,14 +264,15 @@ function checkSources(files, exceptionKeys, errors) {
     const contents = readFileSync(file, "utf8");
     const lines = countPhysicalLines(contents);
     const exceptionKey = `${file}:max-physical-lines`;
-    if (lines > MAX_PHYSICAL_LINES) {
+    const maximum = maxPhysicalLines(file);
+    if (lines > maximum) {
       if (exceptionKeys.has(exceptionKey)) {
         usedExceptions.add(exceptionKey);
       } else {
         addError(
           errors,
           file,
-          `has ${lines} physical lines; maximum is ${MAX_PHYSICAL_LINES}`,
+          `has ${lines} physical lines; maximum is ${maximum}`,
         );
       }
     }

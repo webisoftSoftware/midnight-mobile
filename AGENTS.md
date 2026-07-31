@@ -32,8 +32,9 @@ Use Prettier for web files and `rustfmt` for Rust. TypeScript must be strict,
 avoid `any`, and narrow `unknown` at decoding boundaries. Rust production code
 must avoid `unwrap`, `expect`, and undocumented `unsafe`; place a `SAFETY:`
 invariant above each unsafe block. Keep handwritten source under 500 physical
-lines. Use `camelCase` for functions, `PascalCase` for exported types and React
-components, and `snake_case` for Rust modules.
+lines, or 800 for Rust; never use `include!` to split a file. Use `camelCase`
+for functions, `PascalCase` for exported types and React components, and
+`snake_case` for Rust modules.
 
 ## Testing Guidelines
 

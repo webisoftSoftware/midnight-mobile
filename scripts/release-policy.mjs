@@ -2,35 +2,37 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 
-const EXPECTED_PACKAGE = Object.freeze({
-  name: "@1am/midnight-mobile",
-  version: "0.1.0-alpha.1",
-  gitTag: "v0.1.0-alpha.1",
-});
-const EXPECTED_TOOLCHAINS = Object.freeze({
-  node: "22",
-  npm: "11.12.1",
-  rust: "1.97.1",
-  cargoLlvmCov: "0.8.6",
-  jdk: "17.0.19+10",
-  xcode: "26.3",
-  cocoaPods: "1.16.2",
-  androidCommandLineTools: "14742923",
-  androidNdk: "27.1.12297006",
-  androidApi: 24,
-});
-const EXPECTED_COMPATIBILITY = Object.freeze({
-  midnightLedger: "8.1.0",
-  midnightLedgerRevision: "02716c2c95d50654aeb3cb63bfd8386046e4ca7d",
-  networks: ["preview", "preprod", "mainnet"],
-  expo: "55.0.28",
-  expoModulesCore: "55.0.25",
-  react: "19.2.0",
-  reactNative: "0.83.6",
-  iosMinimum: "15.1",
-  androidMinimumApi: 24,
-  androidAbis: ["arm64-v8a", "x86_64"],
-});
+// `scripts/release-config.json` is the single source of truth for the package
+// identity, toolchain pins, and compatibility record. This module validates that
+// the config is structurally complete and that every other file in the
+// repository agrees with it. It deliberately does not keep a second copy of the
+// expected values: duplicating them here meant a toolchain bump had to be
+// applied in two places or the release gate failed for no real reason.
+const REQUIRED_PACKAGE_FIELDS = Object.freeze(["name", "version", "gitTag"]);
+const REQUIRED_TOOLCHAIN_FIELDS = Object.freeze([
+  "node",
+  "npm",
+  "rust",
+  "cargoLlvmCov",
+  "jdk",
+  "xcode",
+  "cocoaPods",
+  "androidCommandLineTools",
+  "androidNdk",
+  "androidApi",
+]);
+const REQUIRED_COMPATIBILITY_FIELDS = Object.freeze([
+  "midnightLedger",
+  "midnightLedgerRevision",
+  "networks",
+  "expo",
+  "expoModulesCore",
+  "react",
+  "reactNative",
+  "iosMinimum",
+  "androidMinimumApi",
+  "androidAbis",
+]);
 
 function isObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -42,84 +44,150 @@ function exact(actual, expected, label, errors) {
   }
 }
 
-function validateCargoLock(cargoLock, errors) {
-  if (
-    typeof cargoLock !== "string" ||
-    !cargoLock.includes(EXPECTED_COMPATIBILITY.midnightLedgerRevision)
-  ) {
+function requireFields(value, fields, label, errors) {
+  const section = isObject(value) ? value : {};
+  if (!isObject(value)) {
+    errors.push(`${label} must be an object`);
+    return section;
+  }
+  for (const field of fields) {
+    const entry = section[field];
+    const populated =
+      (typeof entry === "string" && entry.trim().length > 0) ||
+      (typeof entry === "number" && Number.isFinite(entry)) ||
+      (Array.isArray(entry) && entry.length > 0);
+    if (!populated) {
+      errors.push(`${label}.${field} must be recorded`);
+    }
+  }
+  return section;
+}
+
+function validateCargoLock(cargoLock, revision, errors) {
+  if (typeof revision !== "string") return;
+  if (typeof cargoLock !== "string" || !cargoLock.includes(revision)) {
     errors.push("Cargo lock must retain the exact Midnight Ledger revision");
   }
 }
 
-function validateCompatibilityDocument(document, errors) {
-  for (const value of Object.values(EXPECTED_COMPATIBILITY)) {
+function validateCompatibilityDocument(document, compatibility, errors) {
+  for (const value of Object.values(compatibility)) {
     if (typeof value === "string" && !document.includes(value)) {
       errors.push(`compatibility document is missing ${value}`);
     }
   }
 }
 
-export function validateReleaseConfig(config, inputs) {
-  const errors = [];
-  if (!isObject(config)) return ["release config must be an object"];
+function validateConfigShape(config, errors) {
   exact(config.schemaVersion, 1, "schemaVersion", errors);
-  exact(config.package, EXPECTED_PACKAGE, "package", errors);
-  exact(config.toolchains, EXPECTED_TOOLCHAINS, "toolchains", errors);
-  exact(config.compatibility, EXPECTED_COMPATIBILITY, "compatibility", errors);
+  const pkg = requireFields(
+    config.package,
+    REQUIRED_PACKAGE_FIELDS,
+    "package",
+    errors,
+  );
+  const toolchains = requireFields(
+    config.toolchains,
+    REQUIRED_TOOLCHAIN_FIELDS,
+    "toolchains",
+    errors,
+  );
+  const compatibility = requireFields(
+    config.compatibility,
+    REQUIRED_COMPATIBILITY_FIELDS,
+    "compatibility",
+    errors,
+  );
+  if (typeof pkg.version === "string" && pkg.gitTag !== `v${pkg.version}`) {
+    errors.push("package gitTag must be the package version prefixed with v");
+  }
   exact(
     config.releaseEnvironment,
     "alpha-release",
     "releaseEnvironment",
     errors,
   );
-  exact(
+  return { pkg, toolchains, compatibility };
+}
+
+// The distribution decision stays exact: its status is the M6 publication gate,
+// not a version number that moves with a routine upgrade.
+function validateDeferredDecision(config, errors) {
+  const decision = requireFields(
     config.distributionDecision,
-    {
-      status: "deferred-to-m6-destination-migration",
-      trackingIssue: "https://github.com/ADGLx/midnight-mobile/issues/38",
-      requiredApprovalFile: "docs/DISTRIBUTION_DECISION.json",
-    },
+    ["status", "trackingIssue", "requiredApprovalFile"],
     "distributionDecision",
     errors,
   );
+  exact(
+    decision.status,
+    "deferred-to-m6-destination-migration",
+    "distributionDecision.status",
+    errors,
+  );
+  exact(
+    decision.requiredApprovalFile,
+    "docs/DISTRIBUTION_DECISION.json",
+    "distributionDecision.requiredApprovalFile",
+    errors,
+  );
+}
+
+// Every pinned value is checked against the config rather than a duplicated
+// constant, so a toolchain bump is a one-line config edit.
+function validateRepositoryAgreement(sections, inputs, errors) {
+  const { pkg, toolchains, compatibility } = sections;
   exact(
     {
       name: inputs.packageMetadata?.name,
       version: inputs.packageMetadata?.version,
     },
-    {
-      name: EXPECTED_PACKAGE.name,
-      version: EXPECTED_PACKAGE.version,
-    },
+    { name: pkg.name, version: pkg.version },
     "npm package identity",
     errors,
   );
   exact(
     inputs.rootMetadata?.packageManager,
-    `npm@${EXPECTED_TOOLCHAINS.npm}`,
+    `npm@${toolchains.npm}`,
     "root packageManager",
     errors,
   );
   exact(
     inputs.nativeConfig?.rust?.toolchain,
-    EXPECTED_TOOLCHAINS.rust,
+    toolchains.rust,
     "native Rust toolchain",
     errors,
   );
   exact(
     inputs.nativeConfig?.android?.ndkVersion,
-    EXPECTED_TOOLCHAINS.androidNdk,
+    toolchains.androidNdk,
     "native Android NDK",
     errors,
   );
   exact(
     inputs.nativeConfig?.apple?.deploymentTarget,
-    EXPECTED_COMPATIBILITY.iosMinimum,
+    compatibility.iosMinimum,
     "native iOS minimum",
     errors,
   );
-  validateCargoLock(inputs.cargoLock, errors);
-  validateCompatibilityDocument(inputs.compatibilityDocument, errors);
+  validateCargoLock(
+    inputs.cargoLock,
+    compatibility.midnightLedgerRevision,
+    errors,
+  );
+  validateCompatibilityDocument(
+    inputs.compatibilityDocument,
+    compatibility,
+    errors,
+  );
+}
+
+export function validateReleaseConfig(config, inputs) {
+  const errors = [];
+  if (!isObject(config)) return ["release config must be an object"];
+  const sections = validateConfigShape(config, errors);
+  validateDeferredDecision(config, errors);
+  validateRepositoryAgreement(sections, inputs, errors);
   return errors;
 }
 

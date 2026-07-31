@@ -701,7 +701,12 @@ bootstrap through the complete SDK without silently skipping relevant checks.
 
 Implement `scripts/check-source-policy.mjs` with these rules:
 
-1. Handwritten production source files may not exceed 500 physical lines.
+1. Handwritten production source files may not exceed 500 physical lines, except
+   `.rs` files, which may not exceed 800. Rust carries the higher ceiling
+   because the 500-line limit drove the runtime into statement-level
+   `include!("...")` splices that are not valid standalone Rust and defeat
+   rustfmt, clippy spans, and IDE navigation. The limit exists to keep files
+   reviewable, not to convert modules into text substitution.
 2. TypeScript/JavaScript functions may not exceed 80 logical lines, ignoring
    blank lines and comments.
 3. TypeScript cyclomatic complexity may not exceed 15 and nesting depth may not
@@ -709,11 +714,11 @@ Implement `scripts/check-source-policy.mjs` with these rules:
 4. Rust functions trigger an error through clippy's `too_many_lines` lint above
    80 lines. Keep `too_many_arguments` enabled.
 5. Split files by responsibility; do not satisfy limits through compressed
-   formatting, multiple statements per line, or moving code into an unrelated
-   utility module.
+   formatting, multiple statements per line, moving code into an unrelated
+   utility module, or `include!` text splicing.
 
-Apply the 500-line rule to `.rs`, `.ts`, `.tsx`, `.js`, `.mjs`, `.swift`, `.kt`,
-and maintained Gradle source. Exempt only:
+Apply the size rule to `.rs`, `.ts`, `.tsx`, `.js`, `.mjs`, `.swift`, `.kt`, and
+maintained Gradle source. Exempt only:
 
 - generated UniFFI, Swift, and Kotlin bindings;
 - lockfiles;

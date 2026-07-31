@@ -44,6 +44,77 @@ await test("release config pins package, compatibility, and toolchains", () => {
   );
 });
 
+await test("release config must record every pinned field", () => {
+  const { androidNdk, ...toolchains } = config.toolchains;
+  assert.ok(androidNdk);
+  assert.match(
+    validateReleaseConfig({ ...config, toolchains }, inputs()).join("\n"),
+    /toolchains\.androidNdk must be recorded/u,
+  );
+  assert.match(
+    validateReleaseConfig(
+      { ...config, compatibility: { ...config.compatibility, networks: [] } },
+      inputs(),
+    ).join("\n"),
+    /compatibility\.networks must be recorded/u,
+  );
+});
+
+await test("release config is the source of truth the repository must match", () => {
+  // A toolchain bump is applied once, in the config, and every dependent file
+  // is then checked against it rather than against a duplicated constant.
+  const bumped = {
+    ...config,
+    toolchains: { ...config.toolchains, rust: "1.98.0" },
+  };
+  assert.match(
+    validateReleaseConfig(bumped, inputs()).join("\n"),
+    /native Rust toolchain/u,
+  );
+  const aligned = inputs();
+  aligned.nativeConfig.rust.toolchain = "1.98.0";
+  assert.deepEqual(validateReleaseConfig(bumped, aligned), []);
+});
+
+await test("package git tag must follow the package version", () => {
+  assert.match(
+    validateReleaseConfig(
+      { ...config, package: { ...config.package, gitTag: "v9.9.9" } },
+      inputs(),
+    ).join("\n"),
+    /gitTag must be the package version prefixed with v/u,
+  );
+});
+
+await test("the M6 publication gate stays exact", () => {
+  assert.match(
+    validateReleaseConfig(
+      {
+        ...config,
+        distributionDecision: {
+          ...config.distributionDecision,
+          status: "approved",
+        },
+      },
+      inputs(),
+    ).join("\n"),
+    /distributionDecision\.status/u,
+  );
+  assert.match(
+    validateReleaseConfig(
+      {
+        ...config,
+        distributionDecision: {
+          ...config.distributionDecision,
+          requiredApprovalFile: "docs/OTHER.json",
+        },
+      },
+      inputs(),
+    ).join("\n"),
+    /distributionDecision\.requiredApprovalFile/u,
+  );
+});
+
 await test("release tag must match and point at the commit", () => {
   assert.deepEqual(
     validateReleaseTag(config.package.gitTag, [config.package.gitTag], config),
