@@ -16,6 +16,10 @@ There is no published SDK version yet.
 Support commitments for alpha releases will be stated in their release notes.
 Until then, do not treat the project as production-ready.
 
+After publication, only the latest alpha receives best-effort security fixes.
+See the [alpha support policy](./docs/ALPHA_SUPPORT.md). A release is not
+supported outside its exact [compatibility matrix](./docs/COMPATIBILITY.md).
+
 ## Report a vulnerability
 
 While the repository remains private before the alpha release, contact the
@@ -73,6 +77,20 @@ Reports are especially useful when they affect:
 General support questions, non-security bugs, and feature requests should use
 the corresponding issue form with synthetic, sanitized data.
 
+The documented trust boundaries are part of the security contract:
+
+- [architecture and resumable effects](./docs/ARCHITECTURE.md);
+- [checkpoint authenticated-encryption requirements](./docs/CHECKPOINTS.md);
+- [seed lifecycle threat model](./docs/SEED_THREAT_MODEL.md);
+- [network and proof-server configuration](./docs/NETWORK_CONFIGURATION.md); and
+- [binary provenance](./docs/BINARY_PROVENANCE.md).
+
+A report that an implementation violates one of those guarantees is in scope. A
+third-party endpoint outage, unsupported platform, rooted/jailbroken device, or
+malicious code already executing inside the application process is not by itself
+an SDK vulnerability, but a concrete boundary bypass or unsafe SDK behavior in
+that environment may be.
+
 ## Good-faith research
 
 Good-faith research must avoid privacy violations, data destruction, service
@@ -80,3 +98,7 @@ degradation, social engineering, and access to accounts or data you do not own
 or have explicit permission to test. Stop testing if you encounter real wallet
 material or credentials and report the finding without retaining or sharing the
 sensitive value.
+
+Do not test against public network infrastructure without the operator's
+permission. Use local deterministic services and disposable synthetic wallet
+material whenever possible.

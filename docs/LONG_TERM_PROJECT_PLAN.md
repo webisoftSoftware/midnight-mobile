@@ -37,6 +37,15 @@ These constraints remain in force unless the accepted product plan is revised:
 9. Pin the alpha to the tested Midnight Ledger 8.1.0 revision.
 10. Use only synthetic test material and caller-supplied network endpoints.
 
+M9 adds two narrowly scoped consumer-migration hooks for shielded mint context
+and externally built coin registration. They are exceptions only to the extent
+needed to retire the duplicate 1AM runtime: they remain normal, fenced command
+paths and do not reintroduce FT/NFT product workflows, metadata/holdings APIs,
+Compact verifier artifacts, or asset-package scope. Likewise, M9 checkpoint
+interop uses only a disposable, non-production 1AM device capture created for
+the migration test; user checkpoints, production seeds, and maintainer wallet
+material remain forbidden.
+
 ### 2.1 Read-only source reference
 
 Use the following repository only as a read-only source reference:
@@ -106,6 +115,9 @@ The program is complete when all of the following are true:
   checksums, an SBOM, provenance, and an explicit compatibility record.
 - At least two independent external applications complete an integration before
   shared-core or stable direct-native work is approved.
+- Before any 1AM consumer code migrates, an M9 equivalence harness proves the
+  renamed SDK can coexist with the existing module and matches the pinned Ledger
+  8.1.0 behavior, with only reviewed signature divergences.
 
 ## 4. Milestone map
 
@@ -120,6 +132,7 @@ The program is complete when all of the following are true:
 | M6 — Migration and release    | Destination RC followed by public alpha         | Distribution decision and release approval |
 | M7 — External validation      | Evidence from real third-party integrations     | Demand gate measured and documented        |
 | M8 — Demand-led evolution     | Shared core or native APIs only when justified  | Separate design review for each expansion  |
+| M9 — Consumer migration       | 1AM equivalence proven before consumer changes  | Ordered migration prerequisites all pass   |
 
 Milestones are sequential. Work inside a milestone may run in parallel, but no
 later milestone may weaken an earlier security or isolation gate.
@@ -150,12 +163,13 @@ Status: complete.
    - automatic pull-request and push CI is deliberately disabled during M1-M4 to
      control build cost, while the preserved quality workflow remains manually
      dispatchable;
-   - M5 must re-enable and require the repository quality check before release;
+   - M5 must re-enable and require the lightweight repository-quality and
+     dependency-security checks before release;
    - no force pushes or branch deletion;
    - one maintainer approval for ordinary contributor changes;
    - repository-owner merge authority for completed agent-authored pull requests
-     after primary review and a passing full local gate through M4, or passing
-     required checks from M5 onward.
+     after primary review, a recorded passing full local gate, and the required
+     lightweight checks from M5 onward.
 8. Add `CODEOWNERS` for Rust, React Native, native packaging, security docs, and
    workflows when maintainers are assigned.
 9. Keep repository-authored bootstrap material under the existing provisional
@@ -387,26 +401,32 @@ Goal: make every public change and release reviewable and reproducible.
 
 Pull-request CI:
 
-1. Run the root `npm run quality` command without warnings or skipped checks.
-2. Run Rust host tests and TypeScript Jest/API declaration tests with the
+1. Run `npm run quality:pr` in under 15 minutes with formatting, linting, source
+   and workflow policy, type checks, unit tests, and the Rust and TypeScript
    coverage thresholds defined in section 6.
-3. Verify generated bindings are reproducible.
-4. Build Android native libraries and the Android release example.
-5. Build the iOS simulator framework and example.
-6. Run secret, dependency, vulnerability, license, and forbidden-content scans.
-7. Verify the npm pack list and report package sizes.
+2. Keep native Apple/Android builds, reproducibility builds, clean Expo
+   consumers, archives/APKs, isolated package installs, SBOMs, and release
+   evidence out of pull-request CI.
+3. Run secret, dependency, vulnerability, license, and forbidden-content scans
+   in the separate required dependency-security workflow.
+4. Require a recorded successful full local `npm run quality` for milestone
+   acceptance.
 
-Release CI:
+Manual full and release qualification:
 
-1. Rebuild all native artifacts from a clean tagged checkout.
-2. Verify that package version, Git tag, generated bindings, and compatibility
+1. Keep the full `npm run quality` workflow dispatch-only until the final
+   release stage; it must never run on pull requests or normal pushes.
+2. Keep release publication automation dispatch-only until the final release
+   stage.
+3. Rebuild all native artifacts from a clean tagged checkout.
+4. Verify that package version, Git tag, generated bindings, and compatibility
    metadata agree.
-3. Produce the npm tarball, native archives, SHA-256 manifest, SBOM, license
+5. Produce the npm tarball, native archives, SHA-256 manifest, SBOM, license
    report, and build provenance.
-4. Re-run clean consumer builds from the packed tarball.
-5. Require manual approval before npm publication or repository visibility
+6. Re-run clean consumer builds from the packed tarball.
+7. Require manual approval before npm publication or repository visibility
    changes.
-6. Publish npm with trusted provenance and create matching GitHub release notes.
+8. Publish npm with trusted provenance and create matching GitHub release notes.
 
 Required documentation:
 
@@ -424,7 +444,10 @@ Required documentation:
 
 Exit criteria:
 
-- Required CI is green and enforced.
+- The lightweight repository-quality and dependency-security checks are green
+  and enforced, and a successful full local `npm run quality` is recorded.
+- Full native/release GitHub workflows are manual-only until the final release
+  stage.
 - A reviewer can trace every release artifact to tagged source.
 - Documentation is sufficient for an external developer with no 1AM context.
 - The npm package and example agree with the documented public API.
@@ -549,6 +572,79 @@ Any proposal requires:
 - threat model and independent audit;
 - binary-size impact;
 - explicit external use case.
+
+### M9 — Consumer migration prerequisites and equivalence
+
+Goal: make the SDK safe to install beside the existing 1AM native module and
+prove behavioral equivalence before migrating any 1AM consumer code.
+
+M9 begins only after the preceding milestone gates and an explicit consumer
+migration decision. It does not weaken the read-only source-reference rule: SDK
+prerequisites and the equivalence harness land first in this repository. Any
+later 1AM consumer edit occurs separately, after every gate below passes.
+
+Complete these blocking prerequisites in order:
+
+1. Rename every colliding native identifier. The Rust crate and library name,
+   Swift class, Kotlin fully qualified name, and Expo module name currently
+   collide byte-for-byte with the 1AM module, so the two cannot coexist. Follow
+   the `expo-cardano-native` coexistence precedent and verify both modules link,
+   load, and resolve independently in one clean application.
+2. Establish the permanent Rust coverage gate before using the suite as
+   migration evidence. The former `RUST_M2_ENFORCED` baseline was below the
+   measured 28% value and could neither enforce the 80% target nor prevent
+   regression. This prerequisite is satisfied by the in-progress M5 change once
+   it merges: the gate records and permanently enforces an 81.31% runtime line
+   baseline, above the 80% minimum. M9 must re-run it and may not lower it.
+3. Run the example against the real prebuilt native runtime on a device. The
+   mock lifecycle remains useful for deterministic tests, but cannot establish
+   that the packaged binaries open, sync, checkpoint, and execute command
+   effects correctly.
+4. Add exactly two shielded-mint migration hooks through the normal typed
+   command path:
+   - derive the shielded mint context from the session seed; and
+   - register an externally constructed coin with `watch_shielded_mint`.
+
+   Both hooks remain subject to session generation fencing, cancellation, and
+   the single-active-operation rule. They are low-level migration capabilities,
+   not FT/NFT deployment, minting, recovery, metadata, holdings, or verifier
+   product workflows, and they do not authorize verifier artifacts in the SDK.
+
+5. Decide signature compatibility explicitly. The SDK's `signData` signs a
+   versioned domain transcript, while 1AM signs `Sha256(data)` and
+   `signGatewayChallenge` signs raw challenge bytes. Either add a narrowly
+   reviewed raw compatibility path or migrate every affected gateway and dApp
+   verifier. Record `signData` and `signGatewayChallenge` as expected
+   divergences until that decision is implemented and verified.
+6. Prove checkpoint interoperability against a real captured 1AM device state.
+   Create the capture solely from a disposable, non-production 1AM test device
+   and wallet; never use an existing user's checkpoint or any production/user
+   secret. A failure is a release blocker because it would force every existing
+   user to resynchronize from genesis.
+
+Before any consumer migration, build an equivalence harness that:
+
+- uses the existing `fixtures/*-8.1.0.json` golden vectors against the same
+  pinned Ledger 8.1.0 revision;
+- replays recorded command/sync transcripts through both runtimes;
+- diffs snapshots, balances, transaction hashes, and checkpoint bytes;
+- reports `signData` and `signGatewayChallenge` as explicit expected divergences
+  rather than hiding them; and
+- fails on every other behavioral, error, cancellation, or state-transition
+  difference.
+
+Social requires no SDK capability change. Its six commands use only `networkId`
+and `shieldedCoinPublicKeyHex`, which are already public; keep them in a
+stateless internal 1AM module outside this SDK.
+
+Exit criteria:
+
+- All six prerequisites pass in the stated order.
+- The existing and renamed native modules coexist in one clean device build.
+- The real-native example and disposable checkpoint capture pass on supported
+  platforms without exposing secrets.
+- The equivalence harness has no unexplained divergence.
+- Only after this evidence is reviewed may 1AM consumer code begin migrating.
 
 ## 6. Code quality standard
 
@@ -730,9 +826,10 @@ above each unsafe block.
 - Do not merge commented-out code, unexplained magic values, hidden fallback
   behavior, or logging that may contain seeds, checkpoints, signatures, or
   transaction payloads.
-- During M1-M4, primary review must record a successful full local quality run.
-  Once automatic CI becomes required at M5, a pull request is not complete while
-  that check is skipped, flaky, warning-only, or disabled.
+- Every milestone primary review must record a successful full local quality
+  run. From M5 onward, a pull request is not complete while the lightweight
+  repository-quality or dependency-security check is skipped, flaky,
+  warning-only, or disabled.
 
 ## 7. Issue breakdown
 
@@ -767,6 +864,14 @@ Create implementation issues in this order:
 27. `M6: run the private alpha release candidate`
 28. `M6: publish 0.1.0-alpha.1 and make the destination repository public`
 29. `M7: onboard and document the first external integration`
+30. `M8: review demand and approve each architectural expansion separately`
+31. `M9: rename colliding native identifiers for side-by-side installation`
+32. `M9: verify the permanent 81.31 percent Rust coverage prerequisite`
+33. `M9: execute the example on a real native device runtime`
+34. `M9: add the two fenced shielded-mint consumer migration hooks`
+35. `M9: decide and verify signature compatibility`
+36. `M9: prove disposable 1AM device checkpoint interoperability`
+37. `M9: build and approve the Ledger 8.1.0 equivalence harness`
 
 An issue may be split into smaller pull requests, but its exit criteria must
 remain intact.
@@ -776,8 +881,10 @@ remain intact.
 - `main` is always releasable and protected.
 - During M1-M4, every completed change must pass the full local
   `npm run quality` gate even though automatic GitHub CI triggers are disabled.
-- M5 must restore automatic pull-request CI and make the repository quality job
-  a required branch-protection check before any release work proceeds.
+- M5 must restore lightweight automatic pull-request CI and make the repository
+  quality and dependency-security jobs required branch-protection checks.
+- Full native and release qualification workflows remain `workflow_dispatch`
+  only until the final release stage.
 - Use short-lived feature branches and pull requests.
 - Keep extraction, sanitization, transport, native packaging, and CI changes in
   reviewable commits rather than one bulk import.
@@ -817,9 +924,10 @@ A milestone is complete only when:
 6. The working 1AM repository remains unchanged.
 7. Follow-up risks and deferred work are recorded as issues rather than hidden
    in implementation notes.
-8. Formatting, linting, source-size, type, test, and coverage gates pass locally
-   without undocumented suppression. From M5 onward the same gate must also pass
-   as required pull-request CI.
+8. The complete `npm run quality` gate passes locally without undocumented
+   suppression. From M5 onward, the lightweight `npm run quality:pr` gate and
+   separate dependency-security gate must also pass as required pull-request
+   checks.
 
 ## 11. Current next action
 
@@ -830,9 +938,16 @@ contains reproducible prebuilt Apple and Android libraries for the exact
 supported architectures, with no binary download or consumer Rust toolchain.
 Clean Expo consumers build iOS and Android release variants from the tarball,
 and the release gates inspect ABI, dependencies, signing, architectures,
-package-size budgets, and SHA-256 manifests. Begin M5 by restoring required
-pull-request CI and adding the security, release, SBOM, provenance, and public
-documentation gates. Full `npm run quality` remains mandatory locally until that
-CI is required. Final copyright, attribution, and distribution terms remain
-deferred to the destination repository and do not block private internal
-implementation.
+package-size budgets, and SHA-256 manifests. M5 uses lightweight required
+pull-request quality and dependency-security checks, while full native and
+release qualification remains local or manually dispatched until the final
+release stage. Full `npm run quality` remains mandatory and recorded locally for
+every milestone merge. Final copyright, attribution, and distribution terms
+remain deferred to the destination repository and do not block private internal
+implementation. After M5, complete M6 release migration, M7 external validation,
+and M8 demand-led design gates in order. M9 is the final
+consumer-migration/equivalence gate before any 1AM code migration: its ordered
+prerequisites preserve the permanent M5 Rust coverage baseline, prove real
+native and disposable checkpoint interoperability, add only the two narrow mint
+command hooks, resolve signature compatibility, and require a Ledger 8.1.0
+equivalence harness.

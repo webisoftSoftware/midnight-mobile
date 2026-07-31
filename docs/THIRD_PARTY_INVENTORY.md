@@ -156,7 +156,7 @@ The enclosing assessed mobile application resolves this exact compatibility set:
 
 | Package             | Exact assessed resolution | Declared license | Intended SDK treatment                                                     |
 | ------------------- | ------------------------- | ---------------- | -------------------------------------------------------------------------- |
-| `expo`              | `55.0.23`                 | `MIT`            | Expo SDK compatibility peer/reference; not bundled.                        |
+| `expo`              | `55.0.28`                 | `MIT`            | Expo SDK compatibility peer/reference; not bundled.                        |
 | `expo-modules-core` | `55.0.25`                 | `MIT`            | Direct runtime dependency and `ExpoModulesCore` pod basis; include notice. |
 | `react`             | `19.2.0`                  | `MIT`            | Peer dependency; not bundled.                                              |
 | `react-native`      | `0.83.6`                  | `MIT`            | Peer dependency; not bundled.                                              |
@@ -164,10 +164,48 @@ The enclosing assessed mobile application resolves this exact compatibility set:
 The target `@1am/midnight-mobile` manifest now declares these exact versions as
 development dependencies and matching major/minor peer ranges. The root npm
 lockfile records the package and clean Expo example workspaces with this exact
-set, and the M3 gate resolves their TypeScript declarations and deterministic
-iOS/Android JavaScript exports reproducibly. The exact CocoaPods constraint for
-`ExpoModulesCore` and the native Gradle plugin resolution remain M4 evidence
-gaps; the M3 package does not claim or bundle native release binaries.
+set. The M4 gates validate the exact CocoaPods and Gradle integration,
+reproducible Apple and Android binaries, packaged declarations, and clean
+consumer installs. M5 release evidence inventories the resolved dependency and
+native-artifact set; public distribution remains deferred to the M6
+destination-repository decision.
+
+### M5 npm security overrides
+
+The root manifest temporarily owns two reviewed npm security overrides:
+
+- MIT-licensed `brace-expansion` is pinned to patched backports `1.1.17`,
+  `2.1.3`, and `5.0.8` for `GHSA-mh99-v99m-4gvg` / `CVE-2026-14257`. The source
+  gate verifies the expansion-length bound in every installed node. Upstream
+  advisory metadata does not yet recognize all retained backports, so issue
+  [#35](https://github.com/ADGLx/midnight-mobile/issues/35) remains open. Remove
+  the override and exception only when direct dependencies accept patched
+  compatible ranges and the advisory recognizes every retained version.
+- Expo `55.0.28` currently resolves `@expo/config-plugins@55.0.11` →
+  `xcode@3.0.1` → MIT-licensed `uuid@7.0.3`, which is affected by
+  `GHSA-w5hq-g745-h8pq` (`CVE-2026-41907` and `CVE-2026-41988`). The root pins
+  `xcode@3.0.1` to make npm apply the exact `uuid@11.1.1` override across the
+  workspace tree. Remove both pins only when the upstream Expo chain supports a
+  fixed UUID release and a fresh lockfile plus offline OSV scan contain no
+  affected UUID node.
+
+### M5 RustSec handling
+
+The runtime pins `anyhow@1.0.103`, which fixes the `Error::downcast_mut`
+unsoundness reported as `RUSTSEC-2026-0190`. The security workflow continues to
+deny all RustSec vulnerabilities and warnings except these two exact
+informational maintenance advisories, neither of which has a patched release:
+
+- `RUSTSEC-2024-0436` for `paste@1.0.15`, reached only through `midnight-curves`
+  and the pinned Ledger cryptography graph;
+- `RUSTSEC-2025-0141` for `bincode@2.0.1`, reached through `midnight-zk-stdlib`
+  and `midnight-transient-crypto`.
+
+Issue [#47](https://github.com/ADGLx/midnight-mobile/issues/47) tracks removal.
+Each ignore is fixed by advisory ID in the workflow and by advisory, package,
+version, kind, dependency path, removal condition, and tracking issue in the
+fail-closed security policy. Remove an ignore as soon as the pinned Ledger graph
+no longer contains the package or a compatible maintained replacement exists.
 
 React test tooling, Jest, and TypeScript were supplied by the enclosing upstream
 application rather than the assessed module. They are not direct runtime

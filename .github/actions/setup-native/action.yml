@@ -1,0 +1,71 @@
+name: Set up pinned native toolchains
+description:
+  Install and verify the exact M5 Node, Java, Rust, Apple, and Android
+  toolchains.
+
+runs:
+  using: composite
+  steps:
+    - name: Use Node.js 22
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: 22
+        cache: npm
+
+    - name: Use Temurin JDK 17.0.19+10
+      uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.0.0
+      with:
+        distribution: temurin
+        java-version: 17.0.19+10
+        cache: gradle
+
+    - name: Install exact Node dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        npm install --global npm@11.12.1
+        npm ci
+
+    - name: Install exact Rust toolchain and coverage utility
+      shell: bash
+      run: |
+        set -euo pipefail
+        rustup toolchain install 1.97.1 --profile minimal \
+          --component clippy,llvm-tools-preview,rustfmt \
+          --target aarch64-apple-ios,aarch64-apple-ios-sim,aarch64-linux-android,x86_64-apple-ios,x86_64-linux-android
+        rustup default 1.97.1
+        cargo install cargo-llvm-cov --version 0.8.6 --locked
+        cargo fetch --locked
+
+    - name: Use Android command-line tools 14742923
+      uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+      with:
+        cmdline-tools-version: "14742923"
+        packages: platform-tools
+
+    - name: Install exact CocoaPods and Android SDK inputs
+      shell: bash
+      run: |
+        set -euo pipefail
+        gem install --user-install cocoapods --version 1.16.2 --no-document
+        gem_bin="$(ruby -e 'require "rubygems"; print Gem.user_dir')/bin"
+        echo "$gem_bin" >> "$GITHUB_PATH"
+        echo "PATH=${gem_bin}:${PATH}" >> "$GITHUB_ENV"
+        echo "LANG=en_US.UTF-8" >> "$GITHUB_ENV"
+        echo "LC_ALL=en_US.UTF-8" >> "$GITHUB_ENV"
+        sdkmanager --install "ndk;27.1.12297006" "platforms;android-24"
+
+    - name: Verify every pinned toolchain
+      shell: bash
+      run: |
+        set -euo pipefail
+        test "$(node --version | cut -d. -f1)" = "v22"
+        test "$(npm --version)" = "11.12.1"
+        rustc --version | grep -F "rustc 1.97.1"
+        test "$(cargo llvm-cov --version | awk '{print $2}')" = "0.8.6"
+        java -version 2>&1 | grep -F "Temurin-17.0.19+10"
+        xcodebuild -version | grep -F "Xcode 26.3"
+        ruby -e 'gem "cocoapods", "=1.16.2"; require "cocoapods"; abort unless Pod::VERSION == "1.16.2"; puts Pod::VERSION'
+        pod --version
+        test -d "${ANDROID_SDK_ROOT}/ndk/27.1.12297006"
+        test -d "${ANDROID_SDK_ROOT}/platforms/android-24"

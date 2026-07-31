@@ -51,6 +51,21 @@ applicable formatter, linter, source-policy check, type check, and test without
 warnings or silent skips. A wrapper may report a workstream as not applicable
 only when no matching files exist.
 
+Security- or release-boundary changes must also run:
+
+```sh
+npm run check:security
+npm run check:release
+npm run release:evidence
+```
+
+`check:release` and `release:evidence` validate a candidate and generate ignored
+local evidence; they do not authorize publication. Do not publish a package,
+create a public release, change repository visibility, or contact prospective
+users from a contribution branch. The tagged release workflow adds
+`--tag "$GITHUB_REF_NAME"` so the candidate tag must point at the checked-out
+commit.
+
 Follow these repository conventions:
 
 - Format web files with Prettier and Rust with `rustfmt`.
@@ -63,6 +78,17 @@ Follow these repository conventions:
   malformed-input tests for behavior changes.
 - Add a regression test for every bug fix.
 - Update public documentation and examples with behavior changes.
+
+Public behavior changes must update the applicable:
+
+- [quick start](./docs/QUICK_START.md);
+- [architecture](./docs/ARCHITECTURE.md);
+- [API and error reference](./docs/API_REFERENCE.md);
+- [network configuration](./docs/NETWORK_CONFIGURATION.md);
+- [checkpoint](./docs/CHECKPOINTS.md) or
+  [seed threat model](./docs/SEED_THREAT_MODEL.md);
+- [compatibility matrix](./docs/COMPATIBILITY.md); and
+- [alpha limitations and upgrade policy](./docs/ALPHA_SUPPORT.md).
 
 Use Conventional Commit subjects such as `feat: add wallet sync` or
 `docs: clarify checkpoint storage`. Commit descriptions should explain both what
@@ -84,6 +110,14 @@ request is not complete while a required check is skipped, flaky, warning-only,
 or disabled. Maintainers may ask for a smaller change when extraction,
 sanitization, transport, native packaging, and release concerns are mixed
 together.
+
+Repository-authored bootstrap material remains under the existing provisional
+terms. Preserve assessed-component declarations and provenance during private
+implementation. The extracted implementation's final copyright, attribution,
+license, notice, and distribution decision is deliberately deferred to the M6
+destination-repository migration. Do not represent the provisional package
+metadata as that final decision or distribute release artifacts before it is
+recorded.
 
 By participating, you agree to follow
 [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md).

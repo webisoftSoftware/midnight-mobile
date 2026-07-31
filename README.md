@@ -30,7 +30,9 @@ For the milestone-by-milestone delivery roadmap, see
 - Wallet-core sanitization: complete
 - React Native package and mocked Expo example: complete
 - Prebuilt native distribution: complete
+- Security, CI, coverage, and public documentation: in progress
 - Public release: not started
+- 1AM consumer migration/equivalence (M9): blocked on M5-M8
 
 ## License
 

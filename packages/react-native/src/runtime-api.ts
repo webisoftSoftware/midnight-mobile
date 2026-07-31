@@ -124,8 +124,13 @@ async function openWalletSession(
   }
 }
 
+function isSyncStream(value: unknown): value is MidnightSyncBatch["stream"] {
+  return value === "shielded" || value === "unshielded" || value === "dust";
+}
+
 function validateSyncBatch(batch: MidnightSyncBatch): void {
   const invalid =
+    !isSyncStream(batch.stream) ||
     !Number.isSafeInteger(batch.fromOffset) ||
     !Number.isSafeInteger(batch.toOffset) ||
     batch.fromOffset < 0 ||
@@ -141,11 +146,13 @@ async function applySyncBatch(
   validateHandle(session);
   validateSyncBatch(batch);
   const native = requireModule(loader);
+  const terminal =
+    batch.payloads.length === 0 && batch.fromOffset === batch.toOffset;
   const value = await nativeCall(() =>
     native.applySyncBatch(
       session.id,
       session.generation,
-      batch.stream,
+      terminal ? `${batch.stream}-tip` : batch.stream,
       batch.fromOffset,
       batch.toOffset,
       batch.payloads.map(encodeBase64),

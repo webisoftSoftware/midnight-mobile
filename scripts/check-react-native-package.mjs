@@ -38,7 +38,7 @@ const EXPECTED_PEERS = Object.freeze({
 const EXPECTED_TESTED_DEPENDENCIES = Object.freeze({
   "@types/node": "24.10.1",
   "@types/react": "19.2.14",
-  expo: "55.0.23",
+  expo: "55.0.28",
   "expo-modules-core": "55.0.25",
   react: "19.2.0",
   "react-native": "0.83.6",

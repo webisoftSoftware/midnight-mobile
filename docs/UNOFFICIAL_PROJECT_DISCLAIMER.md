@@ -14,6 +14,12 @@ release. APIs, checkpoint formats, native packaging, compatibility, and security
 assumptions may change during the alpha program. No statement in the roadmap is
 a promise that a feature or release will ship.
 
+The current private implementation is not a distributable release. Final
+copyright, attribution, package licensing, notices, and source/binary
+distribution terms will be decided and recorded during the M6
+destination-repository migration. No npm publication or public distribution may
+occur before that gate and explicit release approval.
+
 The SDK does not provide operated indexer, proof, or node services. Adopters
 must select and configure their own endpoints, evaluate those services' security
 and privacy properties, and protect their own credentials and wallet material.
@@ -23,3 +29,7 @@ Before using a release, review its license, compatibility record, known
 limitations, provenance, security policy, and checksums. Use the software only
 in environments appropriate for experimental wallet software and independently
 assess whether it meets your requirements.
+
+See the [alpha limitations and support policy](./ALPHA_SUPPORT.md),
+[compatibility matrix](./COMPATIBILITY.md), and [`SECURITY.md`](../SECURITY.md)
+for the current candidate.

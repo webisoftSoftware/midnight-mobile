@@ -6,11 +6,34 @@ ECMAScript modules, TypeScript declarations, Expo autolinking metadata, and the
 reviewed native bridge sources, and prebuilt Apple and Android wallet runtime
 libraries.
 
-The M4 package embeds a dynamic XCFramework for iOS device and simulator builds
-and `.so` libraries for Android `arm64-v8a` and `x86_64`. Consumers do not run
-Cargo or download binaries during installation. The Expo example validates both
+The package embeds a dynamic XCFramework for iOS device and simulator builds and
+`.so` libraries for Android `arm64-v8a` and `x86_64`. Consumers do not run Cargo
+or download binaries during installation. The Expo example validates both
 platform bundles and runs the complete wallet lifecycle against its injected
 mock runtime.
+
+This alpha is experimental, unofficial, and not production-ready. The current
+candidate has not been published. Final copyright, attribution, licensing,
+notice, and distribution terms remain an M6 destination-repository gate; do not
+distribute this private candidate as a release.
+
+## Install in an Expo development build
+
+The native module cannot run in Expo Go. After the reviewed package is
+published, install its exact version and regenerate the native projects:
+
+```sh
+npm install --save-exact @1am/midnight-mobile@0.1.0-alpha.1
+npx expo prebuild --clean
+npx expo run:ios
+npx expo run:android
+```
+
+Before publication, use only a reviewed local npm tarball in a controlled
+evaluation. See the repository [quick start](../../docs/QUICK_START.md) for the
+clean-project procedure and [compatibility matrix](../../docs/COMPATIBILITY.md)
+for the exact tested toolchain. Expo SDK 55, Expo Modules Core 55, React 19.2,
+React Native 0.83, iOS 15.1+, and Android API 24+ are the supported alpha line.
 
 ## Host configuration
 
@@ -111,3 +134,17 @@ builds the locked runtime, generates Swift and Kotlin twice, verifies
 byte-for-byte reproducibility and the exact eight-function ABI, and updates the
 reviewed package sources. `npm run check:bindings` performs the same
 verification without modifying files.
+
+## Documentation
+
+- [Quick start](../../docs/QUICK_START.md)
+- [Architecture and resumable effects](../../docs/ARCHITECTURE.md)
+- [Public API and errors](../../docs/API_REFERENCE.md)
+- [Network and proof-server configuration](../../docs/NETWORK_CONFIGURATION.md)
+- [Checkpoint storage and encryption](../../docs/CHECKPOINTS.md)
+- [Seed lifecycle threat model](../../docs/SEED_THREAT_MODEL.md)
+- [Compatibility matrix](../../docs/COMPATIBILITY.md)
+- [Binary provenance](../../docs/BINARY_PROVENANCE.md)
+- [Alpha limitations, support, and upgrades](../../docs/ALPHA_SUPPORT.md)
+- [Security policy](../../SECURITY.md)
+- [Unofficial project disclaimer](../../docs/UNOFFICIAL_PROJECT_DISCLAIMER.md)

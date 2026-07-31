@@ -13,7 +13,12 @@ import {
   cleanBuildEnvironment,
   signAndVerify,
 } from "./apple-consumer.mjs";
-import { fail, REPOSITORY_ROOT, run } from "./apple-native.mjs";
+import {
+  fail,
+  REPOSITORY_ROOT,
+  run,
+  XCODE_BUILD_CONCURRENCY_ARGUMENTS,
+} from "./apple-native.mjs";
 
 function createExpoConsumer(root) {
   mkdirSync(root, { recursive: true });
@@ -24,7 +29,7 @@ function createExpoConsumer(root) {
     main: "index.js",
     dependencies: {
       "@1am/midnight-mobile": "0.1.0-alpha.1",
-      expo: "55.0.23",
+      expo: "55.0.28",
       "expo-modules-core": "55.0.25",
       react: "19.2.0",
       "react-native": "0.83.6",
@@ -106,6 +111,7 @@ function buildExpoVariant(
       scheme,
       "-configuration",
       "Release",
+      ...XCODE_BUILD_CONCURRENCY_ARGUMENTS,
       "-destination",
       destination,
       "-derivedDataPath",
@@ -130,6 +136,7 @@ function archiveExpo(workspace, scheme, root, environment) {
       scheme,
       "-configuration",
       "Release",
+      ...XCODE_BUILD_CONCURRENCY_ARGUMENTS,
       "-destination",
       "generic/platform=iOS",
       "-archivePath",

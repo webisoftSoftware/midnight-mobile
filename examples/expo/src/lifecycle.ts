@@ -80,6 +80,12 @@ async function synchronize(
       toOffset: 1,
       payloads: [Uint8Array.of(1)],
     });
+    await controller.applySyncBatch(session, {
+      stream,
+      fromOffset: 1,
+      toOffset: 1,
+      payloads: [],
+    });
   }
   await controller.closeWalletSession(session);
 }
@@ -178,7 +184,7 @@ export async function runMockedWalletLifecycle(
     const checkpoint = await environment.checkpointStore.load(
       "preview:synthetic-mock-wallet",
     );
-    if (checkpoint?.bytes.length !== 3) {
+    if (checkpoint?.bytes.length !== 6) {
       throw new Error("mock checkpoint was not persisted");
     }
     restored = environment.createRestoredController();

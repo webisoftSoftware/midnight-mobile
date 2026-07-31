@@ -20,6 +20,9 @@ mod remote_proof;
 use remote_proof::PausingProver;
 pub(crate) use remote_proof::{RemoteProofKind, RemoteProofRequest, RemoteProofResponses};
 
+#[cfg(test)]
+mod tests;
+
 const MAX_TRANSACTION_BYTES: usize = 64 * 1024 * 1024;
 
 struct ThreadWake(std::thread::Thread);

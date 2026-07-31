@@ -156,6 +156,9 @@ include!("wallet_state/apply_and_prepare.rs");
 include!("wallet_state/spend_builders.rs");
 include!("wallet_state/shielded_and_state.rs");
 
+#[cfg(test)]
+mod tests;
+
 fn decode_hash(value: &str) -> Result<HashOutput, MidnightRuntimeError> {
     let bytes = hex::decode(value).map_err(|_| MidnightRuntimeError::InvalidArgument)?;
     let bytes: [u8; 32] = bytes

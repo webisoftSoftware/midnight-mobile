@@ -1,6 +1,10 @@
 name: Quality
 
 on:
+  pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -13,25 +17,31 @@ concurrency:
 jobs:
   quality:
     name: Repository quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - name: Check out repository
+      - name: Check out repository and history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Use Node.js 22
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-          cache: npm
 
-      - name: Install pinned dependencies
-        run: npm ci
-
-      - name: Install pinned Rust coverage tooling
+      - name: Install exact Node dependencies
         run: |
-          rustup component add llvm-tools-preview
-          cargo install cargo-llvm-cov --version 0.8.6 --locked
+          corepack enable
+          corepack prepare npm@11.12.1 --activate
+          npm ci
 
-      - name: Run repository quality gate
-        run: npm run quality
+      - name: Install pinned Rust quality tools
+        run: |
+          rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt,llvm-tools-preview
+          rustup default 1.97.1
+          cargo install cargo-llvm-cov --version 0.8.6 --locked
+          cargo fetch --locked
+
+      - name: Run lightweight pull-request gate
+        run: npm run quality:pr
