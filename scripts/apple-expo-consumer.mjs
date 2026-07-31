@@ -2,7 +2,6 @@ import {
   cpSync,
   mkdirSync,
   readdirSync,
-  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -19,6 +18,7 @@ import {
   run,
   XCODE_BUILD_CONCURRENCY_ARGUMENTS,
 } from "./apple-native.mjs";
+import { removeTree } from "./quality-utils.mjs";
 
 function createExpoConsumer(root) {
   mkdirSync(root, { recursive: true });
@@ -164,7 +164,7 @@ export function validateTarballExpoConsumer(installedPackage, root) {
     join(root, "node_modules"),
   ]);
   const packageTarget = join(root, "node_modules/@1am/midnight-mobile");
-  rmSync(packageTarget, { force: true, recursive: true });
+  removeTree(packageTarget);
   cpSync(installedPackage, packageTarget, { recursive: true });
   run(
     process.execPath,

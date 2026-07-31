@@ -1,4 +1,20 @@
 import { execFileSync, spawnSync } from "node:child_process";
+import { rmSync } from "node:fs";
+
+// Removes a build-output tree. Cargo target directories, Xcode build folders,
+// and staged consumer node_modules are large enough that a plain recursive
+// rmSync intermittently fails with ENOTEMPTY or EBUSY on macOS, particularly
+// after an interrupted build left the tree half-written. Node retries those
+// transient rmdir failures when maxRetries is set, so use this instead of
+// calling rmSync directly on anything a build produced.
+export function removeTree(path) {
+  rmSync(path, {
+    force: true,
+    recursive: true,
+    maxRetries: 10,
+    retryDelay: 100,
+  });
+}
 
 export function listRepositoryFiles() {
   try {

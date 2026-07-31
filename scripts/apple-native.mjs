@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
 import { findForbiddenBinaryContent } from "./check-wallet-core-artifacts.mjs";
+import { removeTree } from "./quality-utils.mjs";
 
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 export const REPOSITORY_ROOT = resolve(SCRIPT_DIRECTORY, "..");
@@ -194,7 +195,7 @@ export function canonicalXcframeworkPlist() {
 }
 
 export function createFramework(destination, binary, platform) {
-  rmSync(destination, { force: true, recursive: true });
+  removeTree(destination);
   mkdirSync(join(destination, "Headers"), { recursive: true });
   mkdirSync(join(destination, "Modules"), { recursive: true });
   cpSync(binary, join(destination, FRAMEWORK_NAME));
@@ -409,7 +410,7 @@ function normalizeTimestamps(path) {
 export function createCompressedArchive(xcframework, archive, stagingRoot) {
   mkdirSync(stagingRoot, { recursive: true });
   const staged = join(stagingRoot, XCFRAMEWORK_BUNDLE);
-  rmSync(staged, { force: true, recursive: true });
+  removeTree(staged);
   cpSync(xcframework, staged, { recursive: true });
   normalizeTimestamps(staged);
   mkdirSync(dirname(archive), { recursive: true });

@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
@@ -18,6 +18,7 @@ import {
   validateXcframework,
   XCFRAMEWORK_BUNDLE,
 } from "./apple-native.mjs";
+import { removeTree } from "./quality-utils.mjs";
 
 const DEFAULT_OUTPUT = join(
   REPOSITORY_ROOT,
@@ -190,7 +191,7 @@ export function buildAppleXcframework(argumentsList = process.argv.slice(2)) {
     const fingerprint = options.verifyReproducible
       ? compareBuilds(first, assembleXcframework(join(temporaryRoot, "second")))
       : fingerprintTree(first);
-    rmSync(options.output, { force: true, recursive: true });
+    removeTree(options.output);
     mkdirSync(dirname(options.output), { recursive: true });
     cpSync(first, options.output, { recursive: true });
     validateXcframework(options.output);
@@ -205,7 +206,7 @@ export function buildAppleXcframework(argumentsList = process.argv.slice(2)) {
       )}, reproducible=${String(options.verifyReproducible)}`,
     );
   } finally {
-    rmSync(temporaryRoot, { force: true, recursive: true });
+    removeTree(temporaryRoot);
   }
 }
 

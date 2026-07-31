@@ -6,7 +6,6 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
-  rmSync,
   statSync,
   symlinkSync,
   writeFileSync,
@@ -15,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
+import { removeTree } from "./quality-utils.mjs";
 
 const PACKAGE_ROOT = "packages/react-native";
 const EXPECTED_FILES = Object.freeze([
@@ -212,7 +212,7 @@ function buildReproducibly(repositoryRoot) {
   const dist = resolve(repositoryRoot, PACKAGE_ROOT, "dist");
   const fingerprints = [];
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    rmSync(dist, { force: true, recursive: true });
+    removeTree(dist);
     runChecked(
       repositoryRoot,
       "npm",
@@ -434,7 +434,7 @@ export function runPackageCheck(repositoryRoot = process.cwd()) {
     validateConsumerInstall(repositoryRoot, temporaryRoot, packed.tarball);
     return { builtFiles, packedFiles: packed.entries };
   } finally {
-    rmSync(temporaryRoot, { force: true, recursive: true });
+    removeTree(temporaryRoot);
   }
 }
 

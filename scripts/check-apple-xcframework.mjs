@@ -3,7 +3,6 @@ import {
   mkdirSync,
   mkdtempSync,
   realpathSync,
-  rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -18,6 +17,7 @@ import {
 } from "./apple-native.mjs";
 import { validateAppleConsumer } from "./apple-consumer.mjs";
 import { validateTarballExpoConsumer } from "./apple-expo-consumer.mjs";
+import { removeTree } from "./quality-utils.mjs";
 
 const defaultXcframework = join(
   REPOSITORY_ROOT,
@@ -129,5 +129,5 @@ try {
     `Apple Expo tarball consumer valid: scheme=${expoConsumer.scheme}, signing=${expoConsumer.signing}`,
   );
 } finally {
-  rmSync(temporaryRoot, { force: true, recursive: true });
+  removeTree(temporaryRoot);
 }

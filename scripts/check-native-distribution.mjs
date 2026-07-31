@@ -16,6 +16,7 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { removeTree } from "./quality-utils.mjs";
 
 const PACKAGE_ROOT = "packages/react-native";
 const ARTIFACT_ROOT = "artifacts/native";
@@ -120,7 +121,7 @@ function normalizeTree(path) {
     .forEach((directory) => utimesSync(directory, epoch, epoch));
 }
 function zipAndroidPayload(repositoryRoot, source, destination, stagingRoot) {
-  rmSync(stagingRoot, { force: true, recursive: true });
+  removeTree(stagingRoot);
   mkdirSync(stagingRoot, { recursive: true });
   cpSync(source, resolve(stagingRoot, "jniLibs"), { recursive: true });
   normalizeTree(stagingRoot);
@@ -202,7 +203,7 @@ function validatePackedNative(entries, configuration) {
 function createTarball(repositoryRoot, temporaryRoot, configuration) {
   const first = packOnce(repositoryRoot, resolve(temporaryRoot, "pack-first"));
   const outputRoot = resolve(repositoryRoot, ARTIFACT_ROOT, "npm");
-  rmSync(outputRoot, { force: true, recursive: true });
+  removeTree(outputRoot);
   const second = packOnce(repositoryRoot, outputRoot);
   validatePackedNative(second.entries, configuration);
   if (sha256(first.path) !== sha256(second.path)) {
@@ -473,7 +474,7 @@ export function checkNativeDistribution(repositoryRoot = process.cwd()) {
     );
     return { manifest, tarball };
   } finally {
-    rmSync(temporaryRoot, { force: true, recursive: true });
+    removeTree(temporaryRoot);
   }
 }
 

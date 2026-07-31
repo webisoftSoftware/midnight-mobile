@@ -6,7 +6,6 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
-  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -14,6 +13,7 @@ import { basename, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { findForbiddenBinaryContent } from "./check-wallet-core-artifacts.mjs";
+import { removeTree } from "./quality-utils.mjs";
 
 const CONFIG_PATH = "scripts/native-build-config.json";
 const PACKAGE_ROOT = "packages/react-native";
@@ -404,8 +404,8 @@ export function buildAndroidNativeDistribution(
     PACKAGE_ROOT,
     "android/src/main/jniLibs",
   );
-  rmSync(artifactRoot, { force: true, recursive: true });
-  rmSync(packaged, { force: true, recursive: true });
+  removeTree(artifactRoot);
+  removeTree(packaged);
   const roots = {
     cargo: resolve(artifactRoot, "cargo-target"),
     output: resolve(artifactRoot, "lib"),
