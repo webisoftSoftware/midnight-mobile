@@ -18,6 +18,118 @@ import {
   runMockedWalletLifecycle,
   type MockLifecycleReport,
 } from "./src/lifecycle";
+import { cleartextEndpoints, readLiveConfig } from "./src/live-config";
+import { runLiveProbe } from "./src/live-probe";
+import { runNativeSmokeTest, type NativeSmokeReport } from "./src/native-smoke";
+
+function StepList({ report }: { readonly report: NativeSmokeReport }) {
+  return (
+    <View style={styles.section}>
+      <Text style={report.passed ? styles.pass : styles.error}>
+        {report.passed ? "PASSED" : "FAILED"}
+      </Text>
+      {report.steps.map((step) => (
+        <Text
+          key={step.name}
+          style={step.ok ? styles.body : styles.error}
+        >{`${step.ok ? "✓" : "✗"} ${step.name} — ${step.detail}`}</Text>
+      ))}
+    </View>
+  );
+}
+
+function LiveProbeSection() {
+  const config = useMemo(() => readLiveConfig(), []);
+  const [report, setReport] = useState<NativeSmokeReport | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const runProbe = () => {
+    if (!config.ok) return;
+    setRunning(true);
+    setReport(null);
+    void runLiveProbe(config.network)
+      .then(setReport)
+      .finally(() => {
+        setRunning(false);
+      });
+  };
+
+  const cleartext = config.ok ? cleartextEndpoints(config.network) : [];
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.heading}>Live preview network</Text>
+      {config.ok ? (
+        <>
+          <Text style={styles.body}>
+            Checks endpoint reachability, asks the node to identify itself over
+            JSON-RPC, then syncs the shielded and dust streams through
+            applySyncBatch. Use a disposable wallet only; these seeds are
+            synthetic.
+          </Text>
+          {cleartext.length === 0 ? null : (
+            <Text style={styles.note}>
+              {`Cleartext endpoints: ${cleartext.join(", ")}. Debug builds already permit cleartext, and a local service also needs a port forward (adb reverse tcp:6300 tcp:6300). Release builds block it.`}
+            </Text>
+          )}
+          <Button
+            title={running ? "Probing…" : "Run live probe"}
+            disabled={running}
+            onPress={runProbe}
+          />
+          {report === null ? null : <StepList report={report} />}
+        </>
+      ) : (
+        <View style={styles.section}>
+          <Text style={styles.body}>
+            Not configured. Set these before starting the bundler:
+          </Text>
+          {config.problems.map((problem) => (
+            <Text key={problem} style={styles.error}>
+              {problem}
+            </Text>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function NativeSmokeSection() {
+  const [report, setReport] = useState<NativeSmokeReport | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const runSmoke = () => {
+    setRunning(true);
+    setReport(null);
+    void runNativeSmokeTest()
+      .then(setReport)
+      .finally(() => {
+        setRunning(false);
+      });
+  };
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.heading}>Prebuilt native runtime</Text>
+      <Text style={styles.body}>
+        Runs pure Rust operations against the packaged native library. No
+        indexer, proof server, or node is contacted. Requires a development
+        build; this fails in Expo Go.
+      </Text>
+      <Button
+        title={running ? "Running…" : "Run native smoke test"}
+        disabled={running}
+        onPress={runSmoke}
+      />
+      {report === null ? null : (
+        <View testID="native-smoke-report">
+          <StepList report={report} />
+        </View>
+      )}
+    </View>
+  );
+}
 
 function WalletLifecycleDemo({
   environment,
@@ -75,6 +187,8 @@ function WalletLifecycleDemo({
             {lifecycleError}
           </Text>
         )}
+        <NativeSmokeSection />
+        <LiveProbeSection />
       </ScrollView>
     </View>
   );
@@ -115,4 +229,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   error: { color: "#a12718", fontWeight: "600" },
+  // An advisory, not a failure: cleartext is expected for a local proof server.
+  note: { color: "#7a6a2f", fontSize: 14, lineHeight: 20 },
+  heading: { color: "#161615", fontSize: 20, fontWeight: "700" },
+  pass: { color: "#1d6a3f", fontWeight: "700" },
+  section: { gap: 10 },
 });

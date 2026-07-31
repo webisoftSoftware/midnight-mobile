@@ -24,7 +24,7 @@
     "generated-sanitized",
     "repository-authored"
   ],
-  "entryCount": 103,
+  "entryCount": 114,
   "entries": [
     {
       "targetPath": "Cargo.lock",
@@ -223,7 +223,27 @@
       "originClass": "repository-authored"
     },
     {
+      "targetPath": "examples/expo/src/graphql-sync.ts",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "examples/expo/src/graphql-ws.ts",
+      "originClass": "repository-authored"
+    },
+    {
       "targetPath": "examples/expo/src/lifecycle.ts",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "examples/expo/src/live-config.ts",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "examples/expo/src/live-probe.ts",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "examples/expo/src/live-services.ts",
       "originClass": "repository-authored"
     },
     {
@@ -239,6 +259,22 @@
       "originClass": "repository-authored"
     },
     {
+      "targetPath": "examples/expo/src/native-smoke.ts",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "examples/expo/src/node-submission.ts",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "examples/expo/src/proof-routing.ts",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "examples/expo/src/sync-driver.ts",
+      "originClass": "repository-authored"
+    },
+    {
       "targetPath": "examples/expo/test-support/register-test-loader.mjs",
       "originClass": "repository-authored"
     },
@@ -248,6 +284,14 @@
     },
     {
       "targetPath": "examples/expo/tests/lifecycle.test.ts",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "examples/expo/tests/node-submission.test.ts",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "examples/expo/tests/proof-routing.test.ts",
       "originClass": "repository-authored"
     },
     {
