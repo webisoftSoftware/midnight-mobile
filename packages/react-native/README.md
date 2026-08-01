@@ -124,10 +124,11 @@ assets or absolute sandbox files read-only; iOS maps bundle resources or
 absolute application-sandbox files read-only. Both validate declared sizes and
 SHA-256 hashes. The SDK does not bundle or download proof artifacts.
 
-This entrypoint has no cancellation contract and does not handle
-`proveAndBalance`, `balance`, or local fee balancing. Those effects remain
-remote. Applications must close the prover after outstanding operations settle.
-See the platform guides for [Android](../../docs/LOCAL_PROVER_ANDROID.md) and
+This entrypoint has no cancellation contract and does not handle `balance` or
+local fee balancing; it also does not intercept the legacy `proveAndBalance`
+effect. Those effects remain remote. Applications must close the prover after
+outstanding operations settle. See the platform guides for
+[Android](../../docs/LOCAL_PROVER_ANDROID.md) and
 [iOS](../../docs/LOCAL_PROVER_IOS.md) artifact, memory, error, and lifecycle
 details.
 

@@ -1,5 +1,5 @@
 [package]
-name = "midnight-native-runtime"
+name = "midnight-mobile-runtime"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,7 +15,7 @@ local-prover = [
 ]
 
 [lib]
-name = "midnight_native_runtime"
+name = "midnight_mobile_runtime"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]

@@ -102,9 +102,15 @@ includes no 1AM gateway challenge, session, API key, or private endpoint.
 
 ## Proof-server contract
 
-The native runtime emits opaque proof requests with effect names `check`,
-`prove`, `proveAndBalance`, or `balance`. The transport sends them to the one
-configured proof-server URL.
+The native runtime emits opaque `check` and `prove` requests for individual
+circuits, then a `balance` request containing the locally proved and sealed
+transaction. The transport sends each proof-role effect to the configured
+proof-server URL. `proveAndBalance` remains decodable for compatibility with an
+older native runtime, but current transaction paths do not emit it.
+
+The standard transport appends `/check` or `/prove` for individual proof effects
+and `/balance-only` for balancing. A configured path prefix is preserved. The
+legacy combined effect routes to `/prove-and-balance`.
 
 The proof server is security-sensitive:
 

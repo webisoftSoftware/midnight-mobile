@@ -36,7 +36,7 @@ export const GENERATED_SWIFT_ROOT = join(
   REPOSITORY_ROOT,
   "packages/react-native/ios/generated",
 );
-export const LOCAL_PROVER_HEADER = "MidnightLocalProverFFI.h";
+export const LOCAL_PROVER_HEADER = "MidnightMobileLocalProverFFI.h";
 const LOCAL_PROVER_HEADER_SOURCE = join(
   REPOSITORY_ROOT,
   "packages/react-native/ios",
@@ -294,7 +294,7 @@ function validateDependencies(binary, errors) {
 }
 
 function validateExports(binary, errors) {
-  const prefix = "_uniffi_midnight_native_runtime_fn_func_";
+  const prefix = "_uniffi_midnight_mobile_runtime_fn_func_";
   const exports = run("xcrun", ["nm", "-gU", binary])
     .split("\n")
     .map((line) => line.trim().split(/\s+/u).at(-1) ?? "")
@@ -308,7 +308,7 @@ function validateExports(binary, errors) {
   const localProverExports = run("xcrun", ["nm", "-gU", binary])
     .split("\n")
     .map((line) => line.trim().split(/\s+/u).at(-1) ?? "")
-    .filter((symbol) => symbol.startsWith("_midnight_local_prover_"))
+    .filter((symbol) => symbol.startsWith("_midnight_mobile_local_prover_"))
     .map((symbol) => symbol.slice(1))
     .sort();
   const expectedLocalProver = [

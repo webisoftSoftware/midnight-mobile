@@ -23,25 +23,21 @@ if let RuntimeCommand::DappTransfer { outputs } = &mut command {
     )?;
     let expected_identifiers =
         transaction::validate_unproven_transaction(&transaction, &state.config.network_id)?;
+    let network_id = state.config.network_id.clone();
+    reserve_operation(&mut state)?;
     drop(state);
-    let (operation, effect_id) = register_operation(
+    return start_transaction_finalization(
         session_id,
         generation,
         &session,
-        PendingOperationKind::Transfer {
-            proposed_state: proposed,
+        TransactionFinalizationInput {
+            network_id,
+            raw: transaction,
+            key_material: transaction::RemoteProofKeyMaterials::default(),
+            proposed_state: Some(proposed),
             expected_identifiers,
         },
-    )?;
-    return to_json(&OperationStep {
-        kind: "network",
-        operation: Some(operation),
-        effect_id: Some(effect_id),
-        effect: Some("proveAndBalance"),
-        endpoint_role: Some("proof"),
-        body_base64: Some(encode_base64(&transaction)),
-        result_json: None,
-    });
+    );
 }
 
 if let RuntimeCommand::DappIntent { inputs, outputs } = &mut command {

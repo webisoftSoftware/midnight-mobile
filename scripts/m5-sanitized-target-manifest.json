@@ -24,7 +24,7 @@
     "generated-sanitized",
     "repository-authored"
   ],
-  "entryCount": 127,
+  "entryCount": 130,
   "entries": [
     {
       "targetPath": "Cargo.lock",
@@ -103,6 +103,10 @@
       "originClass": "assessed-sanitized"
     },
     {
+      "targetPath": "crates/runtime/src/runtime/commands/finalization.rs",
+      "originClass": "repository-authored"
+    },
+    {
       "targetPath": "crates/runtime/src/runtime/commands/session_and_sync.rs",
       "originClass": "assessed-sanitized"
     },
@@ -143,6 +147,10 @@
       "originClass": "assessed-sanitized"
     },
     {
+      "targetPath": "crates/runtime/src/runtime/resume/transaction.rs",
+      "originClass": "repository-authored"
+    },
+    {
       "targetPath": "crates/runtime/src/runtime/session.rs",
       "originClass": "assessed-sanitized"
     },
@@ -152,6 +160,10 @@
     },
     {
       "targetPath": "crates/runtime/src/runtime/tests/hardening.rs",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "crates/runtime/src/runtime/tests/operations.rs",
       "originClass": "repository-authored"
     },
     {
@@ -343,51 +355,51 @@
       "originClass": "repository-authored"
     },
     {
-      "targetPath": "packages/react-native/android/generated/expo/modules/midnightnative/uniffi/midnight_native_runtime.kt",
+      "targetPath": "packages/react-native/android/generated/dev/oneam/midnightmobile/uniffi/midnight_mobile_runtime.kt",
       "originClass": "generated-sanitized"
     },
     {
-      "targetPath": "packages/react-native/android/local-prover/expo/modules/midnightlocalprover/LocalProverBridge.kt",
+      "targetPath": "packages/react-native/android/local-prover/dev/oneam/midnightmobile/localprover/LocalProverBridge.kt",
       "originClass": "repository-authored"
     },
     {
-      "targetPath": "packages/react-native/android/src/main/java/expo/modules/midnightlocalprover/ExpoMidnightLocalProverModule.kt",
-      "originClass": "repository-authored"
-    },
-    {
-      "targetPath": "packages/react-native/android/src/main/java/expo/modules/midnightnative/ExpoMidnightNativeModule.kt",
+      "targetPath": "packages/react-native/android/src/main/java/dev/oneam/midnightmobile/MidnightMobileRuntimeModule.kt",
       "originClass": "assessed-sanitized"
+    },
+    {
+      "targetPath": "packages/react-native/android/src/main/java/dev/oneam/midnightmobile/localprover/MidnightMobileLocalProverModule.kt",
+      "originClass": "repository-authored"
     },
     {
       "targetPath": "packages/react-native/expo-module.config.json",
       "originClass": "assessed-sanitized"
     },
     {
-      "targetPath": "packages/react-native/ios/ExpoMidnightLocalProverModule.swift",
+      "targetPath": "packages/react-native/ios/MidnightMobileLocalProverFFI.h",
       "originClass": "repository-authored"
     },
     {
-      "targetPath": "packages/react-native/ios/ExpoMidnightNative.podspec",
-      "originClass": "assessed-sanitized"
-    },
-    {
-      "targetPath": "packages/react-native/ios/ExpoMidnightNativeModule.swift",
-      "originClass": "assessed-sanitized"
-    },
-    {
-      "targetPath": "packages/react-native/ios/MidnightLocalProverFFI.h",
+      "targetPath": "packages/react-native/ios/MidnightMobileLocalProverModule.swift",
       "originClass": "repository-authored"
     },
     {
-      "targetPath": "packages/react-native/ios/generated/MidnightNativeRuntime.swift",
+      "targetPath": "packages/react-native/ios/MidnightMobileRuntime.podspec",
+      "originClass": "assessed-sanitized"
+    },
+    {
+      "targetPath": "packages/react-native/ios/MidnightMobileRuntimeModule.swift",
+      "originClass": "assessed-sanitized"
+    },
+    {
+      "targetPath": "packages/react-native/ios/generated/MidnightMobileRuntime.swift",
       "originClass": "generated-sanitized"
     },
     {
-      "targetPath": "packages/react-native/ios/generated/MidnightNativeRuntimeFFI.h",
+      "targetPath": "packages/react-native/ios/generated/MidnightMobileRuntimeFFI.h",
       "originClass": "generated-sanitized"
     },
     {
-      "targetPath": "packages/react-native/ios/generated/MidnightNativeRuntimeFFI.modulemap",
+      "targetPath": "packages/react-native/ios/generated/MidnightMobileRuntimeFFI.modulemap",
       "originClass": "generated-sanitized"
     },
     {

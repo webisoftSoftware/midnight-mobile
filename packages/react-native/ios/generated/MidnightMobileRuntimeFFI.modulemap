@@ -1,5 +1,5 @@
-module MidnightNativeRuntime {
-    header "MidnightNativeRuntimeFFI.h"
+module MidnightMobileRuntime {
+    header "MidnightMobileRuntimeFFI.h"
     export *
     use "Darwin"
     use "_Builtin_stdbool"

@@ -12,8 +12,8 @@ use midnight_coin_structure::coin::{
 };
 use midnight_coin_structure::transfer::{Recipient, SenderEvidence};
 use midnight_ledger::dust::{
-    DustActions, DustLocalState, DustPublicKey, DustRegistration, DustSecretKey,
-    INITIAL_DUST_PARAMETERS, QualifiedDustOutput, successor_utxo,
+    DustActions, DustGenerationInfo, DustLocalState, DustParameters, DustPublicKey,
+    DustRegistration, DustSecretKey, INITIAL_DUST_PARAMETERS, QualifiedDustOutput, successor_utxo,
 };
 use midnight_ledger::events::Event;
 use midnight_ledger::semantics::ZswapLocalStateExt;
@@ -49,6 +49,7 @@ pub(crate) use dapp::{DappIntentBuildInput, DappIntentInput, DappTransactionOutp
 
 const MAX_LEGACY_STATE_BYTES: usize = 64 * 1024 * 1024;
 const MAX_SYNC_ENTRIES: usize = 1_000_000;
+const V2_SHIELDED_RECORD_HEADER_BYTES: usize = 61;
 const DUST_SPEND_HEADER_BYTES: usize = 12;
 const DUST_SPEND_WASM_RECORD_BYTES: usize = 36;
 const DUST_SPEND_EXTENDED_RECORD_BYTES: usize = 48;
@@ -103,6 +104,12 @@ pub(crate) struct NativeWalletState {
     unshielded: UnshieldedCollections,
     coin_hashes: BTreeMap<String, CoinHashes>,
     protocol_version: String,
+}
+
+pub(crate) struct ShieldedMintContext {
+    pub(crate) coin_public_key: ShieldedCoinPublicKey,
+    pub(crate) encryption_public_key: encryption::PublicKey,
+    pub(crate) output_index: u64,
 }
 
 pub(crate) struct RestoreContext<'a> {

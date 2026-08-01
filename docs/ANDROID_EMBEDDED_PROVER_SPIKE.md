@@ -1,5 +1,8 @@
 # Android embedded Rust prover feasibility report
 
+This report records the 2026-08-01 acceptance rerun of the current
+`midnight_mobile_runtime` binary.
+
 ## Decision
 
 Status: **successful on the tested device**.
@@ -40,7 +43,7 @@ The deterministic 578-byte `/prove` request has SHA-256
 node tools/android-prover-spike/scripts/prepare-artifacts.mjs
 MIDNIGHT_ANDROID_PROVER_ARTIFACT_DIR="$PWD/target/android-prover-spike/artifacts" \
   cargo test --offline --locked --release \
-  --package midnight-native-runtime --features local-prover \
+  --package midnight-mobile-runtime --features local-prover \
   local_prover::tests::staged_artifacts_produce_and_check_official_responses \
   -- --ignored --exact --nocapture
 GRADLE=/path/to/gradle-9.0.0/bin/gradle \
@@ -58,8 +61,8 @@ process survival, and the final result line are recorded in
 
 | Item                            |      Bytes | SHA-256                                                            |
 | ------------------------------- | ---------: | ------------------------------------------------------------------ |
-| `libmidnight_native_runtime.so` | 12,984,784 | `81fe02c2127d715fd06f02dc0b4830688c3cf4e3f3cc844907bcab7c437fc151` |
-| release APK                     | 33,197,380 | `0c1b0a9a62907f21795ae8c30273ab11557c19313f0e13024786b09a6e110e50` |
+| `libmidnight_mobile_runtime.so` | 13,055,744 | `a9a922f98a0025687ba0a86168fa31e43b65f4f3eab620fe948f41aa475155b3` |
+| release APK                     | 33,268,340 | `089b34756e5c6938dccc9045e5ec70681034c3d3027db82db9e335bcb95f00e8` |
 | four proof artifacts            | 17,315,450 | See pinned-input table                                             |
 
 The native library targets `aarch64-linux-android` at API 24 and links only
@@ -77,17 +80,17 @@ Kotlin bridge and production-shaped Rust C ABI for both `/check` and `/prove`.
 | RAM                            | 7,640,540 KiB `MemTotal`                                                                                                |
 | Online CPU count               | 6 before and after the measured run                                                                                     |
 | Rust Rayon configuration       | Fixed two-thread pool                                                                                                   |
-| Battery                        | 100%; 27.8°C to 27.9°C; USB powered                                                                                     |
-| Thermal                        | Status 0 before and after; AP 30.5°C to 33.5°C                                                                          |
-| Artifact validation/decoding   | 16,272 ms                                                                                                               |
+| Battery                        | 100%; 27.0°C to 27.2°C; USB powered                                                                                     |
+| Thermal                        | Status 0 before and after; AP 29.7°C to 32.7°C                                                                          |
+| Artifact validation/decoding   | 14,046 ms                                                                                                               |
 | `/check`                       | 31 ms; 47 bytes; SHA-256 `18969d942d685cae2838d76a85199eb7f488b43ccba5ba8f4542120459451b5a`; host validation passed     |
-| Proving plus self-verification | 37,869 ms                                                                                                               |
-| Runner wall time               | 57,658 ms                                                                                                               |
-| Tagged proof                   | 4,860 bytes; SHA-256 `e88bb29157d6d52b9f1ca4b618a32f46c53e142bedfaba1615444502c915888e`; host V2 deserialization passed |
-| Peak PSS                       | 529,419 KiB                                                                                                             |
-| Peak RSS                       | 619,652 KiB                                                                                                             |
-| Peak `VmHWM`                   | 613,848 KiB                                                                                                             |
-| Peak observed process threads  | 31 total Android/runtime threads                                                                                        |
+| Proving plus self-verification | 37,935 ms                                                                                                               |
+| Runner wall time               | 54,973 ms                                                                                                               |
+| Tagged proof                   | 4,860 bytes; SHA-256 `cee656d155df077c936634f42b27ab6f390e5f65114bff0e6209e4ae5849fa4c`; host V2 deserialization passed |
+| Peak PSS                       | 531,134 KiB                                                                                                             |
+| Peak RSS                       | 618,784 KiB                                                                                                             |
+| Peak `VmHWM`                   | 613,232 KiB                                                                                                             |
+| Peak observed process threads  | 33 total Android/runtime threads                                                                                        |
 | Process result                 | Alive after success; no OOM or native crash                                                                             |
 
 The fixed Rayon limit applies to proof parallelism, not to Android, JNA, Rust,

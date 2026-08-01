@@ -13,6 +13,8 @@
     "createProvingPayload",
     "canonicalizeTransaction",
     "createSyncRequest",
+    "deriveShieldedMintContext",
+    "watchShieldedMint",
     "createShieldedSpentRequest",
     "applyShieldedSpentResponse",
     "setShieldedProtocolVersion",
@@ -25,6 +27,7 @@
     "generateDust",
     "balanceUnsealed",
     "balanceSealed",
+    "finalizeUnprovenTransaction",
     "submitFinalized"
   ],
   "textInputs": [
@@ -80,12 +83,12 @@
     },
     {
       "group": "maintained",
-      "path": "packages/react-native/ios/ExpoMidnightNative.podspec",
+      "path": "packages/react-native/ios/MidnightMobileRuntime.podspec",
       "requiredAtMilestone": "M1"
     },
     {
       "group": "maintained",
-      "path": "packages/react-native/ios/ExpoMidnightNativeModule.swift",
+      "path": "packages/react-native/ios/MidnightMobileRuntimeModule.swift",
       "requiredAtMilestone": "M1"
     },
     {

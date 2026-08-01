@@ -27,9 +27,9 @@ The machine-readable contract is
 
 Run `npm run build:native` before packing a release. It creates:
 
-- `packages/react-native/ios/build/MidnightNativeRuntime.xcframework`;
+- `packages/react-native/ios/build/MidnightMobileRuntime.xcframework`;
 - `packages/react-native/android/src/main/jniLibs/arm64-v8a/` and `x86_64/`;
-- `artifacts/apple/MidnightNativeRuntime.xcframework.zip`; and
+- `artifacts/apple/MidnightMobileRuntime.xcframework.zip`; and
 - native build inspection reports under `artifacts/native/`.
 
 `npm run check:native` creates the final npm tarball, a reproducible standalone

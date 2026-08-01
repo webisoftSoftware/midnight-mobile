@@ -6,7 +6,8 @@ import {
   type MidnightTransportConfiguration,
 } from "./transport.js";
 
-export const EXPO_MIDNIGHT_LOCAL_PROVER_MODULE_NAME = "ExpoMidnightLocalProver";
+export const EXPO_MIDNIGHT_LOCAL_PROVER_MODULE_NAME =
+  "MidnightMobileLocalProver";
 
 export type MidnightLocalProverErrorCode =
   | "INVALID_REQUEST"

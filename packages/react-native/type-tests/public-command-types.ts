@@ -61,6 +61,22 @@ export const PUBLIC_COMMAND_TYPE_FIXTURES = {
     },
     { stream: "shielded", fromOffset: 0, requestBase64: "AA==" },
   ],
+  deriveShieldedMintContext: [
+    { kind: "deriveShieldedMintContext" },
+    {
+      coinPublicKeyHex: hash,
+      encryptionPublicKeyHex: hash,
+      outputIndex: 0,
+    },
+  ],
+  watchShieldedMint: [
+    {
+      kind: "watchShieldedMint",
+      coinInfoBase64: "AA==",
+      expectedOutputIndex: 0,
+    },
+    { outputIndex: 0 },
+  ],
   createShieldedSpentRequest: [
     { kind: "createShieldedSpentRequest" },
     { requestBase64: "AA==", nullifierCount: 1 },
@@ -195,6 +211,25 @@ export const PUBLIC_COMMAND_TYPE_FIXTURES = {
       transactionHash: hash,
       ledgerTransactionHash: hash,
       identifiers: ["balance-sealed"],
+    },
+  ],
+  finalizeUnprovenTransaction: [
+    {
+      kind: "finalizeUnprovenTransaction",
+      rawBase64: "AA==",
+      keyMaterial: {
+        "midnight/zswap/spend": {
+          proverKeyBase64: "AQ==",
+          verifierKeyBase64: "Ag==",
+          irBase64: "Aw==",
+        },
+      },
+    },
+    {
+      transactionBase64: "AA==",
+      transactionHash: hash,
+      ledgerTransactionHash: hash,
+      identifiers: ["finalized-unproven"],
     },
   ],
   submitFinalized: [

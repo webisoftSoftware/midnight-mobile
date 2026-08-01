@@ -1,12 +1,16 @@
 {
   "platforms": ["apple", "android"],
   "apple": {
-    "modules": ["ExpoMidnightNativeModule", "ExpoMidnightLocalProverModule"]
+    "swiftModuleName": "MidnightMobileExpo",
+    "modules": [
+      "MidnightMobileRuntimeModule",
+      "MidnightMobileLocalProverModule"
+    ]
   },
   "android": {
     "modules": [
-      "expo.modules.midnightnative.ExpoMidnightNativeModule",
-      "expo.modules.midnightlocalprover.ExpoMidnightLocalProverModule"
+      "dev.oneam.midnightmobile.MidnightMobileRuntimeModule",
+      "dev.oneam.midnightmobile.localprover.MidnightMobileLocalProverModule"
     ]
   }
 }

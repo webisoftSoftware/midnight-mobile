@@ -38,6 +38,7 @@ for (const platform of [
     assert.deepEqual(report.operationSteps, [
       "progress",
       "network:proof:prove",
+      "network:proof:balance",
       "complete",
       "network:node:submit",
       "complete",

@@ -91,7 +91,7 @@ test("policy manifest rejects command, scan, and coverage drift", () => {
   value.typescriptCoverage.minimumPercent.functions = 64;
   value.currentMilestone = "M4";
   const errors = validatePolicyManifest(value);
-  includesError(errors, "exact ordered 19-kind contract");
+  includesError(errors, "exact ordered 22-kind contract");
   includesError(errors, "all maintained/generated/package roots");
   includesError(errors, "issues/40");
   includesError(errors, "enforcedPercent must be 81.31");
@@ -194,7 +194,7 @@ test("detects every excluded capability family without literal fixtures", () => 
     ["token-extension", ["asset", "_", "mint"].join("")],
     ["operated-service-auth", ["sign", "Gateway", "Challenge"].join("")],
     ["accelerated-private-sync", ["fast", "Sync"].join("")],
-    ["disclosure-upload", ["viewing", "Key"].join("")],
+    ["disclosure-upload", ["upload", "ViewingKey"].join("")],
     ["private-service-route", ["private", "Endpoint"].join("")],
     [
       "operated-service-default",

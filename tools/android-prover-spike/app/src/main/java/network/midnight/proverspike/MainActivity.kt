@@ -10,11 +10,11 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import expo.modules.midnightlocalprover.LocalProverBridge
-import expo.modules.midnightlocalprover.LocalProverCircuit
-import expo.modules.midnightlocalprover.LocalProverConfiguration
-import expo.modules.midnightlocalprover.LocalProverFile
-import expo.modules.midnightlocalprover.LocalProverParameter
+import dev.oneam.midnightmobile.localprover.LocalProverBridge
+import dev.oneam.midnightmobile.localprover.LocalProverCircuit
+import dev.oneam.midnightmobile.localprover.LocalProverConfiguration
+import dev.oneam.midnightmobile.localprover.LocalProverFile
+import dev.oneam.midnightmobile.localprover.LocalProverParameter
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.Executors

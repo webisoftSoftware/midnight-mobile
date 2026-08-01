@@ -18,6 +18,8 @@ const commandAndResultKeysMatch: Readonly<
   createProvingPayload: true,
   canonicalizeTransaction: true,
   createSyncRequest: true,
+  deriveShieldedMintContext: true,
+  watchShieldedMint: true,
   createShieldedSpentRequest: true,
   applyShieldedSpentResponse: true,
   setShieldedProtocolVersion: true,
@@ -30,17 +32,18 @@ const commandAndResultKeysMatch: Readonly<
   generateDust: true,
   balanceUnsealed: true,
   balanceSealed: true,
+  finalizeUnprovenTransaction: true,
   submitFinalized: true,
 } satisfies Readonly<Record<keyof MidnightCommandMap, true>>;
 
 await test("command and result maps contain the exact public command set", () => {
-  assert.equal(Object.keys(commandAndResultKeysMatch).length, 19);
-  assert.equal(MIDNIGHT_COMMAND_KINDS.length, 19);
+  assert.equal(Object.keys(commandAndResultKeysMatch).length, 22);
+  assert.equal(MIDNIGHT_COMMAND_KINDS.length, 22);
   assert.deepEqual(
     Object.keys(PUBLIC_COMMAND_TYPE_FIXTURES),
     MIDNIGHT_COMMAND_KINDS,
   );
-  assert.equal(new Set(MIDNIGHT_COMMAND_KINDS).size, 19);
+  assert.equal(new Set(MIDNIGHT_COMMAND_KINDS).size, 22);
   assert.deepEqual(MIDNIGHT_COMMAND_KINDS.slice(0, 5), [
     "signData",
     "createCheckPayload",
@@ -49,8 +52,8 @@ await test("command and result maps contain the exact public command set", () =>
     "canonicalizeTransaction",
   ]);
   assert.deepEqual(MIDNIGHT_COMMAND_KINDS.slice(-3), [
-    "balanceUnsealed",
     "balanceSealed",
+    "finalizeUnprovenTransaction",
     "submitFinalized",
   ]);
 });

@@ -62,8 +62,11 @@ export function validateNativeBuildConfig(config) {
   if (config.rust?.toolchain !== "1.97.1") {
     errors.push("Rust toolchain must be pinned to 1.97.1");
   }
-  if (config.rust?.package !== "midnight-native-runtime") {
-    errors.push("Rust package must be midnight-native-runtime");
+  if (config.rust?.package !== "midnight-mobile-runtime") {
+    errors.push("Rust package must be midnight-mobile-runtime");
+  }
+  if (config.rust?.libraryBaseName !== "midnight_mobile_runtime") {
+    errors.push("Rust library must be midnight_mobile_runtime");
   }
   const functions =
     "apply_sync_batch,begin_command,cancel_operation,close_wallet_session,export_wallet_checkpoint,get_wallet_snapshot,open_wallet_session,resume_operation".split(
@@ -84,14 +87,14 @@ function validateAppleConfig(apple, errors) {
     errors.push("Apple deployment target must be iOS 15.1");
   }
   if (
-    apple?.frameworkName !== "MidnightNativeRuntime" ||
-    apple?.moduleName !== "MidnightNativeRuntime"
+    apple?.frameworkName !== "MidnightMobileRuntime" ||
+    apple?.moduleName !== "MidnightMobileRuntime"
   ) {
     errors.push("Apple framework and generated module names must match");
   }
   if (
     apple?.installName !==
-    "@rpath/MidnightNativeRuntime.framework/MidnightNativeRuntime"
+    "@rpath/MidnightMobileRuntime.framework/MidnightMobileRuntime"
   ) {
     errors.push("Apple dynamic install name must remain pinned");
   }
@@ -110,9 +113,7 @@ function validateAppleConfig(apple, errors) {
     triples.length !== expected.length ||
     triples.some((triple, index) => !sameArray(triple, expected[index]))
   ) {
-    errors.push(
-      "Apple targets must be the exact device/simulator architecture set",
-    );
+    errors.push("Apple targets must match the reviewed architecture set");
   }
   if (apple?.compressedBudgetBytes !== 15 * 1024 * 1024) {
     errors.push("Apple compressed XCFramework budget must be exactly 15 MiB");
@@ -182,11 +183,11 @@ function validateAndroidLocalProver(localProver, errors) {
   }
   if (
     !sameArray(localProver?.exportedFunctions, [
-      "midnight_local_prover_check",
-      "midnight_local_prover_close",
-      "midnight_local_prover_configure",
-      "midnight_local_prover_free",
-      "midnight_local_prover_prove",
+      "midnight_mobile_local_prover_check",
+      "midnight_mobile_local_prover_close",
+      "midnight_mobile_local_prover_configure",
+      "midnight_mobile_local_prover_free",
+      "midnight_mobile_local_prover_prove",
     ])
   ) {
     errors.push("Android local prover C ABI drifted");
@@ -201,13 +202,13 @@ export function parseElfReport(header, dynamic, symbols) {
     .sort();
   const functions = [
     ...symbols.matchAll(
-      /\buniffi_midnight_native_runtime_fn_func_([a-z0-9_]+)$/gmu,
+      /\buniffi_midnight_mobile_runtime_fn_func_([a-z0-9_]+)$/gmu,
     ),
   ]
     .map((match) => match[1])
     .sort();
   const localProverFunctions = [
-    ...symbols.matchAll(/\b(midnight_local_prover_[a-z0-9_]+)$/gmu),
+    ...symbols.matchAll(/\b(midnight_mobile_local_prover_[a-z0-9_]+)$/gmu),
   ]
     .map((match) => match[1])
     .sort();

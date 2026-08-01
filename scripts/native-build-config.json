@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "rust": {
     "toolchain": "1.97.1",
-    "package": "midnight-native-runtime",
-    "libraryBaseName": "midnight_native_runtime",
+    "package": "midnight-mobile-runtime",
+    "libraryBaseName": "midnight_mobile_runtime",
     "uniffiFunctions": [
       "apply_sync_batch",
       "begin_command",
@@ -17,9 +17,9 @@
   },
   "apple": {
     "deploymentTarget": "15.1",
-    "frameworkName": "MidnightNativeRuntime",
-    "moduleName": "MidnightNativeRuntime",
-    "installName": "@rpath/MidnightNativeRuntime.framework/MidnightNativeRuntime",
+    "frameworkName": "MidnightMobileRuntime",
+    "moduleName": "MidnightMobileRuntime",
+    "installName": "@rpath/MidnightMobileRuntime.framework/MidnightMobileRuntime",
     "targets": [
       {
         "rustTarget": "aarch64-apple-ios",
@@ -42,11 +42,11 @@
       "enabled": true,
       "cargoFeatures": ["local-prover"],
       "exportedFunctions": [
-        "midnight_local_prover_check",
-        "midnight_local_prover_close",
-        "midnight_local_prover_configure",
-        "midnight_local_prover_free",
-        "midnight_local_prover_prove"
+        "midnight_mobile_local_prover_check",
+        "midnight_mobile_local_prover_close",
+        "midnight_mobile_local_prover_configure",
+        "midnight_mobile_local_prover_free",
+        "midnight_mobile_local_prover_prove"
       ]
     }
   },
@@ -77,11 +77,11 @@
       "enabled": true,
       "cargoFeatures": ["local-prover"],
       "exportedFunctions": [
-        "midnight_local_prover_check",
-        "midnight_local_prover_close",
-        "midnight_local_prover_configure",
-        "midnight_local_prover_free",
-        "midnight_local_prover_prove"
+        "midnight_mobile_local_prover_check",
+        "midnight_mobile_local_prover_close",
+        "midnight_mobile_local_prover_configure",
+        "midnight_mobile_local_prover_free",
+        "midnight_mobile_local_prover_prove"
       ]
     }
   }

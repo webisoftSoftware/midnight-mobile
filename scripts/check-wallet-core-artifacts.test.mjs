@@ -42,7 +42,7 @@ await test("rejects unknown and drifted public command result declarations", () 
     findPublicDeclarationErrors(
       declaration().replace(/^\s+readonly signData:.*\n/mu, ""),
     ).join("\n"),
-    /exactly 19 kinds/u,
+    /exactly 22 kinds/u,
   );
 });
 
@@ -68,10 +68,10 @@ await test("staging package validation requires compiled entrypoints", () => {
       { path: "dist/index.js" },
       { path: "dist/index.d.ts" },
       {
-        path: "android/src/main/jniLibs/arm64-v8a/libmidnight_native_runtime.so",
+        path: "android/src/main/jniLibs/arm64-v8a/libmidnight_mobile_runtime.so",
       },
       {
-        path: "ios/build/MidnightNativeRuntime.xcframework/ios-arm64/MidnightNativeRuntime.framework/MidnightNativeRuntime",
+        path: "ios/build/MidnightMobileRuntime.xcframework/ios-arm64/MidnightMobileRuntime.framework/MidnightMobileRuntime",
       },
     ]),
     [],
@@ -94,11 +94,11 @@ await test("host artifact selection fails closed when none are available", () =>
   assert.deepEqual(selectRuntimeArtifacts([]), []);
   assert.deepEqual(
     selectRuntimeArtifacts([
-      "/repo/target/debug/deps/libmidnight_native_runtime-abc.dylib",
-      "/repo/target/debug/libmidnight_native_runtime.dylib",
-      "/repo/target/debug/libmidnight_native_runtime.rlib",
+      "/repo/target/debug/deps/libmidnight_mobile_runtime-abc.dylib",
+      "/repo/target/debug/libmidnight_mobile_runtime.dylib",
+      "/repo/target/debug/libmidnight_mobile_runtime.rlib",
     ]),
-    ["/repo/target/debug/libmidnight_native_runtime.dylib"],
+    ["/repo/target/debug/libmidnight_mobile_runtime.dylib"],
   );
 });
 

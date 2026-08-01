@@ -1725,14 +1725,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "midnight-native-bindgen"
-version = "0.1.0"
-dependencies = [
- "uniffi",
-]
-
-[[package]]
-name = "midnight-native-runtime"
+name = "midnight-mobile-runtime"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1760,6 +1753,13 @@ dependencies = [
  "thiserror",
  "uniffi",
  "zeroize",
+]
+
+[[package]]
+name = "midnight-native-bindgen"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
 ]
 
 [[package]]

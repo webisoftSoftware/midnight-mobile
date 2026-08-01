@@ -1,18 +1,18 @@
-package expo.modules.midnightnative
+package dev.oneam.midnightmobile
 
 import android.util.Base64
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import expo.modules.midnightnative.uniffi.MidnightRuntimeException
-import expo.modules.midnightnative.uniffi.applySyncBatch as runtimeApplySyncBatch
-import expo.modules.midnightnative.uniffi.beginCommand as runtimeBeginCommand
-import expo.modules.midnightnative.uniffi.cancelOperation as runtimeCancelOperation
-import expo.modules.midnightnative.uniffi.closeWalletSession as runtimeCloseWalletSession
-import expo.modules.midnightnative.uniffi.exportWalletCheckpoint as runtimeExportWalletCheckpoint
-import expo.modules.midnightnative.uniffi.getWalletSnapshot as runtimeGetWalletSnapshot
-import expo.modules.midnightnative.uniffi.openWalletSession as runtimeOpenWalletSession
-import expo.modules.midnightnative.uniffi.resumeOperation as runtimeResumeOperation
+import dev.oneam.midnightmobile.uniffi.MidnightRuntimeException
+import dev.oneam.midnightmobile.uniffi.applySyncBatch as runtimeApplySyncBatch
+import dev.oneam.midnightmobile.uniffi.beginCommand as runtimeBeginCommand
+import dev.oneam.midnightmobile.uniffi.cancelOperation as runtimeCancelOperation
+import dev.oneam.midnightmobile.uniffi.closeWalletSession as runtimeCloseWalletSession
+import dev.oneam.midnightmobile.uniffi.exportWalletCheckpoint as runtimeExportWalletCheckpoint
+import dev.oneam.midnightmobile.uniffi.getWalletSnapshot as runtimeGetWalletSnapshot
+import dev.oneam.midnightmobile.uniffi.openWalletSession as runtimeOpenWalletSession
+import dev.oneam.midnightmobile.uniffi.resumeOperation as runtimeResumeOperation
 
 private fun decodeBase64(value: String): ByteArray {
   val decoded = try {
@@ -55,9 +55,9 @@ private fun runtimeException(error: Throwable): CodedException {
   return CodedException(code, code, error)
 }
 
-class ExpoMidnightNativeModule : Module() {
+class MidnightMobileRuntimeModule : Module() {
   override fun definition() = ModuleDefinition {
-    Name("ExpoMidnightNative")
+    Name("MidnightMobileRuntime")
 
     AsyncFunction("openWalletSession") {
         configJson: String,

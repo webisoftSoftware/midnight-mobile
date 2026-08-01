@@ -7,6 +7,8 @@ fn command_decoder_accepts_exactly_the_wallet_core_union() {
         r#"{"kind":"createProvingPayload","preimageBase64":""}"#,
         r#"{"kind":"canonicalizeTransaction","signatureMarker":"a","proofMarker":"b","bindingMarker":"c","rawBase64":""}"#,
         r#"{"kind":"createSyncRequest","stream":"shielded","fromOffset":0,"limit":100}"#,
+        r#"{"kind":"deriveShieldedMintContext"}"#,
+        r#"{"kind":"watchShieldedMint","coinInfoBase64":"","expectedOutputIndex":0}"#,
         r#"{"kind":"createShieldedSpentRequest"}"#,
         r#"{"kind":"applyShieldedSpentResponse","resultBase64":""}"#,
         r#"{"kind":"setShieldedProtocolVersion","protocolVersion":1,"syncOffset":0}"#,
@@ -19,9 +21,10 @@ fn command_decoder_accepts_exactly_the_wallet_core_union() {
         r#"{"kind":"generateDust","ledgerParametersBase64":"","feeBlocksMargin":0,"additionalFeeOverhead":"0"}"#,
         r#"{"kind":"balanceUnsealed","rawBase64":"","ledgerParametersBase64":"","feeBlocksMargin":0,"additionalFeeOverhead":"0"}"#,
         r#"{"kind":"balanceSealed","rawBase64":"","ledgerParametersBase64":"","feeBlocksMargin":0,"additionalFeeOverhead":"0"}"#,
+        r#"{"kind":"finalizeUnprovenTransaction","rawBase64":""}"#,
         r#"{"kind":"submitFinalized","rawBase64":""}"#,
     ];
-    assert_eq!(accepted.len(), 19);
+    assert_eq!(accepted.len(), 22);
     for command in accepted {
         serde_json::from_str::<RuntimeCommand>(command).unwrap();
     }
@@ -63,7 +66,8 @@ fn snapshot_and_command_json_match_the_typescript_contract() {
         RuntimeCommand::CreateSyncRequest {
             stream,
             from_offset: 7,
-            limit: 20,
+            limit: Some(20),
+            mode: SyncRequestMode::Standard,
         } if stream == "dust"
     ));
     let handle = open_wallet_session(
@@ -128,7 +132,7 @@ fn signing_transcript_is_versioned_length_prefixed_and_domain_separated() {
 }
 
 #[test]
-fn checkpoint_envelope_rejects_plaintext_json_and_unknown_versions() {
+fn checkpoint_decoder_rejects_invalid_json_and_unknown_framed_versions() {
     assert!(decode_checkpoint(br#"{"version":1}"#).is_err());
     let mut unknown = Vec::from(CHECKPOINT_MAGIC.as_slice());
     unknown.extend_from_slice(&2_u32.to_be_bytes());

@@ -73,9 +73,10 @@ requires configured parameters matching the material's `k`.
 ## Transport and execution boundaries
 
 `createLocalProverMidnightTransport` intercepts only proof-role `check` and
-`prove` effects. `proveAndBalance`, `balance`, submission, indexer, and all
-other effects keep using the configured remote transport. Local fee balancing
-and remote fallback after a local proof error are intentionally not implemented.
+`prove` effects. `balance`, submission, indexer, and all other effects keep
+using the configured remote transport. The legacy `proveAndBalance` effect is
+also never intercepted. Local fee balancing and remote fallback after a local
+proof error are intentionally not implemented.
 
 The Android Expo async bridge runs outside the main thread. Rust serializes
 configuration, checking, proving, and close through one process-wide permit and

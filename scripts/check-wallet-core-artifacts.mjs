@@ -21,11 +21,11 @@ const TEXT_EXTENSIONS = new Set(
   ".js,.json,.kt,.map,.md,.modulemap,.podspec,.swift,.ts".split(","),
 );
 const RUST_ARTIFACT_PATTERN =
-  /(?:^|\/)(?:lib)?midnight_native_runtime(?:[-.][^/]*)?\.(?:dll|dylib|so)$/u;
+  /(?:^|\/)(?:lib)?midnight_mobile_runtime(?:[-.][^/]*)?\.(?:dll|dylib|so)$/u;
 const NATIVE_PACKAGE_PATTERN =
   /\.(?:a|aar|dll|dylib|framework|so|xcframework)(?:\/|$)/u;
 const ALLOWED_NATIVE_PACKAGE_PATTERN =
-  /^(?:android\/src\/main\/jniLibs\/(?:arm64-v8a|x86_64)\/libmidnight_native_runtime\.so|ios\/build\/MidnightNativeRuntime\.xcframework\/(?:Info\.plist|[^/]+\/MidnightNativeRuntime\.framework(?:\/|$)))/u;
+  /^(?:android\/src\/main\/jniLibs\/(?:arm64-v8a|x86_64)\/libmidnight_mobile_runtime\.so|ios\/build\/MidnightMobileRuntime\.xcframework\/(?:Info\.plist|[^/]+\/MidnightMobileRuntime\.framework(?:\/|$)))/u;
 
 function artifactError(result, label) {
   if (result.error !== undefined) return `${label}: ${result.error.message}`;
@@ -107,7 +107,7 @@ export function findPublicDeclarationErrors(source) {
     kinds.length !== ALLOWED_COMMAND_KINDS.length ||
     kinds.some((kind, index) => kind !== ALLOWED_COMMAND_KINDS[index])
   ) {
-    errors.push("public declaration result map must retain exactly 19 kinds");
+    errors.push("public declaration result map must retain exactly 22 kinds");
   }
   if (match === null) {
     errors.push("public declaration result map is missing");
@@ -196,10 +196,10 @@ function assembleStagingPackage(repositoryRoot, errors) {
     "android/generated",
     "android/src/main",
     "expo-module.config.json",
-    "ios/ExpoMidnightNative.podspec",
-    "ios/ExpoMidnightLocalProverModule.swift",
-    "ios/ExpoMidnightNativeModule.swift",
-    "ios/MidnightLocalProverFFI.h",
+    "ios/MidnightMobileRuntime.podspec",
+    "ios/MidnightMobileLocalProverModule.swift",
+    "ios/MidnightMobileRuntimeModule.swift",
+    "ios/MidnightMobileLocalProverFFI.h",
     "ios/generated",
   ]) {
     copyIfPresent(resolve(packageRoot, path), resolve(stagingRoot, path));
@@ -303,7 +303,7 @@ function scanRustArtifacts(repositoryRoot, errors) {
     "build",
     "--locked",
     "--package",
-    "midnight-native-runtime",
+    "midnight-mobile-runtime",
   ]);
   if (build.status !== 0) {
     errors.push(artifactError(build, "Rust runtime artifact build"));

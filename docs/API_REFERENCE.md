@@ -198,8 +198,11 @@ session.
 ### Synchronization
 
 ```ts
+type MidnightSyncInputStream =
+  "shielded" | "unshielded" | "dust" | "shielded-v2" | "dust-v2";
+
 interface MidnightSyncBatch {
-  readonly stream: "shielded" | "unshielded" | "dust";
+  readonly stream: MidnightSyncInputStream;
   readonly fromOffset: number;
   readonly toOffset: number;
   readonly payloads: readonly Uint8Array[];
@@ -222,6 +225,11 @@ indexer confirms the stream is at its current tip, apply one terminal batch:
 TypeScript/native boundary translates that public convention into the internal
 `<stream>-tip` marker. Internal marker names are not public stream values; never
 cast or pass one from application code.
+
+`shielded-v2` and `dust-v2` accept protocol-v2 response pages. They are input
+discriminants only: offsets and caught-up status remain reported under the
+canonical `shielded` and `dust` streams, and terminal empty batches use those
+canonical names.
 
 The snapshot becomes `ready` only after `shielded`, `unshielded`, and `dust`
 have each received a terminal batch. Later nonterminal data clears that stream's
@@ -298,7 +306,7 @@ failure.
 
 ## Commands and typed results
 
-`MidnightCommandKind` is the union of exactly 19 command names.
+`MidnightCommandKind` is the union of exactly 22 command names.
 `MIDNIGHT_COMMAND_KINDS` is the corresponding readonly runtime array.
 `MidnightCommandMap` and `MidnightCommandResultMap` provide the exhaustive
 input/result mapping. The generic aliases are:
@@ -334,33 +342,37 @@ Canonicalization markers are:
 
 ### Sync and protocol helpers
 
-| Kind                          | Input after `kind`                        | Result                                                                   |
-| ----------------------------- | ----------------------------------------- | ------------------------------------------------------------------------ |
-| `createSyncRequest`           | `stream`, `fromOffset`, `limit`           | `MidnightSyncRequestResult`: stream, offset, request bytes.              |
-| `createShieldedSpentRequest`  | none                                      | `MidnightShieldedSpentRequestResult`: request bytes and nullifier count. |
-| `applyShieldedSpentResponse`  | `resultBase64`                            | `MidnightShieldedSpentResult`: removed count.                            |
-| `setShieldedProtocolVersion`  | `protocolVersion`, `syncOffset`           | `MidnightProtocolVersionResult`.                                         |
-| `createDustSpendRequest`      | none                                      | `MidnightDustSpendRequestResult`: request bytes and UTXO count.          |
-| `createDustCommitmentRequest` | `rawBase64`, `syncOffset`                 | `MidnightDustCommitmentResult`.                                          |
-| `applyDustSpendResolution`    | `rawBase64`, `resultBase64`, `syncOffset` | `MidnightDustResolutionResult`: `status: "applied"`.                     |
+| Kind                          | Input after `kind`                                       | Result                                                                   |
+| ----------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `createSyncRequest`           | standard stream/offset/limit, or fast shielded/dust mode | `MidnightSyncRequestResult`: stream, offset, request bytes.              |
+| `deriveShieldedMintContext`   | none                                                     | `MidnightShieldedMintContextResult`.                                     |
+| `watchShieldedMint`           | `coinInfoBase64`, `expectedOutputIndex`                  | `MidnightWatchShieldedMintResult`.                                       |
+| `createShieldedSpentRequest`  | none                                                     | `MidnightShieldedSpentRequestResult`: request bytes and nullifier count. |
+| `applyShieldedSpentResponse`  | `resultBase64`                                           | `MidnightShieldedSpentResult`: removed count.                            |
+| `setShieldedProtocolVersion`  | `protocolVersion`, `syncOffset`                          | `MidnightProtocolVersionResult`.                                         |
+| `createDustSpendRequest`      | none                                                     | `MidnightDustSpendRequestResult`: request bytes and UTXO count.          |
+| `createDustCommitmentRequest` | `rawBase64`, `syncOffset`                                | `MidnightDustCommitmentResult`.                                          |
+| `applyDustSpendResolution`    | `rawBase64`, `resultBase64`, `syncOffset`                | `MidnightDustResolutionResult`: `status: "applied"`.                     |
 
-`createSyncRequest.limit` is from 1 through 4,096. Offset-sensitive commands
-fail with `SYNC_GAP` if the supplied offset differs from native state.
+Standard `createSyncRequest.limit` is from 1 through 4,096. Fast mode omits the
+limit and accepts only `shielded` or `dust`. Offset-sensitive commands fail with
+`SYNC_GAP` if the supplied offset differs from native state.
 
 `MidnightDustCommitmentResult` is one of `status: "ahead"`,
 `status: "unchanged"`, or `status: "rebuild"` with `requestBase64`.
 
 ### Transactions
 
-| Kind              | Input after `kind`                                               | Result                                |
-| ----------------- | ---------------------------------------------------------------- | ------------------------------------- |
-| `transfer`        | recipient, decimal amount, token type, wallet type               | `MidnightFinalizedTransactionResult`. |
-| `dappTransfer`    | output array                                                     | `MidnightFinalizedTransactionResult`. |
-| `dappIntent`      | input and output arrays                                          | `MidnightFinalizedTransactionResult`. |
-| `generateDust`    | ledger parameters, fee margin, decimal overhead                  | `MidnightFinalizedTransactionResult`. |
-| `balanceUnsealed` | raw transaction, ledger parameters, fee margin, decimal overhead | `MidnightFinalizedTransactionResult`. |
-| `balanceSealed`   | raw transaction, ledger parameters, fee margin, decimal overhead | `MidnightFinalizedTransactionResult`. |
-| `submitFinalized` | `rawBase64`                                                      | `MidnightSubmissionResult`.           |
+| Kind                          | Input after `kind`                                               | Result                                |
+| ----------------------------- | ---------------------------------------------------------------- | ------------------------------------- |
+| `transfer`                    | recipient, decimal amount, token type, wallet type               | `MidnightFinalizedTransactionResult`. |
+| `dappTransfer`                | output array                                                     | `MidnightFinalizedTransactionResult`. |
+| `dappIntent`                  | input and output arrays                                          | `MidnightFinalizedTransactionResult`. |
+| `generateDust`                | ledger parameters, fee margin, decimal overhead                  | `MidnightFinalizedTransactionResult`. |
+| `balanceUnsealed`             | raw transaction, ledger parameters, fee margin, decimal overhead | `MidnightFinalizedTransactionResult`. |
+| `balanceSealed`               | raw transaction, ledger parameters, fee margin, decimal overhead | `MidnightFinalizedTransactionResult`. |
+| `finalizeUnprovenTransaction` | `rawBase64`, optional key-location-to-material record            | `MidnightFinalizedTransactionResult`. |
+| `submitFinalized`             | `rawBase64`                                                      | `MidnightSubmissionResult`.           |
 
 `MidnightWalletType` is `shielded` or `unshielded`. `MidnightDappInput` contains
 wallet type, token type, and decimal amount. `MidnightDappOutput` adds
@@ -368,6 +380,13 @@ wallet type, token type, and decimal amount. `MidnightDappOutput` adds
 
 Fee-block margins may not exceed 64. `additionalFeeOverhead` must be a canonical
 unsigned decimal string.
+
+`finalizeUnprovenTransaction.keyMaterial` maps exact Ledger proof key locations
+to `MidnightProvingKeyMaterial`. If supplied, the record must be non-empty; its
+locations and artifact fields must be non-empty, and every location must occur
+in the unproven transaction. Matching IR is attached only to its `check`
+request, while matching full key material is attached only to its `prove`
+request. Decoded private artifact buffers are zeroized when the operation ends.
 
 `MidnightFinalizedTransactionResult` contains:
 
@@ -382,7 +401,11 @@ or `rejected` status, and optional response `bodyBase64`. An ambiguous result
 does not return this type; it throws `SUBMISSION_STATUS_UNKNOWN`.
 
 Transaction-building commands require all sync streams to be caught up. Their
-proof/balance effects may require multiple network round trips.
+proof/balance effects may require multiple network round trips. `transfer`,
+`dappTransfer`, and `finalizeUnprovenTransaction` emit individual `check` and
+`prove` effects followed by a remote `balance` effect containing the locally
+proved and sealed transaction. Proposed wallet state is committed only after the
+accepted balance response passes transaction, identifier, and hash checks.
 
 ## Host interfaces
 
@@ -478,7 +501,7 @@ sensitive text in an exception.
 
 ## Native module exports
 
-`EXPO_MIDNIGHT_NATIVE_MODULE_NAME` is `"ExpoMidnightNative"`.
+`EXPO_MIDNIGHT_NATIVE_MODULE_NAME` is `"MidnightMobileRuntime"`.
 `NativeRuntimeModule` and `NativeRuntimeModuleLoader` describe the eight-method
 bridge consumed by `createMidnightRuntimeApi`. They are exported to support
 tests and module loading, not as stable direct-native APIs. Applications should

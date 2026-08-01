@@ -28,7 +28,7 @@ function generatedFixtures(names = EXPECTED_ABI) {
       .join("\n"),
     header: names
       .map(
-        (name) => `void uniffi_midnight_native_runtime_fn_func_${name}(void);`,
+        (name) => `void uniffi_midnight_mobile_runtime_fn_func_${name}(void);`,
       )
       .join("\n"),
   };
@@ -82,16 +82,16 @@ await test("normalizes generated text deterministically", () => {
 
 await test("pins the generated Swift module name separately from filenames", () => {
   const configuration = `[bindings.swift]
-module_name = "MidnightNativeRuntime"
-ffi_module_name = "MidnightNativeRuntime"
-ffi_module_filename = "MidnightNativeRuntimeFFI"
+module_name = "MidnightMobileRuntime"
+ffi_module_name = "MidnightMobileRuntime"
+ffi_module_filename = "MidnightMobileRuntimeFFI"
 `;
-  const swift = `#if canImport(MidnightNativeRuntime)
-import MidnightNativeRuntime
+  const swift = `#if canImport(MidnightMobileRuntime)
+import MidnightMobileRuntime
 #endif
 `;
-  const modulemap = `module MidnightNativeRuntime {
-  header "MidnightNativeRuntimeFFI.h"
+  const modulemap = `module MidnightMobileRuntime {
+  header "MidnightMobileRuntimeFFI.h"
 }
 `;
   assert.deepEqual(
@@ -101,8 +101,8 @@ import MidnightNativeRuntime
   assert.match(
     swiftModuleContractErrors(
       configuration.replace(
-        'ffi_module_name = "MidnightNativeRuntime"',
-        'ffi_module_name = "MidnightNativeRuntimeFFI"',
+        'ffi_module_name = "MidnightMobileRuntime"',
+        'ffi_module_name = "MidnightMobileRuntimeFFI"',
       ),
       swift,
       modulemap,

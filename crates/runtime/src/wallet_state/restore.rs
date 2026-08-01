@@ -161,4 +161,174 @@ impl NativeWalletState {
         })
     }
 
+    fn import_shielded_v2(
+        &self,
+        payload: &[u8],
+        zswap_seed: &[u8],
+    ) -> Result<Self, MidnightRuntimeError> {
+        let mut seed: [u8; 32] = zswap_seed
+            .try_into()
+            .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
+        let keys = ZswapSecretKeys::from(ZswapSeed::from(seed));
+        seed.zeroize();
+        let mut cursor = BinaryCursor::new(payload);
+        let segment_count =
+            usize::try_from(cursor.u32_le()?).map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+        if segment_count > MAX_SYNC_ENTRIES {
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
+
+        let mut shielded = midnight_zswap::local::State::new();
+        for _ in 0..segment_count {
+            let collapsed = cursor.length_prefixed()?;
+            if !collapsed.is_empty() {
+                let update: MerkleTreeCollapsedUpdate = tagged_deserialize(&mut &collapsed[..])
+                    .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+                shielded = shielded
+                    .apply_collapsed_update(&update)
+                    .map_err(|_| MidnightRuntimeError::SyncGap)?;
+            }
+            let record = cursor.length_prefixed()?;
+            let _diagnostic_index = cursor.u64_le()?;
+            if record.len() > V2_SHIELDED_RECORD_HEADER_BYTES {
+                let events: Vec<Event<InMemoryDB>> = tagged_deserialize_sequence(
+                    &record[V2_SHIELDED_RECORD_HEADER_BYTES..],
+                )
+                .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+                shielded = shielded
+                    .replay_events(&keys, events.iter())
+                    .map_err(|_| MidnightRuntimeError::SyncGap)?;
+            } else if record.len() < V2_SHIELDED_RECORD_HEADER_BYTES {
+                return Err(MidnightRuntimeError::InvalidArgument);
+            }
+        }
+        let trailing = cursor.length_prefixed()?;
+        if !trailing.is_empty() {
+            let update: MerkleTreeCollapsedUpdate = tagged_deserialize(&mut &trailing[..])
+                .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+            shielded = shielded
+                .apply_collapsed_update(&update)
+                .map_err(|_| MidnightRuntimeError::SyncGap)?;
+        }
+        let _last_event_id = cursor.u64_le()?;
+        if cursor.remaining() != 0 {
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
+
+        let mut proposed = self.clone();
+        proposed.shielded = shielded;
+        proposed.refresh_coin_hashes(&keys)?;
+        Ok(proposed)
+    }
+
+    fn import_dust_v2(&self, payload: &[u8], dust_seed: &[u8]) -> Result<Self, MidnightRuntimeError> {
+        let mut cursor = BinaryCursor::new(payload);
+        let parameter_bytes = cursor.length_prefixed()?;
+        let parameters = if parameter_bytes.is_empty() {
+            INITIAL_DUST_PARAMETERS
+        } else {
+            <DustParameters as Deserializable>::deserialize(&mut &parameter_bytes[..], 0)
+                .map_err(|_| MidnightRuntimeError::InvalidArgument)?
+        };
+        let sync_time = cursor.u64_le()?;
+        let body_length = cursor
+            .remaining()
+            .checked_sub(8)
+            .ok_or(MidnightRuntimeError::InvalidArgument)?;
+        let body = cursor.take(body_length)?;
+        let _last_event_id = cursor.u64_le()?;
+        if cursor.remaining() != 0 {
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
+
+        let mut seed: [u8; 32] = dust_seed
+            .try_into()
+            .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
+        let secret_key = DustSecretKey::derive_secret_key(&seed);
+        seed.zeroize();
+        let public_key = DustPublicKey::from(secret_key.clone());
+        let mut dust = DustLocalState::new(parameters);
+        let mut body_cursor = BinaryCursor::new(body);
+
+        let generation_count = usize::try_from(body_cursor.u32_le()?)
+            .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+        if generation_count > MAX_SYNC_ENTRIES {
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
+        for _ in 0..generation_count {
+            let collapsed = body_cursor.length_prefixed()?;
+            if !collapsed.is_empty() {
+                let update: MerkleTreeCollapsedUpdate = tagged_deserialize(&mut &collapsed[..])
+                    .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+                dust = dust
+                    .apply_generation_collapsed_update(&update)
+                    .map_err(|_| MidnightRuntimeError::SyncGap)?;
+            }
+            let info: DustGenerationInfo =
+                deserialize_tagged_or_plain(body_cursor.length_prefixed()?)?;
+            let index = body_cursor.u64_le()?;
+            let own = (info.owner == public_key).then_some(info.nonce);
+            dust = dust
+                .insert_generation_info(index, info, own)
+                .map_err(|_| MidnightRuntimeError::SyncGap)?;
+        }
+        let generation_trailing = body_cursor.length_prefixed()?;
+        if !generation_trailing.is_empty() {
+            let update: MerkleTreeCollapsedUpdate =
+                tagged_deserialize(&mut &generation_trailing[..])
+                    .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+            dust = dust
+                .apply_generation_collapsed_update(&update)
+                .map_err(|_| MidnightRuntimeError::SyncGap)?;
+        }
+
+        let commitment_count = usize::try_from(body_cursor.u32_le()?)
+            .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+        if commitment_count > MAX_SYNC_ENTRIES {
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
+        for _ in 0..commitment_count {
+            let collapsed = body_cursor.length_prefixed()?;
+            if !collapsed.is_empty() {
+                let update: MerkleTreeCollapsedUpdate = tagged_deserialize(&mut &collapsed[..])
+                    .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+                dust = dust
+                    .apply_commitment_collapsed_update(&update)
+                    .map_err(|_| MidnightRuntimeError::SyncGap)?;
+            }
+            let mut utxo: QualifiedDustOutput =
+                deserialize_tagged_or_plain(body_cursor.length_prefixed()?)?;
+            let index = body_cursor.u64_le()?;
+            if utxo.mt_index != index {
+                return Err(MidnightRuntimeError::InvalidArgument);
+            }
+            let own = utxo.owner == public_key;
+            dust = dust
+                .insert_commitment(index, utxo, own)
+                .map_err(|_| MidnightRuntimeError::SyncGap)?;
+            if own {
+                utxo.mt_index = index;
+                dust = dust
+                    .add_utxo(&utxo.nullifier(&secret_key), &utxo, None)
+                    .map_err(|_| MidnightRuntimeError::SyncGap)?;
+            }
+        }
+        let commitment_trailing = body_cursor.length_prefixed()?;
+        if !commitment_trailing.is_empty() {
+            let update: MerkleTreeCollapsedUpdate =
+                tagged_deserialize(&mut &commitment_trailing[..])
+                    .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+            dust = dust
+                .apply_commitment_collapsed_update(&update)
+                .map_err(|_| MidnightRuntimeError::SyncGap)?;
+        }
+        if body_cursor.remaining() != 0 {
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
+        dust.sync_time = midnight_base_crypto::time::Timestamp::from_secs(sync_time);
+
+        let mut proposed = self.clone();
+        proposed.dust = dust;
+        Ok(proposed)
+    }
 }

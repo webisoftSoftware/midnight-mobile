@@ -18,9 +18,9 @@ fn lock_session<'a>(
 
 fn canonical_stream(stream: &str) -> Option<&'static str> {
     match stream {
-        "shielded" | "shielded-wire" | "shielded-tip" => Some("shielded"),
+        "shielded" | "shielded-wire" | "shielded-v2" | "shielded-tip" => Some("shielded"),
         "unshielded" | "unshielded-tip" => Some("unshielded"),
-        "dust" | "dust-wire" | "dust-tip" => Some("dust"),
+        "dust" | "dust-wire" | "dust-v2" | "dust-tip" => Some("dust"),
         _ => None,
     }
 }

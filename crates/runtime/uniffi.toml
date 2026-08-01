@@ -1,10 +1,10 @@
 [bindings.kotlin]
-package_name = "expo.modules.midnightnative.uniffi"
-cdylib_name = "midnight_native_runtime"
+package_name = "dev.oneam.midnightmobile.uniffi"
+cdylib_name = "midnight_mobile_runtime"
 android = true
 
 [bindings.swift]
-module_name = "MidnightNativeRuntime"
-ffi_module_name = "MidnightNativeRuntime"
-ffi_module_filename = "MidnightNativeRuntimeFFI"
-cdylib_name = "midnight_native_runtime"
+module_name = "MidnightMobileRuntime"
+ffi_module_name = "MidnightMobileRuntime"
+ffi_module_filename = "MidnightMobileRuntimeFFI"
+cdylib_name = "midnight_mobile_runtime"

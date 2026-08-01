@@ -1,7 +1,7 @@
 import { posix } from "node:path";
 
 export const ALLOWED_COMMAND_KINDS = Object.freeze(
-  "signData,createCheckPayload,parseCheckResult,createProvingPayload,canonicalizeTransaction,createSyncRequest,createShieldedSpentRequest,applyShieldedSpentResponse,setShieldedProtocolVersion,createDustSpendRequest,createDustCommitmentRequest,applyDustSpendResolution,transfer,dappTransfer,dappIntent,generateDust,balanceUnsealed,balanceSealed,submitFinalized".split(
+  "signData,createCheckPayload,parseCheckResult,createProvingPayload,canonicalizeTransaction,createSyncRequest,deriveShieldedMintContext,watchShieldedMint,createShieldedSpentRequest,applyShieldedSpentResponse,setShieldedProtocolVersion,createDustSpendRequest,createDustCommitmentRequest,applyDustSpendResolution,transfer,dappTransfer,dappIntent,generateDust,balanceUnsealed,balanceSealed,finalizeUnprovenTransaction,submitFinalized".split(
     ",",
   ),
 );
@@ -46,8 +46,8 @@ maintained|examples/expo|M3
 maintained|packages/react-native/android/build.gradle|M1
 maintained|packages/react-native/android/src|M3
 maintained|packages/react-native/expo-module.config.json|M1
-maintained|packages/react-native/ios/ExpoMidnightNative.podspec|M1
-maintained|packages/react-native/ios/ExpoMidnightNativeModule.swift|M1
+maintained|packages/react-native/ios/MidnightMobileRuntime.podspec|M1
+maintained|packages/react-native/ios/MidnightMobileRuntimeModule.swift|M1
 maintained|packages/react-native/src|M1
 maintained|packages/react-native/tests|M1
 maintained|rust-toolchain.toml|M4
@@ -112,7 +112,7 @@ function validateBoundaryInputs(manifest, errors) {
   }
   checkExpected(manifest.contracts, EXPECTED_CONTRACTS, "contracts", errors);
   if (!sameArray(manifest.commandKinds, ALLOWED_COMMAND_KINDS)) {
-    errors.push("commandKinds must be the exact ordered 19-kind contract");
+    errors.push("commandKinds must be the exact ordered 22-kind contract");
   }
   const actualInputs = Array.isArray(manifest.textInputs)
     ? manifest.textInputs.map((entry) => [

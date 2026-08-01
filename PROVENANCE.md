@@ -77,3 +77,34 @@ The wallet-core boundary gate points to the M2 manifest without rewriting the M1
 landing record.
 
 This project is community-maintained and is not an official Midnight SDK.
+
+## 2026-08-01 wallet compatibility port record
+
+The M9-compatible wallet-state additions were manually ported from a clean,
+read-only checkout of `https://github.com/webisoftSoftware/one-am-wallet.git` at
+commit `b578c025355a3623d323ea3c016719180abaaf41`. The complete
+`git status --porcelain=v1 --untracked-files=all` output was empty before and
+after the review; both captures had SHA-256
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`. No sibling
+file or Git state was modified.
+
+The reviewed source inputs and their SHA-256 digests were:
+
+- `rust/runtime/src/wallet_state.rs`:
+  `1aafaf2cae74c1d1b81c3fd6bc555330a6814671ac146f7c1310f3ffa8c5aee7`
+- `rust/runtime/src/wallet_state/sync.rs`:
+  `768cf5c05298a490054c8d6eecabe5704df774415997c7279a839db136be05d6`
+- `rust/runtime/src/wallet_state/restore.rs`:
+  `dafa9e398fcd2f72e691064310ced5bf35d8ae40b5f8d4d354e3aa0df8e2ea55`
+- `rust/runtime/src/wallet_state/apply_and_prepare.rs`:
+  `85dc975ec4ba16c8d96149aab8d9833aaba0a171caae9d83239f673b9c3b1585`
+- `rust/runtime/src/runtime/checkpoint.rs`:
+  `8debff8141e526553930a05627240944023c10e23fad19965ed9b2a1e31c9f94`
+
+Only the generic cryptographic behavior was adapted: seed-derived shielded and
+DUST request filters, Ledger-native `shielded-v2` and `dust-v2` state decoding,
+shielded coin watch registration, and validation of the sibling's version-1 JSON
+checkpoint representation. Operated URLs, authentication, credential handling,
+application sync orchestration, asset construction, verifier artifacts, and
+product-specific policy were not ported. The SDK continues to export checkpoints
+only in its `MMCP` envelope and keeps network and filesystem I/O outside Rust.

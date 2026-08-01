@@ -24,7 +24,7 @@ No proving blob is committed. It also creates `request.bin` and
 `check-request.bin` from the pinned Ledger deterministic Zswap spend recipe and
 serializes the exact official endpoint tuples.
 
-The build script compiles the same `midnight_native_runtime` library with the
+The build script compiles the same `midnight_mobile_runtime` library with the
 `local-prover` feature, compiles the shared SDK `LocalProverBridge`, checks the
 exact five local-prover C exports and unchanged eight UniFFI exports, and builds
 a release arm64 APK. It fails unless both requests and all four artifacts are

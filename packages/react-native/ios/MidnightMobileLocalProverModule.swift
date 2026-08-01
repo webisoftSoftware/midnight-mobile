@@ -1,10 +1,10 @@
 import Darwin
 import ExpoModulesCore
 import Foundation
-import MidnightNativeRuntime
+import MidnightMobileRuntime
 
 private let localProverQueue = DispatchQueue(
-  label: "dev.oneam.midnight.local-prover",
+  label: "dev.oneam.midnightmobile.local-prover",
   qos: .userInitiated,
   attributes: .concurrent
 )
@@ -147,8 +147,8 @@ private final class MappedLocalProverFile {
 }
 
 private struct NativeLocalProverConfiguration {
-  let parameters: [MidnightLocalProverParameterDescriptor]
-  let circuits: [MidnightLocalProverCircuitDescriptor]
+  let parameters: [MidnightMobileLocalProverParameterDescriptor]
+  let circuits: [MidnightMobileLocalProverCircuitDescriptor]
   let mappings: [MappedLocalProverFile]
   let locations: [StableBytes]
 }
@@ -177,7 +177,7 @@ private final class LocalProverBridge {
     let code = withExtendedLifetime(configuration) {
       configuration.parameters.withUnsafeBufferPointer { parameters in
         configuration.circuits.withUnsafeBufferPointer { circuits in
-          midnight_local_prover_configure(
+          midnight_mobile_local_prover_configure(
             parameters.baseAddress,
             parameters.count,
             circuits.baseAddress,
@@ -204,7 +204,7 @@ private final class LocalProverBridge {
 
   func close() throws {
     guard let current = synchronized({ state }) else { return }
-    let code = midnight_local_prover_close(current.handle)
+    let code = midnight_mobile_local_prover_close(current.handle)
     if code != 0 && code != 8 { try requireSuccess(code) }
     synchronized {
       if state?.handle == current.handle { state = nil }
@@ -224,19 +224,19 @@ private final class LocalProverBridge {
     }
     var ownedRequest = request.withUnsafeBytes { Data($0) }
     defer { ownedRequest.resetBytes(in: 0..<ownedRequest.count) }
-    var response = MidnightLocalProverResponse(bytes: nil, bytes_len: 0)
+    var response = MidnightMobileLocalProverResponse(bytes: nil, bytes_len: 0)
     let code = ownedRequest.withUnsafeBytes { rawBytes -> Int32 in
       let bytes = rawBytes.baseAddress?.assumingMemoryBound(to: UInt8.self)
       guard let bytes else { return 5 }
       return prove
-        ? midnight_local_prover_prove(
+        ? midnight_mobile_local_prover_prove(
             current.handle, bytes, rawBytes.count, &response)
-        : midnight_local_prover_check(
+        : midnight_mobile_local_prover_check(
             current.handle, bytes, rawBytes.count, &response)
     }
     defer {
       if response.bytes != nil {
-        midnight_local_prover_free(response.bytes, response.bytes_len)
+        midnight_mobile_local_prover_free(response.bytes, response.bytes_len)
       }
     }
     try requireSuccess(code)
@@ -250,8 +250,8 @@ private final class LocalProverBridge {
     _ definition: LocalProverConfiguration
   ) throws -> NativeLocalProverConfiguration {
     try preflight(definition)
-    var parameters = [MidnightLocalProverParameterDescriptor]()
-    var circuits = [MidnightLocalProverCircuitDescriptor]()
+    var parameters = [MidnightMobileLocalProverParameterDescriptor]()
+    var circuits = [MidnightMobileLocalProverCircuitDescriptor]()
     var mappings = [MappedLocalProverFile]()
     var locations = [StableBytes]()
     for parameter in definition.parameters {
@@ -259,7 +259,7 @@ private final class LocalProverBridge {
         throw LocalProverBridgeFailure(code: "INVALID_CONFIGURATION")
       }
       let mapped = try MappedLocalProverFile(definition: parameter.file)
-      parameters.append(MidnightLocalProverParameterDescriptor(
+      parameters.append(MidnightMobileLocalProverParameterDescriptor(
         k: parameter.k,
         bytes: mapped.pointer,
         bytes_len: mapped.count,
@@ -279,7 +279,7 @@ private final class LocalProverBridge {
       let prover = try MappedLocalProverFile(definition: circuit.proverKey)
       let verifier = try MappedLocalProverFile(definition: circuit.verifierKey)
       let ir = try MappedLocalProverFile(definition: circuit.ir)
-      circuits.append(MidnightLocalProverCircuitDescriptor(
+      circuits.append(MidnightMobileLocalProverCircuitDescriptor(
         key_location: location.pointer,
         key_location_len: locationBytes.count,
         prover_key: prover.pointer,
@@ -364,14 +364,14 @@ private final class LocalProverBridge {
 
 private func localProverException(_ error: Error, fallback: String) -> Exception {
   let code = (error as? LocalProverBridgeFailure)?.code ?? fallback
-  return Exception(name: "MidnightLocalProverError", description: code, code: code)
+  return Exception(name: "MidnightMobileLocalProverError", description: code, code: code)
 }
 
-public final class ExpoMidnightLocalProverModule: Module {
+public final class MidnightMobileLocalProverModule: Module {
   private let bridge = LocalProverBridge()
 
   public func definition() -> ModuleDefinition {
-    Name("ExpoMidnightLocalProver")
+    Name("MidnightMobileLocalProver")
 
     AsyncFunction("configure") { (configurationJson: String) -> Double in
       do {

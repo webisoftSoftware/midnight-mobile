@@ -1,8 +1,11 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-use midnight_ledger::structure::{INITIAL_PARAMETERS, Intent, ProofMarker};
+use midnight_ledger::structure::{INITIAL_PARAMETERS, Intent, ProofMarker, ProofPreimageVersioned};
 use midnight_storage::storage::HashMap as LedgerHashMap;
+use midnight_transient_crypto::proofs::{
+    KeyLocation, ProofPreimage, ProvingKeyMaterial, ProvingProvider, WrappedIr,
+};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
@@ -28,11 +31,34 @@ fn empty_unproven(
 fn empty_proven(
     network: &str,
 ) -> Transaction<Signature, ProofMarker, PedersenRandomness, InMemoryDB> {
+    let responses = RemoteProofResponses::default();
+    let key_material = RemoteProofKeyMaterials::default();
     let provider = PausingProver {
-        responses: Arc::new(RemoteProofResponses::default()),
+        responses: &responses,
+        key_material: &key_material,
         captured: Arc::new(Mutex::new(BTreeMap::new())),
     };
     block_on(empty_unproven(network).prove(provider, &INITIAL_COST_MODEL)).unwrap()
+}
+
+fn synthetic_preimage(location: &'static str) -> ProofPreimage {
+    ProofPreimage {
+        inputs: vec![1_u64.into(), 2_u64.into()],
+        private_transcript: vec![3_u64.into()],
+        public_transcript_inputs: vec![4_u64.into()],
+        public_transcript_outputs: vec![5_u64.into()],
+        binding_input: 6_u64.into(),
+        communications_commitment: None,
+        key_location: KeyLocation(std::borrow::Cow::Borrowed(location)),
+    }
+}
+
+fn proving_material(prover_key: u8, verifier_key: u8, ir_source: u8) -> ProvingKeyMaterial {
+    ProvingKeyMaterial {
+        prover_key: vec![prover_key],
+        verifier_key: vec![verifier_key],
+        ir_source: vec![ir_source],
+    }
 }
 
 #[test]
@@ -210,6 +236,108 @@ fn remote_response_registry_accepts_checks_and_rejects_invalid_proofs() {
     responses.accept(&check, check_response).unwrap();
     assert!(responses.accept(&check, Vec::new()).is_err());
     assert!(responses.accept(&prove, vec![0xff]).is_err());
+}
+
+#[test]
+fn explicit_proof_material_maps_reject_empty_and_unknown_locations() {
+    let mut invalid = RemoteProofKeyMaterials::default();
+    assert!(
+        invalid
+            .insert(String::new(), proving_material(1, 2, 3))
+            .is_err()
+    );
+    assert!(
+        invalid
+            .insert(
+                "midnight/empty".to_owned(),
+                ProvingKeyMaterial {
+                    prover_key: Vec::new(),
+                    verifier_key: vec![2],
+                    ir_source: vec![3],
+                },
+            )
+            .is_err()
+    );
+
+    let mut materials = RemoteProofKeyMaterials::default();
+    materials
+        .insert("midnight/unknown".to_owned(), proving_material(1, 2, 3))
+        .unwrap();
+    let raw = serialized(&empty_unproven("preview"));
+    assert!(matches!(
+        advance_unproven_transaction_with_materials(
+            &raw,
+            "preview",
+            &RemoteProofResponses::default(),
+            &materials,
+        ),
+        Err(MidnightRuntimeError::InvalidArgument)
+    ));
+}
+
+#[test]
+fn pausing_prover_attaches_only_matching_material_to_check_and_prove_payloads() {
+    let location = "midnight/test/circuit";
+    let material = proving_material(11, 12, 13);
+    let mut materials = RemoteProofKeyMaterials::default();
+    materials
+        .insert(location.to_owned(), material.clone())
+        .unwrap();
+    materials
+        .insert(
+            "midnight/test/other".to_owned(),
+            proving_material(21, 22, 23),
+        )
+        .unwrap();
+    let responses = RemoteProofResponses::default();
+    let preimage = synthetic_preimage(location);
+
+    let check_requests = Arc::new(Mutex::new(BTreeMap::new()));
+    let check_provider = PausingProver {
+        responses: &responses,
+        key_material: &materials,
+        captured: Arc::clone(&check_requests),
+    };
+    assert!(block_on(check_provider.check(&preimage)).is_err());
+    let check_body = check_requests
+        .lock()
+        .unwrap()
+        .values()
+        .find(|request| request.kind == RemoteProofKind::Check)
+        .unwrap()
+        .body
+        .clone();
+    let (check_preimage, ir): (ProofPreimageVersioned, Option<WrappedIr>) =
+        tagged_deserialize(&mut &check_body[..]).unwrap();
+    assert!(matches!(check_preimage, ProofPreimageVersioned::V2(_)));
+    assert_eq!(ir.unwrap().0, material.ir_source);
+
+    let prove_requests = Arc::new(Mutex::new(BTreeMap::new()));
+    let prove_provider = PausingProver {
+        responses: &responses,
+        key_material: &materials,
+        captured: Arc::clone(&prove_requests),
+    };
+    assert!(block_on(prove_provider.prove(&preimage, None)).is_err());
+    let prove_body = prove_requests
+        .lock()
+        .unwrap()
+        .values()
+        .find(|request| request.kind == RemoteProofKind::Prove)
+        .unwrap()
+        .body
+        .clone();
+    let (prove_preimage, attached, binding): (
+        ProofPreimageVersioned,
+        Option<ProvingKeyMaterial>,
+        Option<midnight_transient_crypto::curve::Fr>,
+    ) = tagged_deserialize(&mut &prove_body[..]).unwrap();
+    assert!(matches!(prove_preimage, ProofPreimageVersioned::V2(_)));
+    assert!(binding.is_none());
+    let attached = attached.unwrap();
+    assert_eq!(attached.prover_key, material.prover_key);
+    assert_eq!(attached.verifier_key, material.verifier_key);
+    assert_eq!(attached.ir_source, material.ir_source);
 }
 
 #[test]

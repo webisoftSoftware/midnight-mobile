@@ -25,16 +25,16 @@ const artifactsRoot = resolve(
 const packageRoot = resolve(repositoryRoot, "packages/react-native");
 const xcframework = resolve(
   packageRoot,
-  "ios/build/MidnightNativeRuntime.xcframework",
+  "ios/build/MidnightMobileRuntime.xcframework",
 );
 const xcframeworkArchive = resolve(
   repositoryRoot,
-  "artifacts/apple/MidnightNativeRuntime.xcframework.zip",
+  "artifacts/apple/MidnightMobileRuntime.xcframework.zip",
 );
 const device =
   process.env.IOS_PROVER_SIMULATOR_UDID ??
   "BF591F85-D9AF-4F7E-B82D-E4A368EB3D17";
-const bundleIdentifier = "dev.oneam.midnight.localprover.validation";
+const bundleIdentifier = "dev.oneam.midnightmobile.localprover.validation";
 const timeoutMillis = 15 * 60 * 1_000;
 const resumeApplicationBuild = process.env.IOS_PROVER_RESUME === "1";
 
@@ -325,7 +325,7 @@ function stageArtifactsAndSign(app) {
   cpSync(artifactsRoot, resolve(app, "LocalProverArtifacts"), {
     recursive: true,
   });
-  const framework = resolve(app, "Frameworks/MidnightNativeRuntime.framework");
+  const framework = resolve(app, "Frameworks/MidnightMobileRuntime.framework");
   if (!existsSync(framework))
     throw new Error("app did not embed runtime framework");
   run("codesign", ["--force", "--sign", "-", "--timestamp=none", framework]);
@@ -401,7 +401,7 @@ function hostValidate(dataContainer) {
         "--locked",
         "--quiet",
         "--package",
-        "midnight-native-runtime",
+        "midnight-mobile-runtime",
         "--features",
         "local-prover",
         "--example",
@@ -446,7 +446,7 @@ async function main() {
   const outputs = hostValidate(launched.dataContainer);
   const runtimeFramework = resolve(
     build.app,
-    "Frameworks/MidnightNativeRuntime.framework",
+    "Frameworks/MidnightMobileRuntime.framework",
   );
   const provingArtifactBytes = manifest.artifacts.reduce(
     (total, artifact) => total + artifact.size,
@@ -465,7 +465,7 @@ async function main() {
     sizes: {
       nativeFrameworkBytes: treeBytes(runtimeFramework),
       nativeBinaryBytes: statSync(
-        resolve(runtimeFramework, "MidnightNativeRuntime"),
+        resolve(runtimeFramework, "MidnightMobileRuntime"),
       ).size,
       xcframeworkBytes: treeBytes(xcframework),
       xcframeworkArchiveBytes: statSync(xcframeworkArchive).size,

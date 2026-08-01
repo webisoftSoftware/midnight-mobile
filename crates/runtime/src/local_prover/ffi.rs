@@ -180,7 +180,7 @@ fn guarded_response(
 /// Descriptor arrays, every referenced byte range, and `output_handle` must remain valid for this
 /// synchronous call. Hash pointers must address exactly 32 bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn midnight_local_prover_configure(
+pub unsafe extern "C" fn midnight_mobile_local_prover_configure(
     params: *const LocalProverParameterDescriptor,
     params_count: usize,
     circuits: *const LocalProverCircuitDescriptor,
@@ -230,7 +230,7 @@ unsafe fn run_request(
 ///
 /// Request and output pointers must remain valid for this synchronous call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn midnight_local_prover_check(
+pub unsafe extern "C" fn midnight_mobile_local_prover_check(
     handle: u64,
     request: *const u8,
     request_len: usize,
@@ -246,7 +246,7 @@ pub unsafe extern "C" fn midnight_local_prover_check(
 ///
 /// Request and output pointers must remain valid for this synchronous call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn midnight_local_prover_prove(
+pub unsafe extern "C" fn midnight_mobile_local_prover_prove(
     handle: u64,
     request: *const u8,
     request_len: usize,
@@ -258,7 +258,7 @@ pub unsafe extern "C" fn midnight_local_prover_prove(
 
 /// Clears the configured registry when `handle` is current.
 #[unsafe(no_mangle)]
-pub extern "C" fn midnight_local_prover_close(handle: u64) -> i32 {
+pub extern "C" fn midnight_mobile_local_prover_close(handle: u64) -> i32 {
     guarded_code(|| close_registry(handle))
 }
 
@@ -268,7 +268,7 @@ pub extern "C" fn midnight_local_prover_close(handle: u64) -> i32 {
 ///
 /// Pointer and length must be an unchanged pair returned by this library and freed exactly once.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn midnight_local_prover_free(bytes: *mut u8, bytes_len: usize) {
+pub unsafe extern "C" fn midnight_mobile_local_prover_free(bytes: *mut u8, bytes_len: usize) {
     if bytes.is_null() || bytes_len == 0 {
         return;
     }
@@ -305,6 +305,10 @@ mod tests {
     fn guards_contain_panics_and_manage_response_ownership() {
         assert_eq!(guarded_code(|| Ok(())), 0);
         assert_eq!(
+            guarded_code(|| Err(LocalProverError::InvalidConfiguration)),
+            LocalProverError::InvalidConfiguration.ffi_code()
+        );
+        assert_eq!(
             guarded_code(|| std::panic::resume_unwind(Box::new("panic"))),
             LocalProverError::NativeInternal.ffi_code()
         );
@@ -312,15 +316,143 @@ mod tests {
         assert_eq!(guarded_response(&mut output, || Ok(vec![1, 2, 3])), 0);
         assert_eq!(output.bytes_len, 3);
         // SAFETY: Pair is unchanged from guarded_response and freed once.
-        unsafe { midnight_local_prover_free(output.bytes, output.bytes_len) };
+        unsafe { midnight_mobile_local_prover_free(output.bytes, output.bytes_len) };
+
+        let mut output = LocalProverResponse::default();
+        assert_eq!(
+            guarded_response(&mut output, || Err(LocalProverError::CheckFailed)),
+            LocalProverError::CheckFailed.ffi_code()
+        );
+        assert!(output.bytes.is_null());
+        assert_eq!(
+            guarded_response(&mut output, || {
+                std::panic::resume_unwind(Box::new("panic"))
+            }),
+            LocalProverError::NativeInternal.ffi_code()
+        );
+        // SAFETY: Null pointers are explicitly accepted as no-ops.
+        unsafe { midnight_mobile_local_prover_free(ptr::null_mut(), 7) };
+    }
+
+    #[test]
+    fn pointer_and_descriptor_decoders_cover_valid_and_invalid_shapes() {
+        let bytes = [1_u8, 2];
+        let hash = [3_u8; 32];
+        assert_eq!(
+            // SAFETY: Every pointer addresses the corresponding live local array.
+            unsafe { required_slice(bytes.as_ptr(), bytes.len()) }.unwrap(),
+            bytes
+        );
+        assert!(
+            // SAFETY: A zero-length optional array does not dereference its pointer.
+            unsafe { optional_array::<u8>(ptr::null(), 0, 1) }
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            // SAFETY: Pointer addresses one live value and the bound permits one item.
+            unsafe { optional_array(bytes.as_ptr(), 1, 1) }.unwrap(),
+            &[1]
+        );
+        assert!(matches!(
+            // SAFETY: Null pointer is intentionally rejected before dereference.
+            unsafe { optional_array::<u8>(ptr::null(), 1, 1) },
+            Err(LocalProverError::InvalidConfiguration)
+        ));
+
+        let parameter = LocalProverParameterDescriptor {
+            k: 7,
+            bytes: bytes.as_ptr(),
+            bytes_len: bytes.len(),
+            sha256: hash.as_ptr(),
+        };
+        // SAFETY: Descriptor and all referenced arrays remain live for decoding.
+        let decoded = unsafe { parameter_inputs(&parameter, 1) }.unwrap();
+        assert_eq!(decoded[0].k, 7);
+        assert_eq!(decoded[0].bytes, bytes);
+        assert_eq!(decoded[0].sha256, hash);
+
+        let invalid_k = LocalProverParameterDescriptor {
+            k: 256,
+            bytes: bytes.as_ptr(),
+            bytes_len: bytes.len(),
+            sha256: hash.as_ptr(),
+        };
+        assert!(matches!(
+            // SAFETY: Descriptor is live and fails before referenced data is consumed.
+            unsafe { parameter_inputs(&invalid_k, 1) },
+            Err(LocalProverError::InvalidConfiguration)
+        ));
+        let missing_bytes = LocalProverParameterDescriptor {
+            k: 7,
+            bytes: ptr::null(),
+            bytes_len: bytes.len(),
+            sha256: hash.as_ptr(),
+        };
+        assert!(matches!(
+            // SAFETY: Null artifact pointer is intentionally rejected before dereference.
+            unsafe { parameter_inputs(&missing_bytes, 1) },
+            Err(LocalProverError::ResourcePreflightFailed)
+        ));
+
+        let location = b"midnight/test";
+        let circuit = LocalProverCircuitDescriptor {
+            key_location: location.as_ptr(),
+            key_location_len: location.len(),
+            prover_key: bytes.as_ptr(),
+            prover_key_len: bytes.len(),
+            prover_key_sha256: hash.as_ptr(),
+            verifier_key: bytes.as_ptr(),
+            verifier_key_len: bytes.len(),
+            verifier_key_sha256: hash.as_ptr(),
+            ir: bytes.as_ptr(),
+            ir_len: bytes.len(),
+            ir_sha256: hash.as_ptr(),
+        };
+        // SAFETY: Descriptor and all referenced arrays remain live for decoding.
+        let decoded = unsafe { circuit_inputs(&circuit, 1) }.unwrap();
+        assert_eq!(decoded[0].key_location, "midnight/test");
+        assert_eq!(decoded[0].prover_key, bytes);
+
+        let invalid_utf8 = [0xff_u8];
+        let malformed = LocalProverCircuitDescriptor {
+            key_location: invalid_utf8.as_ptr(),
+            key_location_len: invalid_utf8.len(),
+            ..circuit
+        };
+        assert!(matches!(
+            // SAFETY: Location pointer is live but contains invalid UTF-8.
+            unsafe { circuit_inputs(&malformed, 1) },
+            Err(LocalProverError::InvalidConfiguration)
+        ));
+        assert!(matches!(
+            // SAFETY: Oversized count is rejected before dereferencing the null pointer.
+            unsafe { circuit_inputs(ptr::null(), MAX_CIRCUIT_COUNT + 1) },
+            Err(LocalProverError::InvalidConfiguration)
+        ));
     }
 
     #[test]
     fn null_and_oversized_descriptor_inputs_fail_closed() {
+        let _serial = super::super::PROVER_TEST_LOCK.lock().unwrap();
+        super::super::registry_slot().lock().unwrap().value = None;
+        assert_eq!(
+            // SAFETY: Null output handle is intentionally rejected before dereference.
+            unsafe {
+                midnight_mobile_local_prover_configure(
+                    ptr::null(),
+                    0,
+                    ptr::null(),
+                    0,
+                    ptr::null_mut(),
+                )
+            },
+            LocalProverError::InvalidConfiguration.ffi_code()
+        );
         let mut handle = 99_u64;
         // SAFETY: Null arrays intentionally exercise validation; handle is writable.
         let code = unsafe {
-            midnight_local_prover_configure(
+            midnight_mobile_local_prover_configure(
                 ptr::null(),
                 MAX_PARAMETER_COUNT + 1,
                 ptr::null(),
@@ -330,9 +462,48 @@ mod tests {
         };
         assert_eq!(code, LocalProverError::InvalidConfiguration.ffi_code());
         assert_eq!(handle, 0);
+        // SAFETY: Empty arrays are valid pointer shapes and fail core configuration validation.
+        let code = unsafe {
+            midnight_mobile_local_prover_configure(ptr::null(), 0, ptr::null(), 0, &mut handle)
+        };
+        assert_eq!(code, LocalProverError::InvalidConfiguration.ffi_code());
+
+        let bytes = [0_u8; 4];
+        let wrong_hash = [0_u8; 32];
+        let parameter = LocalProverParameterDescriptor {
+            k: 0,
+            bytes: bytes.as_ptr(),
+            bytes_len: bytes.len(),
+            sha256: wrong_hash.as_ptr(),
+        };
+        // SAFETY: Descriptor and referenced buffers remain live for the synchronous call.
+        let code = unsafe {
+            midnight_mobile_local_prover_configure(&parameter, 1, ptr::null(), 0, &mut handle)
+        };
+        assert_eq!(code, LocalProverError::IntegrityCheckFailed.ffi_code());
+
         let mut output = LocalProverResponse::default();
         // SAFETY: Null request intentionally exercises pointer validation.
-        let code = unsafe { midnight_local_prover_check(1, ptr::null(), 0, &mut output) };
+        let code = unsafe { midnight_mobile_local_prover_check(1, ptr::null(), 0, &mut output) };
         assert_eq!(code, LocalProverError::ResourcePreflightFailed.ffi_code());
+        assert_eq!(
+            // SAFETY: Null output is rejected before the live request is dereferenced.
+            unsafe { midnight_mobile_local_prover_check(1, bytes.as_ptr(), 1, ptr::null_mut()) },
+            LocalProverError::InvalidRequest.ffi_code()
+        );
+        assert_eq!(
+            // SAFETY: Request and output remain live; missing registry fails closed.
+            unsafe { midnight_mobile_local_prover_check(1, bytes.as_ptr(), 1, &mut output) },
+            LocalProverError::StaleRegistry.ffi_code()
+        );
+        assert_eq!(
+            // SAFETY: Request and output remain live; missing registry fails closed.
+            unsafe { midnight_mobile_local_prover_prove(1, bytes.as_ptr(), 1, &mut output) },
+            LocalProverError::StaleRegistry.ffi_code()
+        );
+        assert_eq!(
+            midnight_mobile_local_prover_close(0),
+            LocalProverError::StaleRegistry.ffi_code()
+        );
     }
 }

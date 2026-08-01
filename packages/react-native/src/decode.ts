@@ -261,6 +261,17 @@ const RESULT_DECODERS: {
       requestBase64: base64(source.requestBase64),
     };
   },
+  deriveShieldedMintContext(value) {
+    const source = record(value);
+    return {
+      coinPublicKeyHex: lowercaseHex(source.coinPublicKeyHex, 32),
+      encryptionPublicKeyHex: lowercaseHex(source.encryptionPublicKeyHex, 32),
+      outputIndex: safeInteger(source.outputIndex),
+    };
+  },
+  watchShieldedMint(value) {
+    return { outputIndex: safeInteger(record(value).outputIndex) };
+  },
   createShieldedSpentRequest(value) {
     const source = record(value);
     return {
@@ -293,6 +304,7 @@ const RESULT_DECODERS: {
   generateDust: decodeFinalized,
   balanceUnsealed: decodeFinalized,
   balanceSealed: decodeFinalized,
+  finalizeUnprovenTransaction: decodeFinalized,
   submitFinalized(value) {
     const source = record(value);
     const status = source.status;

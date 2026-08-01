@@ -43,25 +43,21 @@ if let RuntimeCommand::Transfer {
     };
     let expected_identifiers =
         transaction::validate_unproven_transaction(&transaction, &state.config.network_id)?;
+    let network_id = state.config.network_id.clone();
+    reserve_operation(&mut state)?;
     drop(state);
-    let (operation, effect_id) = register_operation(
+    return start_transaction_finalization(
         session_id,
         generation,
         &session,
-        PendingOperationKind::Transfer {
-            proposed_state: proposed,
+        TransactionFinalizationInput {
+            network_id,
+            raw: transaction,
+            key_material: transaction::RemoteProofKeyMaterials::default(),
+            proposed_state: Some(proposed),
             expected_identifiers,
         },
-    )?;
-    return to_json(&OperationStep {
-        kind: "network",
-        operation: Some(operation),
-        effect_id: Some(effect_id),
-        effect: Some("proveAndBalance"),
-        endpoint_role: Some("proof"),
-        body_base64: Some(encode_base64(&transaction)),
-        result_json: None,
-    });
+    );
 }
 
 if let RuntimeCommand::GenerateDust {
@@ -128,10 +124,11 @@ if let RuntimeCommand::GenerateDust {
             return complete_json(finalized_transaction_result(&finalized)?);
         }
         transaction::BalanceProgress::Network(pending_request) => {
-            let body = pending_request.body.clone();
+            let body = Zeroizing::new(pending_request.body.clone());
             let effect = proof_effect(pending_request.kind);
+            reserve_operation(&mut state)?;
             drop(state);
-            let (operation, effect_id) = register_operation(
+            let (operation, effect_id) = match register_reserved_operation(
                 session_id,
                 generation,
                 &session,
@@ -142,8 +139,15 @@ if let RuntimeCommand::GenerateDust {
                     responses,
                     pending_request,
                 },
-            )?;
-            return to_json(&OperationStep {
+            ) {
+                Ok(registered) => registered,
+                Err(error) => {
+                    clear_operation_reservation(&session);
+                    return Err(error);
+                }
+            };
+            let operation_id = operation.id;
+            let result = to_json(&OperationStep {
                 kind: "network",
                 operation: Some(operation),
                 effect_id: Some(effect_id),
@@ -152,6 +156,10 @@ if let RuntimeCommand::GenerateDust {
                 body_base64: Some(encode_base64(&body)),
                 result_json: None,
             });
+            if result.is_err() {
+                discard_operation(operation_id);
+            }
+            return result;
         }
     }
 }

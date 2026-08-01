@@ -1,4 +1,4 @@
-package expo.modules.midnightlocalprover
+package dev.oneam.midnightmobile.localprover
 
 import android.content.res.AssetManager
 import com.sun.jna.Library
@@ -83,7 +83,7 @@ private open class NativeResponse : Structure() {
 }
 
 private interface LocalProverNative : Library {
-  fun midnight_local_prover_configure(
+  fun midnight_mobile_local_prover_configure(
     parameters: Pointer?,
     parameterCount: Long,
     circuits: Pointer?,
@@ -91,23 +91,23 @@ private interface LocalProverNative : Library {
     outputHandle: LongByReference,
   ): Int
 
-  fun midnight_local_prover_check(
+  fun midnight_mobile_local_prover_check(
     handle: Long,
     request: Pointer,
     requestLen: Long,
     output: NativeResponse.ByReference,
   ): Int
 
-  fun midnight_local_prover_prove(
+  fun midnight_mobile_local_prover_prove(
     handle: Long,
     request: Pointer,
     requestLen: Long,
     output: NativeResponse.ByReference,
   ): Int
 
-  fun midnight_local_prover_close(handle: Long): Int
+  fun midnight_mobile_local_prover_close(handle: Long): Int
 
-  fun midnight_local_prover_free(bytes: Pointer?, bytesLen: Long)
+  fun midnight_mobile_local_prover_free(bytes: Pointer?, bytesLen: Long)
 }
 
 private data class MappedFile(
@@ -128,14 +128,14 @@ private data class NativeConfiguration(
 class LocalProverBridge(private val assets: AssetManager? = null) {
   private val lock = Any()
   private val native: LocalProverNative by lazy {
-    Native.load("midnight_native_runtime", LocalProverNative::class.java)
+    Native.load("midnight_mobile_runtime", LocalProverNative::class.java)
   }
   private var state: RegistryState? = null
 
   fun configure(configuration: LocalProverConfiguration): Long {
     val bindings = nativeConfiguration(configuration)
     val handle = LongByReference(0)
-    val code = native.midnight_local_prover_configure(
+    val code = native.midnight_mobile_local_prover_configure(
       bindings.parameters.firstOrNull()?.pointer,
       bindings.parameters.size.toLong(),
       bindings.circuits.firstOrNull()?.pointer,
@@ -151,14 +151,14 @@ class LocalProverBridge(private val assets: AssetManager? = null) {
   }
 
   fun check(request: ByteArray): ByteArray =
-    execute(request, native::midnight_local_prover_check)
+    execute(request, native::midnight_mobile_local_prover_check)
 
   fun prove(request: ByteArray): ByteArray =
-    execute(request, native::midnight_local_prover_prove)
+    execute(request, native::midnight_mobile_local_prover_prove)
 
   fun close() {
     val current = synchronized(lock) { state } ?: return
-    val code = native.midnight_local_prover_close(current.handle)
+    val code = native.midnight_mobile_local_prover_close(current.handle)
     if (code != 0 && code != 8) requireSuccess(code)
     synchronized(lock) {
       if (state?.handle == current.handle) state = null
@@ -185,7 +185,7 @@ class LocalProverBridge(private val assets: AssetManager? = null) {
       try {
         pointer.getByteArray(0, size)
       } finally {
-        native.midnight_local_prover_free(pointer, output.bytesLen)
+        native.midnight_mobile_local_prover_free(pointer, output.bytesLen)
       }
     } finally {
       requestMemory.clear()

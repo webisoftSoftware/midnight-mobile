@@ -29,6 +29,26 @@ fn serialize<T: midnight_serialize::Serializable + midnight_serialize::Tagged>(
     bytes
 }
 
+fn minimal_ir_bytes(num_inputs: u32) -> Vec<u8> {
+    let ir = IrSource {
+        version: Default::default(),
+        num_inputs,
+        do_communications_commitment: false,
+        instructions: Arc::new(vec![]),
+    };
+    let mut bytes = Vec::new();
+    ir.serialize_to_tagged(&mut bytes).unwrap();
+    bytes
+}
+
+fn material(ir_source: Vec<u8>) -> ProvingKeyMaterial {
+    ProvingKeyMaterial {
+        prover_key: vec![1],
+        verifier_key: vec![2],
+        ir_source,
+    }
+}
+
 fn install_synthetic_registry() -> u64 {
     let mut slot = registry_slot().lock().unwrap();
     slot.generation = slot.generation.saturating_add(1).max(1);
@@ -75,8 +95,108 @@ fn hash_location_count_and_size_preflights_are_typed() {
         checked_total([0_usize]),
         Err(LocalProverError::ResourcePreflightFailed)
     );
+    assert!(checked_total([1_usize, MAX_ARTIFACT_BYTES]).is_ok());
+    assert_eq!(
+        checked_total([MAX_ARTIFACT_BYTES; 5]),
+        Err(LocalProverError::ResourcePreflightFailed)
+    );
+    assert_eq!(
+        validate_location(""),
+        Err(LocalProverError::InvalidConfiguration)
+    );
+    assert_eq!(
+        validate_location(&"x".repeat(MAX_KEY_LOCATION_BYTES + 1)),
+        Err(LocalProverError::InvalidConfiguration)
+    );
+    assert_eq!(
+        request_preflight(&[]),
+        Err(LocalProverError::ResourcePreflightFailed)
+    );
+    assert!(request_preflight(&[1]).is_ok());
+    assert_eq!(
+        validate_supplied_material(&material(vec![1, 2, 3])),
+        Err(LocalProverError::UnsupportedCircuit)
+    );
+    assert!(prover_pool().is_ok());
     assert_eq!(
         build_registry(&[], &[]).map(|_| ()),
+        Err(LocalProverError::InvalidConfiguration)
+    );
+}
+
+#[test]
+fn providers_resolvers_and_registry_validation_cover_generic_inputs() {
+    let fallback = material(vec![3]);
+    let mut circuits = HashMap::new();
+    circuits.insert("registered".to_owned(), fallback.clone());
+    let registry = MemoryRegistry {
+        params: HashMap::new(),
+        circuits,
+    };
+    let missing = futures_executor::block_on(registry.get_params(9))
+        .err()
+        .unwrap();
+    assert_eq!(missing.kind(), io::ErrorKind::NotFound);
+    assert!(
+        futures_executor::block_on(
+            registry.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("missing")))
+        )
+        .unwrap()
+        .is_none()
+    );
+    let resolved = futures_executor::block_on(
+        registry.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered"))),
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(resolved.ir_source, fallback.ir_source);
+
+    let supplied = material(vec![4]);
+    let resolver = RequestResolver {
+        registry: &registry,
+        supplied: Some(supplied.clone()),
+    };
+    let resolved = futures_executor::block_on(
+        resolver.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered"))),
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(resolved.ir_source, supplied.ir_source);
+    let fallback_resolver = RequestResolver {
+        registry: &registry,
+        supplied: None,
+    };
+    assert!(
+        futures_executor::block_on(
+            fallback_resolver.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered")))
+        )
+        .unwrap()
+        .is_some()
+    );
+
+    let invalid_params = [0_u8; 4];
+    let parameter = ParameterArtifact {
+        k: 1,
+        bytes: &invalid_params,
+        sha256: &[0; 32],
+    };
+    assert_eq!(
+        build_registry(&[parameter], &[]).map(|_| ()),
+        Err(LocalProverError::IntegrityCheckFailed)
+    );
+    let invalid = b"invalid";
+    let circuit_hash = Sha256::digest(invalid);
+    let circuit = CircuitArtifact {
+        key_location: "midnight/test",
+        prover_key: invalid,
+        prover_key_sha256: circuit_hash.as_ref(),
+        verifier_key: invalid,
+        verifier_key_sha256: circuit_hash.as_ref(),
+        ir: invalid,
+        ir_sha256: circuit_hash.as_ref(),
+    };
+    assert_eq!(
+        decode_circuit(&circuit).map(|_| ()),
         Err(LocalProverError::InvalidConfiguration)
     );
 }
@@ -109,6 +229,82 @@ fn malformed_missing_and_inline_invalid_requests_are_typed() {
         run_check(handle, &inline),
         Err(LocalProverError::UnsupportedCircuit)
     );
+    let empty_inline = serialize(&(
+        ProofPreimageVersioned::V2(synthetic_preimage("inline/circuit")),
+        Some(WrappedIr(vec![])),
+    ));
+    assert_eq!(
+        run_check(handle, &empty_inline),
+        Err(LocalProverError::ResourcePreflightFailed)
+    );
+}
+
+#[test]
+fn valid_inline_and_registered_ir_cover_check_paths() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    let handle = install_synthetic_registry();
+    let ir = minimal_ir_bytes(1);
+    let inline = serialize(&(
+        ProofPreimageVersioned::V2(synthetic_preimage("inline/circuit")),
+        Some(WrappedIr(ir.clone())),
+    ));
+    let checked = run_check(handle, &inline).unwrap();
+    let decoded: Vec<Option<u64>> = tagged_deserialize(&mut &checked[..]).unwrap();
+    assert!(decoded.is_empty());
+
+    registry_slot().lock().unwrap().value = Some(Arc::new(MemoryRegistry {
+        params: HashMap::new(),
+        circuits: HashMap::from([("registered/circuit".to_owned(), material(ir))]),
+    }));
+    let registered = serialize(&(
+        ProofPreimageVersioned::V2(synthetic_preimage("registered/circuit")),
+        None::<WrappedIr>,
+    ));
+    assert!(run_check(handle, &registered).is_ok());
+
+    let mismatched = serialize(&(
+        ProofPreimageVersioned::V2(synthetic_preimage("inline/circuit")),
+        Some(WrappedIr(minimal_ir_bytes(2))),
+    ));
+    assert_eq!(
+        run_check(handle, &mismatched),
+        Err(LocalProverError::CheckFailed)
+    );
+}
+
+#[test]
+fn supplied_material_and_binding_cover_prove_failure_path() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    let handle = install_synthetic_registry();
+    let unsupported = serialize(&(
+        ProofPreimageVersioned::V2(synthetic_preimage("missing/circuit")),
+        None::<ProvingKeyMaterial>,
+        Some(Fr::from(7_u64)),
+    ));
+    assert_eq!(
+        run_prove(handle, &unsupported),
+        Err(LocalProverError::UnsupportedCircuit)
+    );
+
+    let invalid_material = serialize(&(
+        ProofPreimageVersioned::V2(synthetic_preimage("supplied/circuit")),
+        Some(material(vec![1, 2, 3])),
+        None::<Fr>,
+    ));
+    assert_eq!(
+        run_prove(handle, &invalid_material),
+        Err(LocalProverError::UnsupportedCircuit)
+    );
+
+    let invalid_key = serialize(&(
+        ProofPreimageVersioned::V2(synthetic_preimage("supplied/circuit")),
+        Some(material(minimal_ir_bytes(1))),
+        Some(Fr::from(11_u64)),
+    ));
+    assert_eq!(
+        run_prove(handle, &invalid_key),
+        Err(LocalProverError::ProofFailed)
+    );
 }
 
 #[test]
@@ -122,6 +318,7 @@ fn registry_generations_close_and_stale_handles_fail_closed() {
     );
     assert!(close_registry(handle).is_ok());
     assert_eq!(close_registry(handle), Err(LocalProverError::StaleRegistry));
+    assert_eq!(close_registry(0), Err(LocalProverError::StaleRegistry));
 }
 
 #[test]

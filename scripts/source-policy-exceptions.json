@@ -2,14 +2,14 @@
   "currentMilestone": "M5",
   "exceptions": [
     {
-      "path": "packages/react-native/android/generated/expo/modules/midnightnative/uniffi/midnight_native_runtime.kt",
+      "path": "packages/react-native/android/generated/dev/oneam/midnightmobile/uniffi/midnight_mobile_runtime.kt",
       "rule": "max-physical-lines",
       "justification": "Reviewed UniFFI-generated Kotlin source is kept intact and verified byte-for-byte by the required binding gate.",
       "trackingIssue": "https://github.com/ADGLx/midnight-mobile/issues/41",
       "removalCondition": "Remove when generated Kotlin is no longer committed or the generator emits a policy-sized equivalent."
     },
     {
-      "path": "packages/react-native/ios/generated/MidnightNativeRuntime.swift",
+      "path": "packages/react-native/ios/generated/MidnightMobileRuntime.swift",
       "rule": "max-physical-lines",
       "justification": "Reviewed UniFFI-generated Swift source is kept intact and verified byte-for-byte by the required binding gate.",
       "trackingIssue": "https://github.com/ADGLx/midnight-mobile/issues/41",

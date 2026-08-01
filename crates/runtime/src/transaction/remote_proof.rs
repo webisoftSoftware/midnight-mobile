@@ -1,10 +1,12 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 
 use midnight_ledger::structure::ProofVersioned;
 use midnight_serialize::{tagged_deserialize, tagged_serialize};
 use midnight_transient_crypto::curve::Fr;
-use midnight_transient_crypto::proofs::{Proof, ProofPreimage, ProvingProvider};
+use midnight_transient_crypto::proofs::{
+    Proof, ProofPreimage, ProvingKeyMaterial, ProvingProvider,
+};
 use num_bigint::BigUint;
 use sha2::{Digest, Sha256};
 use zeroize::Zeroize;
@@ -31,9 +33,24 @@ impl Drop for RemoteProofRequest {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub(crate) struct RemoteProofResponses {
     values: HashMap<String, Vec<u8>>,
+}
+
+#[derive(Default)]
+pub(crate) struct RemoteProofKeyMaterials {
+    values: BTreeMap<String, ProvingKeyMaterial>,
+}
+
+impl Drop for RemoteProofKeyMaterials {
+    fn drop(&mut self) {
+        for material in self.values.values_mut() {
+            material.prover_key.zeroize();
+            material.verifier_key.zeroize();
+            material.ir_source.zeroize();
+        }
+    }
 }
 
 impl Drop for RemoteProofResponses {
@@ -45,8 +62,9 @@ impl Drop for RemoteProofResponses {
 }
 
 #[derive(Clone)]
-pub(super) struct PausingProver {
-    pub(super) responses: Arc<RemoteProofResponses>,
+pub(super) struct PausingProver<'a> {
+    pub(super) responses: &'a RemoteProofResponses,
+    pub(super) key_material: &'a RemoteProofKeyMaterials,
     pub(super) captured: Arc<Mutex<BTreeMap<String, RemoteProofRequest>>>,
 }
 
@@ -77,7 +95,7 @@ fn decode_proof(raw: &[u8]) -> Result<Proof, anyhow::Error> {
     }
 }
 
-impl PausingProver {
+impl PausingProver<'_> {
     fn capture(&self, request: RemoteProofRequest) -> Result<(), anyhow::Error> {
         self.captured
             .lock()
@@ -88,10 +106,15 @@ impl PausingProver {
     }
 }
 
-impl ProvingProvider for PausingProver {
+impl ProvingProvider for PausingProver<'_> {
     async fn check(&self, preimage: &ProofPreimage) -> Result<Vec<Option<usize>>, anyhow::Error> {
         let mut raw = serialize_preimage(preimage)?;
-        let body_result = codec::create_check_payload(&raw, None)
+        let ir = self
+            .key_material
+            .values
+            .get(preimage.key_location.0.as_ref())
+            .map(|material| material.ir_source.clone());
+        let body_result = codec::create_check_payload(&raw, ir)
             .map_err(|_| anyhow::anyhow!("invalid check preimage"));
         raw.zeroize();
         let mut body = body_result?;
@@ -126,7 +149,12 @@ impl ProvingProvider for PausingProver {
         let mut raw = serialize_preimage(preimage)?;
         let binding = overwrite_binding_input
             .map(|value| BigUint::from_bytes_le(&value.as_le_bytes()).to_str_radix(10));
-        let body_result = codec::create_proving_payload(&raw, binding.as_deref(), None)
+        let material = self
+            .key_material
+            .values
+            .get(preimage.key_location.0.as_ref())
+            .cloned();
+        let body_result = codec::create_proving_payload(&raw, binding.as_deref(), material)
             .map_err(|_| anyhow::anyhow!("invalid proving preimage"));
         raw.zeroize();
         let mut body = body_result?;
@@ -168,6 +196,47 @@ impl RemoteProofResponses {
             }
         }
         self.values.insert(request.key.clone(), response);
+        Ok(())
+    }
+}
+
+impl RemoteProofKeyMaterials {
+    pub(crate) fn insert(
+        &mut self,
+        location: String,
+        mut material: ProvingKeyMaterial,
+    ) -> Result<(), MidnightRuntimeError> {
+        if location.is_empty()
+            || material.prover_key.is_empty()
+            || material.verifier_key.is_empty()
+            || material.ir_source.is_empty()
+        {
+            material.prover_key.zeroize();
+            material.verifier_key.zeroize();
+            material.ir_source.zeroize();
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
+        if self.values.contains_key(&location) {
+            material.prover_key.zeroize();
+            material.verifier_key.zeroize();
+            material.ir_source.zeroize();
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
+        self.values.insert(location, material);
+        Ok(())
+    }
+
+    pub(super) fn validate_locations(
+        &self,
+        expected: &BTreeSet<String>,
+    ) -> Result<(), MidnightRuntimeError> {
+        if self
+            .values
+            .keys()
+            .any(|location| !expected.contains(location))
+        {
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
         Ok(())
     }
 }

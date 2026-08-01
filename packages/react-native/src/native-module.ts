@@ -1,6 +1,6 @@
 import { requireNativeModule } from "expo-modules-core";
 
-export const EXPO_MIDNIGHT_NATIVE_MODULE_NAME = "ExpoMidnightNative";
+export const EXPO_MIDNIGHT_NATIVE_MODULE_NAME = "MidnightMobileRuntime";
 
 export interface NativeRuntimeModule {
   openWalletSession(

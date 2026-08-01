@@ -103,7 +103,7 @@ function pullAndValidate(name, destinationName, example) {
       "--locked",
       "--quiet",
       "--package",
-      "midnight-native-runtime",
+      "midnight-mobile-runtime",
       "--features",
       "local-prover",
       "--example",

@@ -19,7 +19,7 @@ const repositoryRoot = resolve(spikeRoot, "../..");
 const targetRoot = resolve(repositoryRoot, "target/android-prover-spike");
 const appInput = resolve(targetRoot, "app-input");
 const rustTarget = "aarch64-linux-android";
-const libraryName = "libmidnight_native_runtime.so";
+const libraryName = "libmidnight_mobile_runtime.so";
 
 function run(command, arguments_, options = {}) {
   const result = spawnSync(command, arguments_, {
@@ -94,18 +94,18 @@ function inspectLibrary(library, toolchain) {
     library,
   ]).stdout;
   for (const symbol of [
-    "midnight_local_prover_check",
-    "midnight_local_prover_close",
-    "midnight_local_prover_configure",
-    "midnight_local_prover_free",
-    "midnight_local_prover_prove",
+    "midnight_mobile_local_prover_check",
+    "midnight_mobile_local_prover_close",
+    "midnight_mobile_local_prover_configure",
+    "midnight_mobile_local_prover_free",
+    "midnight_mobile_local_prover_prove",
   ]) {
     if (!symbols.includes(symbol))
       throw new Error(`missing native symbol ${symbol}`);
   }
   const uniffiFunctions = [
     ...symbols.matchAll(
-      /\buniffi_midnight_native_runtime_fn_func_([a-z0-9_]+)$/gmu,
+      /\buniffi_midnight_mobile_runtime_fn_func_([a-z0-9_]+)$/gmu,
     ),
   ]
     .map((match) => match[1])
@@ -138,7 +138,7 @@ function buildRust(toolchain) {
       "--locked",
       "--release",
       "--package",
-      "midnight-native-runtime",
+      "midnight-mobile-runtime",
       "--features",
       "local-prover",
       "--target",

@@ -34,7 +34,10 @@ export class MockMidnightServices {
     if (request.signal.aborted) {
       return Promise.reject(new MidnightRuntimeError("CANCELLED"));
     }
-    if (url === MOCK_NETWORK.proofServerUrl) {
+    if (
+      url === `${MOCK_NETWORK.proofServerUrl}/prove` ||
+      url === `${MOCK_NETWORK.proofServerUrl}/balance-only`
+    ) {
       return this.#proofResponse();
     }
     if (url !== MOCK_NETWORK.indexerHttpUrl && url !== MOCK_NETWORK.nodeUrl) {

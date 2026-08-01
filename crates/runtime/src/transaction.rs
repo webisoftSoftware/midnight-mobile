@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Wake, Waker};
@@ -18,7 +18,9 @@ use super::MidnightRuntimeError;
 mod remote_proof;
 
 use remote_proof::PausingProver;
-pub(crate) use remote_proof::{RemoteProofKind, RemoteProofRequest, RemoteProofResponses};
+pub(crate) use remote_proof::{
+    RemoteProofKeyMaterials, RemoteProofKind, RemoteProofRequest, RemoteProofResponses,
+};
 
 #[cfg(test)]
 mod tests;
@@ -65,6 +67,20 @@ pub(crate) fn advance_unproven_transaction(
     expected_network_id: &str,
     responses: &RemoteProofResponses,
 ) -> Result<BalanceProgress, MidnightRuntimeError> {
+    advance_unproven_transaction_with_materials(
+        raw,
+        expected_network_id,
+        responses,
+        &RemoteProofKeyMaterials::default(),
+    )
+}
+
+pub(crate) fn advance_unproven_transaction_with_materials(
+    raw: &[u8],
+    expected_network_id: &str,
+    responses: &RemoteProofResponses,
+    key_material: &RemoteProofKeyMaterials,
+) -> Result<BalanceProgress, MidnightRuntimeError> {
     if raw.is_empty() || raw.len() > MAX_TRANSACTION_BYTES || expected_network_id.is_empty() {
         return Err(MidnightRuntimeError::InvalidArgument);
     }
@@ -79,10 +95,12 @@ pub(crate) fn advance_unproven_transaction(
     if canonical != raw {
         return Err(MidnightRuntimeError::InvalidArgument);
     }
+    key_material.validate_locations(&proof_key_locations(&transaction))?;
 
     let captured = Arc::new(Mutex::new(BTreeMap::new()));
     let provider = PausingProver {
-        responses: Arc::new(responses.clone()),
+        responses,
+        key_material,
         captured: Arc::clone(&captured),
     };
     match block_on(transaction.prove(provider, &INITIAL_COST_MODEL)) {
@@ -198,8 +216,10 @@ pub(crate) fn advance_dust_balance(
     }
 
     let captured = Arc::new(Mutex::new(BTreeMap::new()));
+    let key_material = RemoteProofKeyMaterials::default();
     let provider = PausingProver {
-        responses: Arc::new(responses.clone()),
+        responses,
+        key_material: &key_material,
         captured: Arc::clone(&captured),
     };
     let proven = block_on(balancing.prove(provider, &INITIAL_COST_MODEL));
@@ -244,6 +264,32 @@ pub(crate) fn advance_dust_balance(
             Ok(BalanceProgress::Network(request))
         }
     }
+}
+
+fn proof_key_locations(
+    transaction: &Transaction<Signature, ProofPreimageMarker, PedersenRandomness, InMemoryDB>,
+) -> BTreeSet<String> {
+    let mut locations = BTreeSet::new();
+    let Transaction::Standard(standard) = transaction else {
+        return locations;
+    };
+    for input in standard.inputs() {
+        locations.insert(input.proof.key_location.0.to_string());
+    }
+    for output in standard.outputs() {
+        locations.insert(output.proof.key_location.0.to_string());
+    }
+    for (_, call) in standard.calls() {
+        locations.insert(call.proof.key_location().0.to_string());
+    }
+    for (_, intent) in standard.intents() {
+        if let Some(actions) = intent.dust_actions.as_ref() {
+            for spend in actions.spends.iter_deref() {
+                locations.insert(spend.proof.key_location.0.to_string());
+            }
+        }
+    }
+    locations
 }
 
 pub(crate) fn finalize_balance_original(

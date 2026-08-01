@@ -24,7 +24,14 @@ await test("native build config pins the exact M4 Android contract", () => {
   assert.match(
     validateNativeBuildConfig({
       ...config,
-      apple: { ...config.apple, moduleName: "MidnightNativeRuntimeFFI" },
+      rust: { ...config.rust, libraryBaseName: "midnight_runtime" },
+    }).join("\n"),
+    /library must be midnight_mobile_runtime/u,
+  );
+  assert.match(
+    validateNativeBuildConfig({
+      ...config,
+      apple: { ...config.apple, moduleName: "MidnightMobileRuntimeFFI" },
     }).join("\n"),
     /framework and generated module names must match/u,
   );
@@ -34,7 +41,7 @@ await test("ELF inspection requires the right ABI and eight functions", () => {
   const symbols = config.rust.uniffiFunctions
     .map(
       (name) =>
-        `0000000000000000 T uniffi_midnight_native_runtime_fn_func_${name}`,
+        `0000000000000000 T uniffi_midnight_mobile_runtime_fn_func_${name}`,
     )
     .concat(config.android.localProver.exportedFunctions)
     .join("\n");

@@ -1,4 +1,4 @@
-package expo.modules.midnightlocalprover
+package dev.oneam.midnightmobile.localprover
 
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
@@ -10,7 +10,7 @@ private fun localProverException(error: Throwable, fallbackCode: String): CodedE
   return CodedException(code, code, error)
 }
 
-class ExpoMidnightLocalProverModule : Module() {
+class MidnightMobileLocalProverModule : Module() {
   private var bridge: LocalProverBridge? = null
 
   private fun proverBridge(): LocalProverBridge = synchronized(this) {
@@ -18,7 +18,7 @@ class ExpoMidnightLocalProverModule : Module() {
   }
 
   override fun definition() = ModuleDefinition {
-    Name("ExpoMidnightLocalProver")
+    Name("MidnightMobileLocalProver")
 
     AsyncFunction("configure") { configurationJson: String ->
       try {
@@ -59,7 +59,7 @@ class ExpoMidnightLocalProverModule : Module() {
     }
 
     OnDestroy {
-      val current = synchronized(this@ExpoMidnightLocalProverModule) {
+      val current = synchronized(this@MidnightMobileLocalProverModule) {
         bridge.also { bridge = null }
       }
       if (current != null) {

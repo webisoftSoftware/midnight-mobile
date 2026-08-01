@@ -50,9 +50,9 @@ private func decodeUInt64(_ value: Double) throws -> UInt64 {
   return UInt64(value)
 }
 
-public class ExpoMidnightNativeModule: Module {
+public class MidnightMobileRuntimeModule: Module {
   public func definition() -> ModuleDefinition {
-    Name("ExpoMidnightNative")
+    Name("MidnightMobileRuntime")
 
     AsyncFunction("openWalletSession") {
       (

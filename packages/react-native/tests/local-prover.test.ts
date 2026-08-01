@@ -19,10 +19,11 @@ import type {
   MidnightRuntimeApi,
   MidnightSessionHandle,
 } from "../src/runtime-types.js";
-import type {
-  MidnightFetch,
-  MidnightTransportConfiguration,
-  MidnightWebSocket,
+import {
+  createStandardMidnightTransport,
+  type MidnightFetch,
+  type MidnightTransportConfiguration,
+  type MidnightWebSocket,
 } from "../src/transport.js";
 
 const file = {
@@ -242,4 +243,39 @@ await test("transport keeps only check and prove local", async () => {
   );
   assert.deepEqual(localCalls, ["check:7", "prove:7"]);
   assert.equal(remoteCalls, 2);
+});
+
+await test("standard transport routes proof effects to exact service paths", async () => {
+  const urls: string[] = [];
+  const fetch: MidnightFetch = (url) => {
+    urls.push(url);
+    return Promise.resolve({
+      status: 200,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    });
+  };
+  const transport = createStandardMidnightTransport(transportConfig(fetch));
+  const command = {
+    kind: "signData",
+    domain: "test",
+    dataBase64: "AA==",
+  } as const;
+  for (const effect of [
+    "check",
+    "prove",
+    "proveAndBalance",
+    "balance",
+  ] as const) {
+    await transport.runCommand(
+      effectApi(effect),
+      { id: 1, generation: 1 },
+      command,
+    );
+  }
+  assert.deepEqual(urls, [
+    "https://proof.invalid/request/check",
+    "https://proof.invalid/request/prove",
+    "https://proof.invalid/request/prove-and-balance",
+    "https://proof.invalid/request/balance-only",
+  ]);
 });

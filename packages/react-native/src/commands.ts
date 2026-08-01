@@ -1,5 +1,6 @@
 export type MidnightNetworkId = "preview" | "preprod" | "mainnet";
 export type MidnightSyncStream = "shielded" | "unshielded" | "dust";
+export type MidnightSyncRequestMode = "standard" | "fast";
 export type MidnightWalletType = "shielded" | "unshielded";
 
 export interface MidnightProvingKeyMaterial {
@@ -50,11 +51,27 @@ export interface MidnightCommandMap {
     readonly bindingMarker: "binding" | "pre-binding" | "no-binding";
     readonly rawBase64: string;
   };
-  readonly createSyncRequest: {
-    readonly kind: "createSyncRequest";
-    readonly stream: MidnightSyncStream;
-    readonly fromOffset: number;
-    readonly limit: number;
+  readonly createSyncRequest:
+    | {
+        readonly kind: "createSyncRequest";
+        readonly mode?: "standard";
+        readonly stream: MidnightSyncStream;
+        readonly fromOffset: number;
+        readonly limit: number;
+      }
+    | {
+        readonly kind: "createSyncRequest";
+        readonly mode: "fast";
+        readonly stream: "shielded" | "dust";
+        readonly fromOffset: number;
+      };
+  readonly deriveShieldedMintContext: {
+    readonly kind: "deriveShieldedMintContext";
+  };
+  readonly watchShieldedMint: {
+    readonly kind: "watchShieldedMint";
+    readonly coinInfoBase64: string;
+    readonly expectedOutputIndex: number;
   };
   readonly createShieldedSpentRequest: {
     readonly kind: "createShieldedSpentRequest";
@@ -106,6 +123,11 @@ export interface MidnightCommandMap {
   };
   readonly balanceUnsealed: MidnightBalanceCommand<"balanceUnsealed">;
   readonly balanceSealed: MidnightBalanceCommand<"balanceSealed">;
+  readonly finalizeUnprovenTransaction: {
+    readonly kind: "finalizeUnprovenTransaction";
+    readonly rawBase64: string;
+    readonly keyMaterial?: Readonly<Record<string, MidnightProvingKeyMaterial>>;
+  };
   readonly submitFinalized: {
     readonly kind: "submitFinalized";
     readonly rawBase64: string;
@@ -148,6 +170,16 @@ export interface MidnightSyncRequestResult {
   readonly stream: MidnightSyncStream;
   readonly fromOffset: number;
   readonly requestBase64: string;
+}
+
+export interface MidnightShieldedMintContextResult {
+  readonly coinPublicKeyHex: string;
+  readonly encryptionPublicKeyHex: string;
+  readonly outputIndex: number;
+}
+
+export interface MidnightWatchShieldedMintResult {
+  readonly outputIndex: number;
 }
 
 export interface MidnightShieldedSpentRequestResult {
@@ -198,6 +230,8 @@ export interface MidnightCommandResultMap {
   readonly createProvingPayload: MidnightPayloadResult;
   readonly canonicalizeTransaction: MidnightCanonicalTransactionResult;
   readonly createSyncRequest: MidnightSyncRequestResult;
+  readonly deriveShieldedMintContext: MidnightShieldedMintContextResult;
+  readonly watchShieldedMint: MidnightWatchShieldedMintResult;
   readonly createShieldedSpentRequest: MidnightShieldedSpentRequestResult;
   readonly applyShieldedSpentResponse: MidnightShieldedSpentResult;
   readonly setShieldedProtocolVersion: MidnightProtocolVersionResult;
@@ -210,6 +244,7 @@ export interface MidnightCommandResultMap {
   readonly generateDust: MidnightFinalizedTransactionResult;
   readonly balanceUnsealed: MidnightFinalizedTransactionResult;
   readonly balanceSealed: MidnightFinalizedTransactionResult;
+  readonly finalizeUnprovenTransaction: MidnightFinalizedTransactionResult;
   readonly submitFinalized: MidnightSubmissionResult;
 }
 
@@ -223,6 +258,8 @@ export const MIDNIGHT_COMMAND_KINDS = [
   "createProvingPayload",
   "canonicalizeTransaction",
   "createSyncRequest",
+  "deriveShieldedMintContext",
+  "watchShieldedMint",
   "createShieldedSpentRequest",
   "applyShieldedSpentResponse",
   "setShieldedProtocolVersion",
@@ -235,5 +272,6 @@ export const MIDNIGHT_COMMAND_KINDS = [
   "generateDust",
   "balanceUnsealed",
   "balanceSealed",
+  "finalizeUnprovenTransaction",
   "submitFinalized",
 ] as const satisfies readonly MidnightCommandKind[];

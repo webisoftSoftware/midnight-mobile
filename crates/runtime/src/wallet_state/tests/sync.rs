@@ -4,6 +4,65 @@ use midnight_ledger::structure::{INITIAL_PARAMETERS, TransactionHash};
 use super::*;
 
 #[test]
+fn snapshot_requests_and_v2_imports_are_native_and_integrity_checked() {
+    let state = empty_state();
+    let shielded_request: serde_json::Value = serde_json::from_slice(
+        &NativeWalletState::snapshot_sync_request("shielded", &[2; 32], &[3; 32]).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        shielded_request["coinPublicKey"].as_str().unwrap().len(),
+        64
+    );
+    assert!(shielded_request["viewingKey"].as_str().is_some_and(
+        |value| !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+    ));
+    let dust_request: serde_json::Value = serde_json::from_slice(
+        &NativeWalletState::snapshot_sync_request("dust", &[2; 32], &[3; 32]).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(dust_request["dustPublicKey"].as_str().unwrap().len(), 64);
+    assert!(NativeWalletState::snapshot_sync_request("unshielded", &[2; 32], &[3; 32]).is_err());
+
+    let mut shielded = Vec::new();
+    shielded.extend_from_slice(&0_u32.to_le_bytes());
+    shielded.extend_from_slice(&0_u32.to_le_bytes());
+    shielded.extend_from_slice(&17_u64.to_le_bytes());
+    NativeWalletState::validate_v2_trailer("shielded-v2", std::slice::from_ref(&shielded), 17)
+        .unwrap();
+    assert!(
+        NativeWalletState::validate_v2_trailer("shielded-v2", std::slice::from_ref(&shielded), 18,)
+            .is_err()
+    );
+    let mut zero_tip = shielded.clone();
+    let trailer = zero_tip.len() - 8;
+    zero_tip[trailer..].copy_from_slice(&0_u64.to_le_bytes());
+    assert!(
+        NativeWalletState::validate_v2_trailer("shielded-v2", std::slice::from_ref(&zero_tip), 0,)
+            .is_err()
+    );
+    let imported_shielded = state
+        .apply_batch("shielded-v2", &[shielded], &[2; 32], &[3; 32])
+        .unwrap();
+    assert_eq!(imported_shielded.shielded.first_free, 0);
+
+    let mut dust = Vec::new();
+    dust.extend_from_slice(&0_u32.to_le_bytes());
+    dust.extend_from_slice(&1_700_000_000_u64.to_le_bytes());
+    dust.extend_from_slice(&0_u32.to_le_bytes());
+    dust.extend_from_slice(&0_u32.to_le_bytes());
+    dust.extend_from_slice(&0_u32.to_le_bytes());
+    dust.extend_from_slice(&0_u32.to_le_bytes());
+    dust.extend_from_slice(&23_u64.to_le_bytes());
+    NativeWalletState::validate_v2_trailer("dust-v2", std::slice::from_ref(&dust), 23).unwrap();
+    let imported_dust = state
+        .apply_batch("dust-v2", &[dust], &[2; 32], &[3; 32])
+        .unwrap();
+    assert_eq!(imported_dust.dust.generating_tree_first_free, 0);
+    assert_eq!(imported_dust.dust.commitment_tree_first_free, 0);
+}
+
+#[test]
 fn wallet_sync_snapshot_restore_and_dust_requests_round_trip() {
     let (state, keys, _) = funded_state();
     let balances = state.balances().unwrap();
