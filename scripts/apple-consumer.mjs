@@ -75,6 +75,8 @@ function validatePodspec(podspec) {
     fail("podspec must not invoke Rust or consumer build scripts");
   }
   const spec = JSON.parse(run("pod", ["ipc", "spec", podspec]));
+  const moduleError = podspecModuleContractError(spec);
+  if (moduleError !== undefined) fail(moduleError);
   const expectedFramework = `build/${FRAMEWORK_NAME}.xcframework`;
   if (
     spec.platforms?.ios !== APPLE_CONFIGURATION.deploymentTarget ||
@@ -86,7 +88,8 @@ function validatePodspec(podspec) {
     ? spec.source_files
     : [spec.source_files];
   for (const required of [
-    "ExpoMidnightNativeModule.swift",
+    "MidnightMobileRuntimeModule.swift",
+    "MidnightMobileLocalProverModule.swift",
     `generated/${FRAMEWORK_NAME}.swift`,
   ]) {
     if (!sources.includes(required))
@@ -94,10 +97,20 @@ function validatePodspec(podspec) {
   }
 }
 
+export function podspecModuleContractError(spec) {
+  if (spec.name !== FRAMEWORK_NAME) {
+    return `podspec name must remain ${FRAMEWORK_NAME}`;
+  }
+  if (spec.module_name !== "MidnightMobileExpo") {
+    return "podspec module_name must be MidnightMobileExpo so generated Swift imports the distinct MidnightMobileRuntime framework module";
+  }
+  return undefined;
+}
+
 function swiftConsumerSource() {
   return `import ${APPLE_CONFIGURATION.moduleName}
 
-let version = ffi_midnight_native_runtime_uniffi_contract_version()
+let version = ffi_midnight_mobile_runtime_uniffi_contract_version()
 precondition(version == 30)
 `;
 }
@@ -164,8 +177,8 @@ function projectFile(xcframework) {
     A1000000000000000000000B = {isa = PBXGroup; children = (A10000000000000000000006, ); name = Products; sourceTree = "<group>"; };
     A1000000000000000000000C = {isa = PBXNativeTarget; buildConfigurationList = A1000000000000000000000D; buildPhases = (A10000000000000000000008, A10000000000000000000007, A10000000000000000000009, ); buildRules = (); dependencies = (); name = AppleConsumer; productName = AppleConsumer; productReference = A10000000000000000000006; productType = "com.apple.product-type.application"; };
     A1000000000000000000000E = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2660; TargetAttributes = {A1000000000000000000000C = {CreatedOnToolsVersion = 26.6; }; }; }; buildConfigurationList = A1000000000000000000000F; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base, ); mainGroup = A1000000000000000000000A; productRefGroup = A1000000000000000000000B; projectDirPath = ""; projectRoot = ""; targets = (A1000000000000000000000C, ); };
-    A10000000000000000000010 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = ${APPLE_CONFIGURATION.deploymentTarget}; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = dev.oneam.midnight.consumer; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
-    A10000000000000000000011 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = ${APPLE_CONFIGURATION.deploymentTarget}; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = dev.oneam.midnight.consumer; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+    A10000000000000000000010 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = ${APPLE_CONFIGURATION.deploymentTarget}; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = dev.oneam.midnightmobile.consumer; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
+    A10000000000000000000011 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = ${APPLE_CONFIGURATION.deploymentTarget}; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = dev.oneam.midnightmobile.consumer; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
     A10000000000000000000012 = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; }; name = Release; };
     A10000000000000000000013 = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; }; name = Debug; };
     A1000000000000000000000D = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000011, A10000000000000000000010, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };

@@ -93,18 +93,23 @@ fn encode_checkpoint(checkpoint: &WalletCheckpoint) -> Result<Vec<u8>, MidnightR
 }
 
 fn decode_checkpoint(raw: &[u8]) -> Result<WalletCheckpoint, MidnightRuntimeError> {
-    if raw.len() < 8 || raw.len() > MAX_CHECKPOINT_BYTES || &raw[..4] != CHECKPOINT_MAGIC {
+    if raw.is_empty() || raw.len() > MAX_CHECKPOINT_BYTES {
         return Err(MidnightRuntimeError::StateIncompatible);
     }
-    let version = u32::from_be_bytes(
-        raw[4..8]
-            .try_into()
-            .map_err(|_| MidnightRuntimeError::StateIncompatible)?,
-    );
-    if version != CHECKPOINT_VERSION {
-        return Err(MidnightRuntimeError::StateIncompatible);
-    }
-    let checkpoint: WalletCheckpoint = serde_json::from_slice(&raw[8..])
+    let payload = if raw.starts_with(CHECKPOINT_MAGIC) {
+        let version = raw
+            .get(4..8)
+            .and_then(|bytes| bytes.try_into().ok())
+            .map(u32::from_be_bytes)
+            .ok_or(MidnightRuntimeError::StateIncompatible)?;
+        if version != CHECKPOINT_VERSION {
+            return Err(MidnightRuntimeError::StateIncompatible);
+        }
+        &raw[8..]
+    } else {
+        raw
+    };
+    let checkpoint: WalletCheckpoint = serde_json::from_slice(payload)
         .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
     validate_checkpoint(checkpoint)
 }

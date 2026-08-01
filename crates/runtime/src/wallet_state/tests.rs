@@ -126,6 +126,42 @@ fn parsing_helpers_accept_canonical_values_and_reject_malformed_input() {
 }
 
 #[test]
+fn shielded_mint_hooks_derive_keys_and_watch_only_canonical_current_outputs() {
+    let state = empty_state();
+    let context = state.shielded_mint_context(&[2; 32]).unwrap();
+    let address_material = material();
+    assert_eq!(
+        serializable_hex(&context.coin_public_key).unwrap(),
+        address_material.shielded_coin_public_key_hex
+    );
+    assert_eq!(
+        serializable_hex(&context.encryption_public_key).unwrap(),
+        address_material.shielded_encryption_public_key_hex
+    );
+    assert_eq!(context.output_index, 0);
+
+    let mut rng = StdRng::seed_from_u64(91);
+    let coin = ShieldedCoinInfo::new(&mut rng, 5, ShieldedTokenType(HashOutput([7; 32])));
+    let mut raw = Vec::new();
+    tagged_serialize(&coin, &mut raw).unwrap();
+    let (watched, output_index) = state.watch_shielded_mint(&raw, 0, &[2; 32]).unwrap();
+    assert_eq!(output_index, 0);
+    assert_eq!(watched.shielded.pending_outputs.iter().count(), 1);
+    assert_eq!(state.shielded.pending_outputs.iter().count(), 0);
+
+    assert!(matches!(
+        state.watch_shielded_mint(&raw, 1, &[2; 32]),
+        Err(MidnightRuntimeError::SyncGap)
+    ));
+    raw.push(0);
+    assert!(matches!(
+        state.watch_shielded_mint(&raw, 0, &[2; 32]),
+        Err(MidnightRuntimeError::InvalidArgument)
+    ));
+    assert_eq!(state.shielded.pending_outputs.iter().count(), 0);
+}
+
+#[test]
 fn binary_sync_parsers_cover_valid_and_invalid_framing() {
     let mut cursor = BinaryCursor::new(&[1, 0, 0, 0, 9]);
     assert_eq!(cursor.u32_le().unwrap(), 1);

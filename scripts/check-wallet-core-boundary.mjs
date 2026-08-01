@@ -82,7 +82,10 @@ const CONTENT_RULES = Object.freeze([
   {
     name: "disclosure-upload",
     pattern: new RegExp(
-      joined("\\b(?:viewing", "Key|viewing_key|viewing-key|ViewingKey)\\b"),
+      joined(
+        "\\b(?:upload",
+        "ViewingKey|viewingKeyUpload|viewing_key_upload|viewing-key-upload)\\b",
+      ),
       "u",
     ),
   },
@@ -198,7 +201,7 @@ export function validateCommandContracts({ typescriptSource, rustSource }) {
   for (const [name, kinds] of surfaces) {
     if (!sameArray(kinds, ALLOWED_COMMAND_KINDS)) {
       errors.push(
-        `${name} must contain the exact ordered 19 kinds; received ${JSON.stringify(kinds)}`,
+        `${name} must contain the exact ordered 22 kinds; received ${JSON.stringify(kinds)}`,
       );
     }
   }
@@ -343,7 +346,7 @@ function main() {
     }
   }
   console.log(
-    `wallet-core boundary passed: 19 command kinds; ${result.files.length} text files scanned`,
+    `wallet-core boundary passed: 22 command kinds; ${result.files.length} text files scanned`,
   );
   console.log(
     `scan groups: maintained=${groups.get("maintained")}, generated=${groups.get("generated")}, package=${groups.get("package")}`,

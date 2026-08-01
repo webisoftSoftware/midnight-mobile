@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -48,6 +48,7 @@ pub fn begin_command(
         include!("runtime/commands/codecs.rs");
         include!("runtime/commands/dapp.rs");
         include!("runtime/commands/transfers.rs");
+        include!("runtime/commands/finalization.rs");
         include!("runtime/commands/deploy_and_balance.rs");
         include!("runtime/commands/submission_and_queries.rs");
         Err(MidnightRuntimeError::Unavailable)
@@ -103,6 +104,7 @@ pub fn resume_operation(
         include!("runtime/resume/dapp.rs");
         include!("runtime/resume/generate_dust.rs");
         include!("runtime/resume/balance.rs");
+        include!("runtime/resume/transaction.rs");
         include!("runtime/resume/finalize.rs")
     })();
     if resumed.is_err()
@@ -131,7 +133,8 @@ pub fn cancel_operation(operation_id: u64, generation: u64) -> Result<(), Midnig
         PendingOperationKind::SubmitFinalized { transaction_hash } => {
             Some(transaction_hash.clone())
         }
-        PendingOperationKind::Transfer { .. }
+        PendingOperationKind::FinalizeTransactionProof { .. }
+        | PendingOperationKind::FinalizeTransactionBalance { .. }
         | PendingOperationKind::DappIntentProof { .. }
         | PendingOperationKind::GenerateDustProof { .. }
         | PendingOperationKind::Balance { .. } => None,
@@ -184,6 +187,9 @@ pub fn close_wallet_session(session_id: u64, generation: u64) -> Result<(), Midn
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[path = "operations.rs"]
+    mod operations;
 
     include!("runtime/tests/sanitized.rs");
     include!("runtime/tests/hardening.rs");

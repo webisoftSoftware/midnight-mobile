@@ -7,6 +7,7 @@ const MAX_SIGNING_DOMAIN_BYTES: usize = 1024;
 const MAX_DAPP_SIGN_DATA_BYTES: usize = 1024 * 1024;
 const MAX_SYNC_BATCH_RECEIPTS: usize = 4096;
 const MAX_CANCELLED_OPERATION_TOMBSTONES: usize = 1024;
+const RESERVED_OPERATION_ID: u64 = u64::MAX;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, uniffi::Record)]
 #[serde(rename_all = "camelCase")]
@@ -98,6 +99,14 @@ struct ApplySyncResult {
     snapshot: WalletSnapshot,
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+enum SyncRequestMode {
+    #[default]
+    Standard,
+    Fast,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(
     tag = "kind",
@@ -134,7 +143,15 @@ enum RuntimeCommand {
     CreateSyncRequest {
         stream: String,
         from_offset: u64,
-        limit: u64,
+        #[serde(default)]
+        limit: Option<u64>,
+        #[serde(default)]
+        mode: SyncRequestMode,
+    },
+    DeriveShieldedMintContext,
+    WatchShieldedMint {
+        coin_info_base64: String,
+        expected_output_index: u64,
     },
     CreateShieldedSpentRequest,
     ApplyShieldedSpentResponse {
@@ -184,6 +201,11 @@ enum RuntimeCommand {
         fee_blocks_margin: u64,
         additional_fee_overhead: String,
     },
+    FinalizeUnprovenTransaction {
+        raw_base64: String,
+        #[serde(default)]
+        key_material: Option<BTreeMap<String, RuntimeProvingKeyMaterial>>,
+    },
     SubmitFinalized {
         raw_base64: String,
     },
@@ -214,6 +236,17 @@ struct RuntimeProvingKeyMaterial {
     ir_base64: String,
     #[serde(default)]
     compression: Option<String>,
+}
+
+impl Drop for RuntimeProvingKeyMaterial {
+    fn drop(&mut self) {
+        self.prover_key_base64.zeroize();
+        self.verifier_key_base64.zeroize();
+        self.ir_base64.zeroize();
+        if let Some(compression) = &mut self.compression {
+            compression.zeroize();
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]

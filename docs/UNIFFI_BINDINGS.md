@@ -6,7 +6,7 @@ the sanitized Rust runtime. It does not commit a native library at M1.
 Run `npm run generate:bindings` after an intentional Rust ABI or UniFFI version
 change. The command:
 
-1. builds `midnight-native-runtime` using the locked Cargo graph;
+1. builds `midnight-mobile-runtime` using the locked Cargo graph;
 2. generates Swift and Kotlin twice in separate temporary directories with
    optional formatter discovery disabled;
 3. requires both output trees to be byte-for-byte identical;

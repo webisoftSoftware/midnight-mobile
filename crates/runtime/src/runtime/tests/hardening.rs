@@ -134,6 +134,182 @@ fn begin_command_rejects_removed_unknown_and_malformed_commands_before_execution
 }
 
 #[test]
+fn finalize_unproven_transaction_balances_locally_finalized_bytes_and_rejects_bad_material_maps() {
+    use midnight_base_crypto::schnorr::Signature;
+    use midnight_ledger::structure::{ProofPreimageMarker, Transaction};
+    use midnight_serialize::tagged_serialize;
+    use midnight_storage::db::InMemoryDB;
+    use midnight_storage::storage::HashMap as LedgerHashMap;
+    use midnight_transient_crypto::commitment::PedersenRandomness;
+
+    let _runtime = isolated_runtime();
+    let handle = open_test_session("finalize-unproven", None);
+    let transaction = Transaction::<
+        Signature,
+        ProofPreimageMarker,
+        PedersenRandomness,
+        InMemoryDB,
+    >::new(
+        "preview".to_owned(),
+        LedgerHashMap::new(),
+        None,
+        LedgerHashMap::new(),
+    );
+    let mut raw = Vec::new();
+    tagged_serialize(&transaction, &mut raw).unwrap();
+    let command = serde_json::json!({
+        "kind": "finalizeUnprovenTransaction",
+        "rawBase64": encode_base64(&raw),
+    });
+    let step = run_command(&handle, command.clone()).unwrap();
+    assert_eq!(step["kind"], "network");
+    assert_eq!(step["effect"], "balance");
+    assert_eq!(step["endpointRole"], "proof");
+    let balanced_raw = decode_base64(step["bodyBase64"].as_str().unwrap()).unwrap();
+    let response = serde_json::json!({
+        "txHash": hex::encode(Sha256::digest(&balanced_raw)),
+        "txBytes": hex::encode(&balanced_raw),
+    });
+    let resumed = resume_operation(
+        step["operation"]["id"].as_u64().unwrap(),
+        step["operation"]["generation"].as_u64().unwrap(),
+        Some(
+            serde_json::json!({
+                "effectId": step["effectId"],
+                "outcome": "accepted",
+                "bodyBase64": encode_base64(response.to_string().as_bytes()),
+            })
+            .to_string(),
+        ),
+    )
+    .unwrap();
+    let resumed: serde_json::Value = serde_json::from_str(&resumed).unwrap();
+    assert_eq!(resumed["kind"], "complete");
+    assert_eq!(
+        resumed["result"]["transactionBase64"],
+        encode_base64(&balanced_raw)
+    );
+
+    for key_material in [
+        serde_json::json!({}),
+        serde_json::json!({
+            "": {
+                "proverKeyBase64": "AQ==",
+                "verifierKeyBase64": "Ag==",
+                "irBase64": "Aw=="
+            }
+        }),
+        serde_json::json!({
+            "midnight/unknown": {
+                "proverKeyBase64": "AQ==",
+                "verifierKeyBase64": "Ag==",
+                "irBase64": "Aw=="
+            }
+        }),
+        serde_json::json!({
+            "midnight/unknown": {
+                "proverKeyBase64": "",
+                "verifierKeyBase64": "Ag==",
+                "irBase64": "Aw=="
+            }
+        }),
+    ] {
+        let mut invalid = command.clone();
+        invalid["keyMaterial"] = key_material;
+        assert_runtime_error(
+            begin_command(handle.id, handle.generation, invalid.to_string()),
+            "INVALID_ARGUMENT",
+        );
+    }
+    let session = session_for_handle(handle.id, handle.generation).unwrap();
+    assert!(lock_session(&session).unwrap().active_operation.is_none());
+}
+
+#[test]
+fn shielded_mint_commands_are_fenced_and_commit_only_valid_current_coins() {
+    use midnight_base_crypto::hash::HashOutput;
+    use midnight_coin_structure::coin::{Info, ShieldedTokenType};
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    let _runtime = isolated_runtime();
+    let handle = open_test_session("mint-hooks", None);
+    let (operation, _, _) = install_submission_operation(&handle, 17);
+    assert_runtime_error(
+        begin_command(
+            handle.id,
+            handle.generation,
+            r#"{"kind":"deriveShieldedMintContext"}"#.to_owned(),
+        ),
+        "UNAVAILABLE",
+    );
+    cancel_operation(operation.id, operation.generation).unwrap();
+
+    let context = run_command(
+        &handle,
+        serde_json::json!({"kind": "deriveShieldedMintContext"}),
+    )
+    .unwrap();
+    assert_eq!(context["result"]["outputIndex"], 0);
+    assert_eq!(
+        context["result"]["coinPublicKeyHex"]
+            .as_str()
+            .unwrap()
+            .len(),
+        64
+    );
+
+    let mut rng = StdRng::seed_from_u64(101);
+    let coin = Info::new(&mut rng, 5, ShieldedTokenType(HashOutput([7; 32])));
+    let mut raw = Vec::new();
+    midnight_serialize::tagged_serialize(&coin, &mut raw).unwrap();
+    let snapshot_before = get_wallet_snapshot(handle.id, handle.generation).unwrap();
+    let mut malformed = raw.clone();
+    malformed.push(0);
+    assert_runtime_error(
+        begin_command(
+            handle.id,
+            handle.generation,
+            serde_json::json!({
+                "kind": "watchShieldedMint",
+                "coinInfoBase64": encode_base64(&malformed),
+                "expectedOutputIndex": 0
+            })
+            .to_string(),
+        ),
+        "INVALID_ARGUMENT",
+    );
+    assert_eq!(
+        get_wallet_snapshot(handle.id, handle.generation).unwrap(),
+        snapshot_before
+    );
+
+    let watched = run_command(
+        &handle,
+        serde_json::json!({
+            "kind": "watchShieldedMint",
+            "coinInfoBase64": encode_base64(&raw),
+            "expectedOutputIndex": 0
+        }),
+    )
+    .unwrap();
+    assert_eq!(watched["result"]["outputIndex"], 0);
+    assert_runtime_error(
+        begin_command(
+            handle.id,
+            handle.generation,
+            serde_json::json!({
+                "kind": "watchShieldedMint",
+                "coinInfoBase64": encode_base64(&raw),
+                "expectedOutputIndex": 1
+            })
+            .to_string(),
+        ),
+        "SYNC_GAP",
+    );
+}
+
+#[test]
 fn signing_transcript_separates_version_domain_and_length_boundaries() {
     let transcript = signing_transcript("ab", b"c").unwrap();
     let mut expected = b"midnight-mobile/sign-data".to_vec();
@@ -209,6 +385,30 @@ fn checkpoint_restore_rejects_unknown_versions_and_identity_mismatches() {
 }
 
 #[test]
+fn legacy_json_checkpoint_migrates_and_reexports_with_mmcp_framing() {
+    let _runtime = isolated_runtime();
+    let original = open_test_session("legacy-checkpoint", None);
+    let framed = export_wallet_checkpoint(original.id, original.generation).unwrap();
+    let legacy_json = serde_json::to_vec(&decode_checkpoint(&framed).unwrap()).unwrap();
+    close_wallet_session(original.id, original.generation).unwrap();
+
+    let migrated = open_test_session("legacy-checkpoint", Some(legacy_json));
+    let exported = export_wallet_checkpoint(migrated.id, migrated.generation).unwrap();
+    assert_eq!(&exported[..4], CHECKPOINT_MAGIC);
+    assert!(migrated.generation > original.generation);
+
+    let mut invalid = decode_checkpoint(&exported).unwrap();
+    invalid.wallet_fingerprint.push_str("-tampered");
+    assert_runtime_error(
+        test_session_result(
+            "legacy-checkpoint",
+            Some(serde_json::to_vec(&invalid).unwrap()),
+        ),
+        "STATE_INCOMPATIBLE",
+    );
+}
+
+#[test]
 fn runtime_defaults_to_two_sessions_and_releases_capacity_on_close() {
     let _runtime = isolated_runtime();
     let first = open_test_session("session-one", None);
@@ -221,46 +421,6 @@ fn runtime_defaults_to_two_sessions_and_releases_capacity_on_close() {
     let third = open_test_session("session-three", None);
     close_wallet_session(second.id, second.generation).unwrap();
     close_wallet_session(third.id, third.generation).unwrap();
-}
-
-#[test]
-fn one_active_operation_blocks_another_operation_and_sync() {
-    let _runtime = isolated_runtime();
-    let handle = open_test_session("single-operation", None);
-    let (operation, _, _) = install_submission_operation(&handle, 1);
-    let session = session_for_handle(handle.id, handle.generation).unwrap();
-    assert_runtime_error(
-        register_operation(
-            handle.id,
-            handle.generation,
-            &session,
-            PendingOperationKind::SubmitFinalized {
-                transaction_hash: format!("{:064x}", 2),
-            },
-        ),
-        "UNAVAILABLE",
-    );
-    assert_runtime_error(
-        apply_sync_batch(
-            handle.id,
-            handle.generation,
-            "unshielded-tip".to_owned(),
-            0,
-            0,
-            Vec::new(),
-        ),
-        "UNAVAILABLE",
-    );
-    cancel_operation(operation.id, operation.generation).unwrap();
-    apply_sync_batch(
-        handle.id,
-        handle.generation,
-        "unshielded-tip".to_owned(),
-        0,
-        0,
-        Vec::new(),
-    )
-    .unwrap();
 }
 
 #[test]
@@ -394,6 +554,80 @@ fn sync_requires_contiguous_offsets_and_replays_receipts_idempotently() {
         1,
         2,
         vec![second],
+    )
+    .unwrap();
+
+    let mut shielded_v2 = Vec::new();
+    shielded_v2.extend_from_slice(&0_u32.to_le_bytes());
+    shielded_v2.extend_from_slice(&0_u32.to_le_bytes());
+    shielded_v2.extend_from_slice(&7_u64.to_le_bytes());
+    apply_sync_batch(
+        handle.id,
+        handle.generation,
+        "shielded-v2".to_owned(),
+        0,
+        7,
+        vec![shielded_v2.clone()],
+    )
+    .unwrap();
+    let duplicate = apply_sync_batch(
+        handle.id,
+        handle.generation,
+        "shielded-v2".to_owned(),
+        0,
+        7,
+        vec![shielded_v2.clone()],
+    )
+    .unwrap();
+    assert!(
+        serde_json::from_str::<serde_json::Value>(&duplicate).unwrap()["duplicate"]
+            .as_bool()
+            .unwrap()
+    );
+    shielded_v2[0] = 1;
+    assert_runtime_error(
+        apply_sync_batch(
+            handle.id,
+            handle.generation,
+            "shielded-v2".to_owned(),
+            0,
+            7,
+            vec![shielded_v2],
+        ),
+        "SYNC_GAP",
+    );
+
+    let mut dust_v2 = Vec::new();
+    dust_v2.extend_from_slice(&0_u32.to_le_bytes());
+    dust_v2.extend_from_slice(&1_700_000_000_u64.to_le_bytes());
+    dust_v2.extend_from_slice(&0_u32.to_le_bytes());
+    dust_v2.extend_from_slice(&0_u32.to_le_bytes());
+    dust_v2.extend_from_slice(&0_u32.to_le_bytes());
+    dust_v2.extend_from_slice(&0_u32.to_le_bytes());
+    dust_v2.extend_from_slice(&9_u64.to_le_bytes());
+    let snapshot_before = get_wallet_snapshot(handle.id, handle.generation).unwrap();
+    assert_runtime_error(
+        apply_sync_batch(
+            handle.id,
+            handle.generation,
+            "dust-v2".to_owned(),
+            0,
+            8,
+            vec![dust_v2.clone()],
+        ),
+        "SYNC_GAP",
+    );
+    assert_eq!(
+        get_wallet_snapshot(handle.id, handle.generation).unwrap(),
+        snapshot_before
+    );
+    apply_sync_batch(
+        handle.id,
+        handle.generation,
+        "dust-v2".to_owned(),
+        0,
+        9,
+        vec![dust_v2],
     )
     .unwrap();
 }

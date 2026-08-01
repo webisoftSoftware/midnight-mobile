@@ -246,6 +246,40 @@ fn wallet_commands_cover_sync_codec_and_validation_paths() {
     )
     .unwrap();
     assert_eq!(sync["result"]["stream"], "shielded");
+    let accelerated = run_command(
+        &handle,
+        serde_json::json!({
+            "kind": "createSyncRequest",
+            "mode": "fast",
+            "stream": "shielded",
+            "fromOffset": 0
+        }),
+    )
+    .unwrap();
+    let request = decode_base64(accelerated["result"]["requestBase64"].as_str().unwrap()).unwrap();
+    let request: serde_json::Value = serde_json::from_slice(&request).unwrap();
+    assert_eq!(request["coinPublicKey"].as_str().unwrap().len(), 64);
+    assert!(
+        run_command(
+            &handle,
+            serde_json::json!({
+                "kind": "createSyncRequest",
+                "mode": "fast",
+                "stream": "shielded",
+                "fromOffset": 1
+            }),
+        )
+        .is_err()
+    );
+    let mint_context =
+        run_command(&handle, serde_json::json!({"kind": "deriveShieldedMintContext"})).unwrap();
+    assert_eq!(
+        mint_context["result"]["coinPublicKeyHex"]
+            .as_str()
+            .unwrap()
+            .len(),
+        64
+    );
     assert!(
         run_command(
             &handle,
@@ -336,8 +370,16 @@ fn resumable_operation_variants_clear_or_preserve_state_on_failure() {
         body: vec![1],
     };
     let kinds = vec![
-        PendingOperationKind::Transfer {
-            proposed_state: wallet_state.clone(),
+        PendingOperationKind::FinalizeTransactionProof {
+            raw: vec![0xff],
+            key_material: transaction::RemoteProofKeyMaterials::default(),
+            proposed_state: Some(wallet_state.clone()),
+            expected_identifiers: Vec::new(),
+            responses: transaction::RemoteProofResponses::default(),
+            pending_request: request(),
+        },
+        PendingOperationKind::FinalizeTransactionBalance {
+            proposed_state: Some(wallet_state.clone()),
             expected_identifiers: Vec::new(),
         },
         PendingOperationKind::DappIntentProof {

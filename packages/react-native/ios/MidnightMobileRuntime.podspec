@@ -3,7 +3,7 @@ require 'json'
 package = JSON.parse(File.read(File.join(__dir__, '..', 'package.json')))
 
 Pod::Spec.new do |s|
-  s.name             = 'ExpoMidnightNative'
+  s.name             = 'MidnightMobileRuntime'
   s.version          = package['version']
   s.summary          = package['description']
   s.description      = package['description']
@@ -14,16 +14,19 @@ Pod::Spec.new do |s|
                          :tag => "v#{s.version}" }
   s.platforms        = { :ios => '15.1' }
   s.swift_version    = '5.9'
+  s.module_name      = 'MidnightMobileExpo'
 
   s.dependency 'ExpoModulesCore'
   s.source_files = [
-    'ExpoMidnightNativeModule.swift',
-    'generated/MidnightNativeRuntime.swift'
+    'MidnightMobileRuntimeModule.swift',
+    'MidnightMobileLocalProverModule.swift',
+    'generated/MidnightMobileRuntime.swift'
   ]
-  s.vendored_frameworks = 'build/MidnightNativeRuntime.xcframework'
+  s.vendored_frameworks = 'build/MidnightMobileRuntime.xcframework'
   s.preserve_paths = [
+    'MidnightMobileLocalProverFFI.h',
     'generated/*',
-    'build/MidnightNativeRuntime.xcframework'
+    'build/MidnightMobileRuntime.xcframework'
   ]
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

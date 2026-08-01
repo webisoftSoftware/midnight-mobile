@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { podspecModuleContractError } from "./apple-consumer.mjs";
 import {
   validatePackageMetadata,
   validatePackEntries,
@@ -18,17 +19,25 @@ const metadata = {
       import: "./dist/index.js",
       default: "./dist/index.js",
     },
+    "./local-prover": {
+      types: "./dist/local-prover.d.ts",
+      import: "./dist/local-prover.js",
+      default: "./dist/local-prover.js",
+    },
     "./package.json": "./package.json",
   },
   files: [
     "README.md",
     "dist",
     "expo-module.config.json",
-    "ios/ExpoMidnightNative.podspec",
-    "ios/ExpoMidnightNativeModule.swift",
-    "ios/build/MidnightNativeRuntime.xcframework",
+    "ios/MidnightMobileRuntime.podspec",
+    "ios/MidnightMobileLocalProverModule.swift",
+    "ios/MidnightMobileRuntimeModule.swift",
+    "ios/MidnightMobileLocalProverFFI.h",
+    "ios/build/MidnightMobileRuntime.xcframework",
     "ios/generated",
     "android/build.gradle",
+    "android/local-prover",
     "android/src/main",
     "android/generated",
   ],
@@ -52,11 +61,46 @@ const metadata = {
 };
 const autolinking = {
   platforms: ["apple", "android"],
-  apple: { modules: ["ExpoMidnightNativeModule"] },
+  apple: {
+    swiftModuleName: "MidnightMobileExpo",
+    modules: ["MidnightMobileRuntimeModule", "MidnightMobileLocalProverModule"],
+  },
   android: {
-    modules: ["expo.modules.midnightnative.ExpoMidnightNativeModule"],
+    modules: [
+      "dev.oneam.midnightmobile.MidnightMobileRuntimeModule",
+      "dev.oneam.midnightmobile.localprover.MidnightMobileLocalProverModule",
+    ],
   },
 };
+
+await test("CocoaPods keeps the Expo target module distinct from the Rust framework", () => {
+  assert.equal(
+    podspecModuleContractError({
+      name: "MidnightMobileRuntime",
+      module_name: "MidnightMobileExpo",
+    }),
+    undefined,
+  );
+  assert.match(
+    podspecModuleContractError({
+      name: "MidnightMobileRuntime",
+      module_name: "MidnightMobileRuntime",
+    }) ?? "",
+    /distinct MidnightMobileRuntime framework module/u,
+  );
+});
+
+await test("Expo autolinking imports the Expo pod target module", () => {
+  assert.deepEqual(validatePackageMetadata(metadata, autolinking), []);
+  const withoutSwiftModule = {
+    ...autolinking,
+    apple: { modules: autolinking.apple.modules },
+  };
+  assert.match(
+    validatePackageMetadata(metadata, withoutSwiftModule).join("\n"),
+    /Expo autolinking metadata/u,
+  );
+});
 
 await test("package metadata enforces the M4 consumer contract", () => {
   assert.deepEqual(validatePackageMetadata(metadata, autolinking), []);
@@ -91,15 +135,21 @@ await test("tarball inspection requires and allowlists M4 native binaries", () =
     "README.md",
     "android/build.gradle",
     "android/generated/README.md",
-    "android/src/main/jniLibs/arm64-v8a/libmidnight_native_runtime.so",
-    "android/src/main/jniLibs/x86_64/libmidnight_native_runtime.so",
-    "android/src/main/java/expo/modules/midnightnative/ExpoMidnightNativeModule.kt",
+    "android/local-prover/dev/oneam/midnightmobile/localprover/LocalProverBridge.kt",
+    "android/src/main/jniLibs/arm64-v8a/libmidnight_mobile_runtime.so",
+    "android/src/main/jniLibs/x86_64/libmidnight_mobile_runtime.so",
+    "android/src/main/java/dev/oneam/midnightmobile/MidnightMobileRuntimeModule.kt",
+    "android/src/main/java/dev/oneam/midnightmobile/localprover/MidnightMobileLocalProverModule.kt",
     "dist/index.d.ts",
     "dist/index.js",
+    "dist/local-prover.d.ts",
+    "dist/local-prover.js",
     "expo-module.config.json",
-    "ios/ExpoMidnightNative.podspec",
-    "ios/ExpoMidnightNativeModule.swift",
-    "ios/build/MidnightNativeRuntime.xcframework/Info.plist",
+    "ios/MidnightMobileRuntime.podspec",
+    "ios/MidnightMobileLocalProverModule.swift",
+    "ios/MidnightMobileRuntimeModule.swift",
+    "ios/MidnightMobileLocalProverFFI.h",
+    "ios/build/MidnightMobileRuntime.xcframework/Info.plist",
     "ios/generated/README.md",
     "package.json",
   ].map((path) => ({ path }));
@@ -108,7 +158,7 @@ await test("tarball inspection requires and allowlists M4 native binaries", () =
     ...required,
     { path: "src/private.ts" },
     {
-      path: "ios/build/MidnightNativeRuntime.xcframework/slice/unsupported.dylib",
+      path: "ios/build/MidnightMobileRuntime.xcframework/slice/unsupported.dylib",
     },
   ]);
   assert.equal(

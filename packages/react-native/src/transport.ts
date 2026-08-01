@@ -89,6 +89,10 @@ export interface MidnightStandardTransport {
   ): MidnightWebSocket;
 }
 
+export interface InternalMidnightProofAdapter {
+  execute(effect: "check" | "prove", request: Uint8Array): Promise<Uint8Array>;
+}
+
 function checkedUrl(value: string, protocols: readonly string[]): string {
   let parsed: URL;
   try {
@@ -105,9 +109,25 @@ function checkedUrl(value: string, protocols: readonly string[]): string {
 function endpoint(
   network: MidnightNetworkConfiguration,
   role: MidnightEndpointRole,
+  effect: NetworkStep<MidnightCommandKind>["effect"],
 ): string {
   if (role === "indexer") return network.indexerHttpUrl;
-  if (role === "proof") return network.proofServerUrl;
+  if (role === "proof") {
+    const route =
+      effect === "check" || effect === "prove"
+        ? effect
+        : effect === "proveAndBalance"
+          ? "prove-and-balance"
+          : effect === "balance"
+            ? "balance-only"
+            : undefined;
+    if (route !== undefined) {
+      const url = new URL(network.proofServerUrl);
+      url.pathname = `${url.pathname.replace(/\/+$/u, "")}/${route}`;
+      return url.toString();
+    }
+    return network.proofServerUrl;
+  }
   return network.nodeUrl;
 }
 
@@ -204,7 +224,7 @@ async function requestNetwork(
 ): Promise<MidnightNetworkResult> {
   const extraHeaders = (await config.headers?.(step.endpointRole)) ?? {};
   const response = await config.fetch(
-    endpoint(config.network, step.endpointRole),
+    endpoint(config.network, step.endpointRole, step.effect),
     {
       method: "POST",
       headers: {
@@ -257,6 +277,7 @@ async function executeNetwork(
   step: NetworkStep<MidnightCommandKind>,
   signal: AbortSignal | undefined,
   timeoutMs: number,
+  proofAdapter?: InternalMidnightProofAdapter,
 ): Promise<MidnightNetworkResult> {
   const logger = config.logger ?? silentMidnightLogger;
   const bytes = decodeBase64(step.bodyBase64);
@@ -270,6 +291,15 @@ async function executeNetwork(
     byteLength: bytes.length,
   });
   try {
+    if (
+      proofAdapter !== undefined &&
+      step.endpointRole === "proof" &&
+      (step.effect === "check" || step.effect === "prove")
+    ) {
+      const responseBytes = await proofAdapter.execute(step.effect, bytes);
+      logResponse(logger, step, "accepted", startedAt, responseBytes);
+      return acceptedResult(step, "accepted", responseBytes);
+    }
     return await requestNetwork(
       config,
       step,
@@ -282,6 +312,7 @@ async function executeNetwork(
     return recoverNetworkFailure(error, logger, step, signal, startedAt);
   } finally {
     linked.release();
+    bytes.fill(0);
   }
 }
 
@@ -294,6 +325,13 @@ async function notifyStep<K extends MidnightCommandKind>(
 
 export function createStandardMidnightTransport(
   config: MidnightTransportConfiguration,
+): MidnightStandardTransport {
+  return createMidnightTransportWithProofAdapter(config);
+}
+
+export function createMidnightTransportWithProofAdapter(
+  config: MidnightTransportConfiguration,
+  proofAdapter?: InternalMidnightProofAdapter,
 ): MidnightStandardTransport {
   const network = {
     indexerHttpUrl: checkedUrl(config.network.indexerHttpUrl, [
@@ -332,6 +370,7 @@ export function createStandardMidnightTransport(
                   step,
                   options?.signal,
                   timeoutMs,
+                  proofAdapter,
                 )
               : null;
           step = await api.resumeOperation(step.operation, result);

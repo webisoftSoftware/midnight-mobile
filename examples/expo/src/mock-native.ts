@@ -15,7 +15,7 @@ interface MockSessionConfiguration {
 interface MockOperation {
   readonly id: number;
   readonly kind: "transfer" | "submitFinalized" | "createProvingPayload";
-  stage: "progress" | "network";
+  stage: "progress" | "prove" | "balance" | "network";
 }
 
 type MockOffsets = Record<MidnightSyncStream, number>;
@@ -196,7 +196,15 @@ export class MockNativeRuntimeModule implements NativeRuntimeModule {
       return Promise.reject(new Error("CANCELLED"));
     }
     if (operation.stage === "progress") {
-      operation.stage = "network";
+      operation.stage = "prove";
+      return Promise.resolve(JSON.stringify(this.#step(operation)));
+    }
+    if (operation.kind === "transfer" && operation.stage === "prove") {
+      if (networkOutcome(networkResultJson) !== "accepted") {
+        this.#operations.delete(operationId);
+        return Promise.reject(new Error("PROOF_FAILED"));
+      }
+      operation.stage = "balance";
       return Promise.resolve(JSON.stringify(this.#step(operation)));
     }
     this.#operations.delete(operationId);
@@ -230,11 +238,16 @@ export class MockNativeRuntimeModule implements NativeRuntimeModule {
       };
     }
     const submit = operation.kind === "submitFinalized";
+    const effect = submit
+      ? "submit"
+      : operation.stage === "balance"
+        ? "balance"
+        : "prove";
     return {
       kind: "network",
       operation: handle,
-      effectId: `mock-${String(operation.id)}`,
-      effect: submit ? "submit" : "prove",
+      effectId: `mock-${String(operation.id)}-${operation.stage}`,
+      effect,
       endpointRole: submit ? "node" : "proof",
       bodyBase64: encodeMockBase64(Uint8Array.of(operation.id)),
     };

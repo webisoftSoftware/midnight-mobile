@@ -202,7 +202,12 @@ await test("transport forwards rejected indexer and proof responses with headers
     assert.deepEqual(result.values, ["1"]);
   }
   assert.equal(requests[0]?.includes("indexer.example.invalid"), true);
-  assert.equal(requests[1]?.includes("proof.example.invalid"), true);
+  assert.equal(
+    requests[1]?.startsWith(
+      "https://proof.example.invalid/request/check:Bearer proof",
+    ),
+    true,
+  );
 });
 
 await test("transport separates ambiguous submission from other failures", async () => {

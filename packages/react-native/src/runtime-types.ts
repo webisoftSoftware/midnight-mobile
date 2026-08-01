@@ -46,8 +46,11 @@ export interface MidnightWalletSessionSecrets {
   readonly dustSeed: Uint8Array;
 }
 
+export type MidnightSyncInputStream =
+  MidnightSyncStream | "shielded-v2" | "dust-v2";
+
 export interface MidnightSyncBatch {
-  readonly stream: MidnightSyncStream;
+  readonly stream: MidnightSyncInputStream;
   readonly fromOffset: number;
   readonly toOffset: number;
   readonly payloads: readonly Uint8Array[];

@@ -105,7 +105,7 @@ Native/package artifacts are ignored by Git and generated under:
 
 | Path                                                         | Purpose                                       |
 | ------------------------------------------------------------ | --------------------------------------------- |
-| `artifacts/apple/MidnightNativeRuntime.xcframework.zip`      | Standalone Apple XCFramework archive          |
+| `artifacts/apple/MidnightMobileRuntime.xcframework.zip`      | Standalone Apple XCFramework archive          |
 | `artifacts/native/android-jniLibs.zip`                       | Standalone Android `jniLibs` archive          |
 | `artifacts/native/npm/1am-midnight-mobile-0.1.0-alpha.1.tgz` | Final npm package candidate                   |
 | `artifacts/native/SHA256SUMS.json`                           | Binary, archive, and tarball hashes and sizes |

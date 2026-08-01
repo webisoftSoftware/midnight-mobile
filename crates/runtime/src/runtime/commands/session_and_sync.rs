@@ -11,6 +11,7 @@ match &mut command {
         stream,
         from_offset,
         limit,
+        mode,
     } => {
         let stream = match stream.as_str() {
             "shielded" => "shielded",
@@ -22,19 +23,67 @@ match &mut command {
         if next_offset != *from_offset {
             return Err(MidnightRuntimeError::SyncGap);
         }
-        if *limit == 0 || *limit > 4096 {
-            return Err(MidnightRuntimeError::InvalidArgument);
-        }
-        let request = serde_json::to_vec(&serde_json::json!({
-            "stream": stream,
-            "fromOffset": from_offset,
-            "limit": limit,
-        }))
-        .map_err(|_| MidnightRuntimeError::NativeInternal)?;
+        let request = match mode {
+            SyncRequestMode::Standard => {
+                let limit = limit
+                    .as_ref()
+                    .ok_or(MidnightRuntimeError::InvalidArgument)?;
+                if *limit == 0 || *limit > 4096 {
+                    return Err(MidnightRuntimeError::InvalidArgument);
+                }
+                serde_json::to_vec(&serde_json::json!({
+                    "stream": stream,
+                    "fromOffset": from_offset,
+                    "limit": limit,
+                }))
+                .map_err(|_| MidnightRuntimeError::NativeInternal)?
+            }
+            SyncRequestMode::Fast => {
+                if limit.is_some() || stream == "unshielded" {
+                    return Err(MidnightRuntimeError::InvalidArgument);
+                }
+                NativeWalletState::snapshot_sync_request(
+                    stream,
+                    &state.secrets.zswap_seed,
+                    &state.secrets.dust_seed,
+                )?
+            }
+        };
         return complete_json(to_json(&serde_json::json!({
             "stream": stream,
             "fromOffset": from_offset,
             "requestBase64": encode_base64(&request),
+        }))?);
+    }
+    RuntimeCommand::DeriveShieldedMintContext => {
+        if state.active_operation.is_some() {
+            return Err(MidnightRuntimeError::Unavailable);
+        }
+        let context = state
+            .wallet_state
+            .shielded_mint_context(&state.secrets.zswap_seed)?;
+        return complete_json(to_json(&serde_json::json!({
+            "coinPublicKeyHex": serializable_hex(&context.coin_public_key)?,
+            "encryptionPublicKeyHex": serializable_hex(&context.encryption_public_key)?,
+            "outputIndex": context.output_index,
+        }))?);
+    }
+    RuntimeCommand::WatchShieldedMint {
+        coin_info_base64,
+        expected_output_index,
+    } => {
+        if state.active_operation.is_some() {
+            return Err(MidnightRuntimeError::Unavailable);
+        }
+        let raw_coin = decode_base64(coin_info_base64)?;
+        let (proposed, output_index) = state.wallet_state.watch_shielded_mint(
+            &raw_coin,
+            *expected_output_index,
+            &state.secrets.zswap_seed,
+        )?;
+        state.wallet_state = proposed;
+        return complete_json(to_json(&serde_json::json!({
+            "outputIndex": output_index,
         }))?);
     }
     RuntimeCommand::CreateShieldedSpentRequest => {

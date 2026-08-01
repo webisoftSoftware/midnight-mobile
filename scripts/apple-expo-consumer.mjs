@@ -40,7 +40,7 @@ function createExpoConsumer(root) {
       name: "Midnight Apple Expo Consumer",
       slug: "midnight-apple-expo-consumer",
       version: "1.0.0",
-      ios: { bundleIdentifier: "dev.oneam.midnight.consumer" },
+      ios: { bundleIdentifier: "dev.oneam.midnightmobile.consumer" },
     },
   };
   writeFileSync(

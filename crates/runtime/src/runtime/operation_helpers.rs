@@ -59,14 +59,36 @@ fn take_proving_key_material(
             Some(_) => Err(MidnightRuntimeError::InvalidArgument),
         }
     };
-    let prover_key = decode(&mut material.prover_key_base64);
-    let verifier_key = decode(&mut material.verifier_key_base64);
-    let ir_source = decode(&mut material.ir_base64);
+    let prover_key = decode(&mut material.prover_key_base64)?;
+    let verifier_key = decode(&mut material.verifier_key_base64)?;
+    let ir_source = decode(&mut material.ir_base64)?;
     Ok(Some(ProvingKeyMaterial {
-        prover_key: prover_key?.to_vec(),
-        verifier_key: verifier_key?.to_vec(),
-        ir_source: ir_source?.to_vec(),
+        prover_key: prover_key.to_vec(),
+        verifier_key: verifier_key.to_vec(),
+        ir_source: ir_source.to_vec(),
     }))
+}
+
+fn take_proving_key_material_map(
+    key_material: &mut Option<BTreeMap<String, RuntimeProvingKeyMaterial>>,
+) -> Result<transaction::RemoteProofKeyMaterials, MidnightRuntimeError> {
+    let Some(materials) = key_material.take() else {
+        return Ok(transaction::RemoteProofKeyMaterials::default());
+    };
+    if materials.is_empty() {
+        return Err(MidnightRuntimeError::InvalidArgument);
+    }
+    let mut decoded = transaction::RemoteProofKeyMaterials::default();
+    for (location, material) in materials {
+        if location.is_empty() || location.len() > 1024 {
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
+        let mut material = Some(material);
+        let material = take_proving_key_material(&mut material)?
+            .ok_or(MidnightRuntimeError::InvalidArgument)?;
+        decoded.insert(location, material)?;
+    }
+    Ok(decoded)
 }
 
 fn next_effect_id(generation: u64, operation_id: u64, current: &str) -> String {
@@ -84,6 +106,25 @@ fn register_operation(
     generation: u64,
     session: &Arc<Mutex<SessionState>>,
     kind: PendingOperationKind,
+) -> Result<(OperationHandle, String), MidnightRuntimeError> {
+    register_operation_with_reservation(session_id, generation, session, kind, false)
+}
+
+fn register_reserved_operation(
+    session_id: u64,
+    generation: u64,
+    session: &Arc<Mutex<SessionState>>,
+    kind: PendingOperationKind,
+) -> Result<(OperationHandle, String), MidnightRuntimeError> {
+    register_operation_with_reservation(session_id, generation, session, kind, true)
+}
+
+fn register_operation_with_reservation(
+    session_id: u64,
+    generation: u64,
+    session: &Arc<Mutex<SessionState>>,
+    kind: PendingOperationKind,
+    reserved: bool,
 ) -> Result<(OperationHandle, String), MidnightRuntimeError> {
     let mut runtime = lock_registry()?;
     let registered_session = runtime
@@ -104,7 +145,8 @@ fn register_operation(
     if session_state.generation != generation || session_state.closing {
         return Err(MidnightRuntimeError::StaleSession);
     }
-    if session_state.active_operation.is_some() {
+    let expected_active = reserved.then_some(RESERVED_OPERATION_ID);
+    if session_state.active_operation != expected_active {
         return Err(MidnightRuntimeError::Unavailable);
     }
     let operation_id = runtime.next_id;
@@ -130,6 +172,138 @@ fn register_operation(
         },
         effect_id,
     ))
+}
+
+fn reserve_operation(state: &mut SessionState) -> Result<(), MidnightRuntimeError> {
+    if state.active_operation.is_some() {
+        return Err(MidnightRuntimeError::Unavailable);
+    }
+    state.active_operation = Some(RESERVED_OPERATION_ID);
+    Ok(())
+}
+
+fn clear_operation_reservation(session: &Arc<Mutex<SessionState>>) {
+    if let Ok(mut state) = session.lock()
+        && state.active_operation == Some(RESERVED_OPERATION_ID)
+    {
+        state.active_operation = None;
+    }
+}
+
+struct TransactionFinalizationInput {
+    network_id: String,
+    raw: Vec<u8>,
+    key_material: transaction::RemoteProofKeyMaterials,
+    proposed_state: Option<NativeWalletState>,
+    expected_identifiers: Vec<String>,
+}
+
+fn start_transaction_finalization(
+    session_id: u64,
+    generation: u64,
+    session: &Arc<Mutex<SessionState>>,
+    input: TransactionFinalizationInput,
+) -> Result<String, MidnightRuntimeError> {
+    let mut registered_operation = None;
+    let result = (|| {
+        let responses = transaction::RemoteProofResponses::default();
+        let progress = transaction::advance_unproven_transaction_with_materials(
+            &input.raw,
+            &input.network_id,
+            &responses,
+            &input.key_material,
+        )?;
+        let TransactionFinalizationInput {
+            raw,
+            key_material,
+            proposed_state,
+            expected_identifiers,
+            ..
+        } = input;
+        match progress {
+            transaction::BalanceProgress::Network(pending_request) => {
+                let body = Zeroizing::new(pending_request.body.clone());
+                let effect = proof_effect(pending_request.kind);
+                let (operation, effect_id) = register_reserved_operation(
+                    session_id,
+                    generation,
+                    session,
+                    PendingOperationKind::FinalizeTransactionProof {
+                        raw,
+                        key_material,
+                        proposed_state,
+                        expected_identifiers,
+                        responses,
+                        pending_request,
+                    },
+                )?;
+                registered_operation = Some(operation.id);
+                to_json(&OperationStep {
+                    kind: "network",
+                    operation: Some(operation),
+                    effect_id: Some(effect_id),
+                    effect: Some(effect),
+                    endpoint_role: Some("proof"),
+                    body_base64: Some(encode_base64(&body)),
+                    result_json: None,
+                })
+            }
+            transaction::BalanceProgress::Complete(finalized) => start_transaction_balance(
+                session_id,
+                generation,
+                session,
+                proposed_state,
+                expected_identifiers,
+                finalized,
+                &mut registered_operation,
+            ),
+        }
+    })();
+    if result.is_err() {
+        if let Some(operation_id) = registered_operation {
+            discard_operation(operation_id);
+        } else {
+            clear_operation_reservation(session);
+        }
+    }
+    result
+}
+
+fn start_transaction_balance(
+    session_id: u64,
+    generation: u64,
+    session: &Arc<Mutex<SessionState>>,
+    proposed_state: Option<NativeWalletState>,
+    expected_identifiers: Vec<String>,
+    finalized: transaction::FinalizedTransaction,
+    registered_operation: &mut Option<u64>,
+) -> Result<String, MidnightRuntimeError> {
+    if expected_identifiers
+        .iter()
+        .any(|identifier| !finalized.identifiers.contains(identifier))
+    {
+        return Err(MidnightRuntimeError::ProofFailed);
+    }
+    let body = finalized.canonical;
+    let (operation, effect_id) = register_reserved_operation(
+        session_id,
+        generation,
+        session,
+        PendingOperationKind::FinalizeTransactionBalance {
+            proposed_state,
+            expected_identifiers,
+        },
+    )?;
+    *registered_operation = Some(operation.id);
+    to_json(&OperationStep {
+        kind: "network",
+        operation: Some(operation),
+        effect_id: Some(effect_id),
+        effect: Some("balance"),
+        endpoint_role: Some("proof"),
+        body_base64: Some(encode_base64(&body)),
+        result_json: None,
+    })
 }
 
 fn discard_operation(operation_id: u64) {

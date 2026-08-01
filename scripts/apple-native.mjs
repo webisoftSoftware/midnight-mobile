@@ -36,6 +36,12 @@ export const GENERATED_SWIFT_ROOT = join(
   REPOSITORY_ROOT,
   "packages/react-native/ios/generated",
 );
+export const LOCAL_PROVER_HEADER = "MidnightMobileLocalProverFFI.h";
+const LOCAL_PROVER_HEADER_SOURCE = join(
+  REPOSITORY_ROOT,
+  "packages/react-native/ios",
+  LOCAL_PROVER_HEADER,
+);
 export const SOURCE_DATE_EPOCH = 1_785_340_800;
 export const XCODE_BUILD_CONCURRENCY_ARGUMENTS = Object.freeze(["-jobs", "2"]);
 
@@ -204,13 +210,22 @@ export function createFramework(destination, binary, platform) {
     join(GENERATED_SWIFT_ROOT, `${FRAMEWORK_NAME}FFI.h`),
     join(destination, "Headers", `${FRAMEWORK_NAME}FFI.h`),
   );
+  cpSync(
+    LOCAL_PROVER_HEADER_SOURCE,
+    join(destination, "Headers", LOCAL_PROVER_HEADER),
+  );
   const modulemap = readFileSync(
     join(GENERATED_SWIFT_ROOT, `${FRAMEWORK_NAME}FFI.modulemap`),
     "utf8",
   );
   writeFileSync(
     join(destination, "Modules/module.modulemap"),
-    modulemap.replace(/^module \S+/u, `framework module ${FRAMEWORK_NAME}`),
+    modulemap
+      .replace(/^module \S+/u, `framework module ${FRAMEWORK_NAME}`)
+      .replace(
+        `header "${FRAMEWORK_NAME}FFI.h"`,
+        `header "${FRAMEWORK_NAME}FFI.h"\n    header "${LOCAL_PROVER_HEADER}"`,
+      ),
   );
   writeFileSync(join(destination, "Info.plist"), frameworkPlist(platform));
 }
@@ -279,7 +294,7 @@ function validateDependencies(binary, errors) {
 }
 
 function validateExports(binary, errors) {
-  const prefix = "_uniffi_midnight_native_runtime_fn_func_";
+  const prefix = "_uniffi_midnight_mobile_runtime_fn_func_";
   const exports = run("xcrun", ["nm", "-gU", binary])
     .split("\n")
     .map((line) => line.trim().split(/\s+/u).at(-1) ?? "")
@@ -289,6 +304,20 @@ function validateExports(binary, errors) {
   const expected = [...NATIVE_CONFIGURATION.rust.uniffiFunctions].sort();
   if (!isDeepStrictEqual(exports, expected)) {
     errors.push(`${binary}: UniFFI exports are ${exports.join(",")}`);
+  }
+  const localProverExports = run("xcrun", ["nm", "-gU", binary])
+    .split("\n")
+    .map((line) => line.trim().split(/\s+/u).at(-1) ?? "")
+    .filter((symbol) => symbol.startsWith("_midnight_mobile_local_prover_"))
+    .map((symbol) => symbol.slice(1))
+    .sort();
+  const expectedLocalProver = [
+    ...APPLE_CONFIGURATION.localProver.exportedFunctions,
+  ].sort();
+  if (!isDeepStrictEqual(localProverExports, expectedLocalProver)) {
+    errors.push(
+      `${binary}: local prover exports are ${localProverExports.join(",")}`,
+    );
   }
 }
 
@@ -329,7 +358,8 @@ function validateFramework(framework, library, errors) {
   );
   if (
     !modulemap.includes(`framework module ${FRAMEWORK_NAME}`) ||
-    !modulemap.includes(`header "${FRAMEWORK_NAME}FFI.h"`)
+    !modulemap.includes(`header "${FRAMEWORK_NAME}FFI.h"`) ||
+    !modulemap.includes(`header "${LOCAL_PROVER_HEADER}"`)
   ) {
     errors.push(`${framework}: FFI module map is incorrect`);
   }
@@ -359,6 +389,7 @@ export function validateXcframework(xcframework) {
     const prefix = `${library.LibraryIdentifier}/${FRAMEWORK_BUNDLE}`;
     expectedFiles.push(
       `${prefix}/Headers/${FRAMEWORK_NAME}FFI.h`,
+      `${prefix}/Headers/${LOCAL_PROVER_HEADER}`,
       `${prefix}/Info.plist`,
       `${prefix}/Modules/module.modulemap`,
       `${prefix}/${FRAMEWORK_NAME}`,

@@ -439,6 +439,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "console"
+version = "0.16.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d64e8af5551369d19cf50138de61f1c42074ab970f74e99be916646777f8fc87"
+dependencies = [
+ "encode_unicode",
+ "libc",
+ "unicode-width",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "const-hex"
 version = "1.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -758,6 +770,12 @@ dependencies = [
  "subtle",
  "zeroize",
 ]
+
+[[package]]
+name = "encode_unicode"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
 name = "enum_index"
@@ -1334,6 +1352,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "indicatif"
+version = "0.18.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25470f23803092da7d239834776d653104d551bc4d7eacaf31e6837854b8e9eb"
+dependencies = [
+ "console",
+ "portable-atomic",
+ "unicode-width",
+ "unit-prefix",
+ "web-time",
+]
+
+[[package]]
 name = "introspection"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1557,6 +1588,7 @@ dependencies = [
  "flate2",
  "futures",
  "group",
+ "indicatif",
  "k256",
  "lazy_static",
  "midnight-base-crypto-derive",
@@ -1693,37 +1725,41 @@ dependencies = [
 ]
 
 [[package]]
-name = "midnight-native-bindgen"
-version = "0.1.0"
-dependencies = [
- "uniffi",
-]
-
-[[package]]
-name = "midnight-native-runtime"
+name = "midnight-mobile-runtime"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "bech32",
  "flate2",
+ "futures-executor",
  "hex",
  "midnight-base-crypto",
  "midnight-coin-structure",
  "midnight-ledger",
  "midnight-onchain-runtime",
+ "midnight-proofs",
  "midnight-serialize",
  "midnight-storage",
  "midnight-transient-crypto",
+ "midnight-zkir",
  "midnight-zswap",
  "num-bigint",
  "proptest",
  "rand 0.8.7",
+ "rayon",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "thiserror",
  "uniffi",
  "zeroize",
+]
+
+[[package]]
+name = "midnight-native-bindgen"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
 ]
 
 [[package]]
@@ -1945,6 +1981,31 @@ dependencies = [
  "rayon",
  "sha2 0.10.9",
  "sha3-circuit",
+]
+
+[[package]]
+name = "midnight-zkir"
+version = "2.1.0"
+source = "git+https://github.com/midnightntwrk/midnight-ledger.git?rev=02716c2c95d50654aeb3cb63bfd8386046e4ca7d#02716c2c95d50654aeb3cb63bfd8386046e4ca7d"
+dependencies = [
+ "anyhow",
+ "const-hex",
+ "group",
+ "hex",
+ "midnight-base-crypto",
+ "midnight-circuits",
+ "midnight-proofs",
+ "midnight-serialize",
+ "midnight-transient-crypto",
+ "midnight-zk-stdlib",
+ "num-bigint",
+ "rand 0.8.7",
+ "rand_chacha 0.3.1",
+ "serde",
+ "serde_bytes",
+ "serde_json",
+ "serde_repr",
+ "tracing",
 ]
 
 [[package]]
@@ -2222,6 +2283,12 @@ name = "plain"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
+
+[[package]]
+name = "portable-atomic"
+version = "1.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
 
 [[package]]
 name = "potential_utf"
@@ -2857,6 +2924,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_repr"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
+dependencies = [
+ "proc-macro2",
+ "quote 1.0.46",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "serde_spanned"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3421,6 +3499,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 
 [[package]]
+name = "unicode-width"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
+
+[[package]]
 name = "unicode-xid"
 version = "0.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3546,6 +3630,12 @@ dependencies = [
  "uniffi_meta",
  "weedle2",
 ]
+
+[[package]]
+name = "unit-prefix"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81e544489bf3d8ef66c953931f56617f423cd4b5494be343d9b9d3dda037b9a3"
 
 [[package]]
 name = "untrusted"

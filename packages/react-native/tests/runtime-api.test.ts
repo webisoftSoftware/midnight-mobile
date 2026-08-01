@@ -275,6 +275,28 @@ await test("only terminal empty batches mark public streams caught up", async ()
   assert.deepEqual(calls, expectedSyncCalls);
 });
 
+await test("v2 snapshot batches preserve their native stream discriminants", async () => {
+  const calls: SyncCall[] = [];
+  const api = createMidnightRuntimeApi(() => syncTrackingNative(calls));
+  await api.applySyncBatch(
+    { id: 1, generation: 1 },
+    {
+      stream: "shielded-v2",
+      fromOffset: 0,
+      toOffset: 7,
+      payloads: [Uint8Array.of(1, 2, 3)],
+    },
+  );
+  assert.deepEqual(calls, [
+    {
+      stream: "shielded-v2",
+      fromOffset: 0,
+      toOffset: 7,
+      payloads: ["AQID"],
+    },
+  ]);
+});
+
 await test("sync batches reject unknown streams and native failures", async () => {
   let calls = 0;
   const native = {
@@ -387,10 +409,10 @@ await test("runtime API normalizes native rejections", async () => {
 
 await test("public index loads every production entrypoint", async () => {
   const entrypoint = await import("../src/index.js");
-  assert.equal(entrypoint.MIDNIGHT_COMMAND_KINDS.length, 19);
+  assert.equal(entrypoint.MIDNIGHT_COMMAND_KINDS.length, 22);
   assert.equal(
     entrypoint.EXPO_MIDNIGHT_NATIVE_MODULE_NAME,
-    "ExpoMidnightNative",
+    "MidnightMobileRuntime",
   );
   assert.equal(typeof entrypoint.MidnightRuntimeProvider, "function");
   assert.equal(typeof entrypoint.createMidnightRuntimeApi, "function");

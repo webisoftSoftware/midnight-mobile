@@ -175,7 +175,7 @@ await test("snapshot decoders reject malformed nested wallet state", () => {
   for (const failure of failures) assertNativeFailure(failure);
 });
 
-await test("all nineteen correlated command results decode", () => {
+await test("all correlated command results decode", () => {
   assert.equal(
     decodeCommandResult("signData", {
       signatureHex: "33".repeat(64),
@@ -214,6 +214,22 @@ await test("all nineteen correlated command results decode", () => {
       requestBase64: "BA==",
     }),
     { stream: "dust", fromOffset: 4, requestBase64: "BA==" },
+  );
+  assert.deepEqual(
+    decodeCommandResult("deriveShieldedMintContext", {
+      coinPublicKeyHex: hashA,
+      encryptionPublicKeyHex: hashB,
+      outputIndex: 4,
+    }),
+    {
+      coinPublicKeyHex: hashA,
+      encryptionPublicKeyHex: hashB,
+      outputIndex: 4,
+    },
+  );
+  assert.deepEqual(
+    decodeCommandResult("watchShieldedMint", { outputIndex: 5 }),
+    { outputIndex: 5 },
   );
 });
 
@@ -271,6 +287,7 @@ await test("all finalized and submission results decode", () => {
     "generateDust",
     "balanceUnsealed",
     "balanceSealed",
+    "finalizeUnprovenTransaction",
   ] as const;
   for (const kind of finalizedKinds) {
     const result = decodeCommandResult(kind, finalized);
@@ -317,6 +334,12 @@ await test("command result decoders reject malformed wire values", () => {
         stream: "shielded",
         fromOffset: -1,
         requestBase64: "",
+      }),
+    () =>
+      decodeCommandResult("deriveShieldedMintContext", {
+        coinPublicKeyHex: "AA".repeat(32),
+        encryptionPublicKeyHex: hashB,
+        outputIndex: 0,
       }),
     () =>
       decodeCommandResult("createDustCommitmentRequest", {

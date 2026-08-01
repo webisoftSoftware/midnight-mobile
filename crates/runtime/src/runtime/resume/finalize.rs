@@ -47,7 +47,7 @@
                 }
             }
         }
-        PendingOperationKind::Transfer {
+        PendingOperationKind::FinalizeTransactionBalance {
             proposed_state,
             expected_identifiers,
         } => match result.outcome.as_str() {
@@ -64,7 +64,9 @@
                         return Err(error);
                     }
                 };
-                state.wallet_state = proposed_state.clone();
+                if let Some(proposed_state) = proposed_state {
+                    state.wallet_state = proposed_state.clone();
+                }
                 clear_active_operation(&mut state, operation_id);
                 to_json(&OperationStep {
                     kind: "complete",
@@ -94,6 +96,9 @@
             }
         },
         PendingOperationKind::Balance { .. } => unreachable!("balance handled above"),
+        PendingOperationKind::FinalizeTransactionProof { .. } => {
+            unreachable!("transaction proof handled above")
+        }
         PendingOperationKind::DappIntentProof { .. } => {
             unreachable!("dapp intent proof handled above")
         }

@@ -21,11 +21,14 @@ const EXPECTED_FILES = Object.freeze([
   "README.md",
   "dist",
   "expo-module.config.json",
-  "ios/ExpoMidnightNative.podspec",
-  "ios/ExpoMidnightNativeModule.swift",
-  "ios/build/MidnightNativeRuntime.xcframework",
+  "ios/MidnightMobileRuntime.podspec",
+  "ios/MidnightMobileLocalProverModule.swift",
+  "ios/MidnightMobileRuntimeModule.swift",
+  "ios/MidnightMobileLocalProverFFI.h",
+  "ios/build/MidnightMobileRuntime.xcframework",
   "ios/generated",
   "android/build.gradle",
+  "android/local-prover",
   "android/src/main",
   "android/generated",
 ]);
@@ -48,22 +51,28 @@ const REQUIRED_PACKED_FILES = Object.freeze([
   "README.md",
   "android/build.gradle",
   "android/generated/README.md",
-  "android/src/main/jniLibs/arm64-v8a/libmidnight_native_runtime.so",
-  "android/src/main/jniLibs/x86_64/libmidnight_native_runtime.so",
-  "android/src/main/java/expo/modules/midnightnative/ExpoMidnightNativeModule.kt",
+  "android/local-prover/dev/oneam/midnightmobile/localprover/LocalProverBridge.kt",
+  "android/src/main/jniLibs/arm64-v8a/libmidnight_mobile_runtime.so",
+  "android/src/main/jniLibs/x86_64/libmidnight_mobile_runtime.so",
+  "android/src/main/java/dev/oneam/midnightmobile/MidnightMobileRuntimeModule.kt",
+  "android/src/main/java/dev/oneam/midnightmobile/localprover/MidnightMobileLocalProverModule.kt",
   "dist/index.d.ts",
   "dist/index.js",
+  "dist/local-prover.d.ts",
+  "dist/local-prover.js",
   "expo-module.config.json",
-  "ios/ExpoMidnightNative.podspec",
-  "ios/ExpoMidnightNativeModule.swift",
-  "ios/build/MidnightNativeRuntime.xcframework/Info.plist",
+  "ios/MidnightMobileRuntime.podspec",
+  "ios/MidnightMobileLocalProverModule.swift",
+  "ios/MidnightMobileRuntimeModule.swift",
+  "ios/MidnightMobileLocalProverFFI.h",
+  "ios/build/MidnightMobileRuntime.xcframework/Info.plist",
   "ios/generated/README.md",
   "package.json",
 ]);
 const ALLOWED_PACKED_PATH =
-  /^(?:README\.md|package\.json|dist\/|expo-module\.config\.json$|android\/(?:build\.gradle$|generated\/|src\/main\/)|ios\/(?:ExpoMidnightNative\.podspec$|ExpoMidnightNativeModule\.swift$|build\/MidnightNativeRuntime\.xcframework\/|generated\/))/u;
+  /^(?:README\.md|package\.json|dist\/|expo-module\.config\.json$|android\/(?:build\.gradle$|generated\/|local-prover\/|src\/main\/)|ios\/(?:MidnightMobileRuntime\.podspec$|MidnightMobile(?:LocalProver|Runtime)Module\.swift$|MidnightMobileLocalProverFFI\.h$|build\/MidnightMobileRuntime\.xcframework\/|generated\/))/u;
 const ALLOWED_NATIVE_BINARY_PATH =
-  /^(?:android\/src\/main\/jniLibs\/(?:arm64-v8a|x86_64)\/libmidnight_native_runtime\.so|ios\/build\/MidnightNativeRuntime\.xcframework\/[^/]+\/MidnightNativeRuntime\.framework\/MidnightNativeRuntime)$/u;
+  /^(?:android\/src\/main\/jniLibs\/(?:arm64-v8a|x86_64)\/libmidnight_mobile_runtime\.so|ios\/build\/MidnightMobileRuntime\.xcframework\/[^/]+\/MidnightMobileRuntime\.framework\/MidnightMobileRuntime)$/u;
 const NATIVE_BINARY_PATH = /\.(?:a|aar|dll|dylib|so)(?:\/|$)/u;
 
 function isObject(value) {
@@ -136,6 +145,11 @@ export function validatePackageMetadata(metadata, autolinking) {
         import: "./dist/index.js",
         default: "./dist/index.js",
       },
+      "./local-prover": {
+        types: "./dist/local-prover.d.ts",
+        import: "./dist/local-prover.js",
+        default: "./dist/local-prover.js",
+      },
       "./package.json": "./package.json",
     },
     "exports",
@@ -172,9 +186,18 @@ export function validatePackageMetadata(metadata, autolinking) {
     autolinking,
     {
       platforms: ["apple", "android"],
-      apple: { modules: ["ExpoMidnightNativeModule"] },
+      apple: {
+        swiftModuleName: "MidnightMobileExpo",
+        modules: [
+          "MidnightMobileRuntimeModule",
+          "MidnightMobileLocalProverModule",
+        ],
+      },
       android: {
-        modules: ["expo.modules.midnightnative.ExpoMidnightNativeModule"],
+        modules: [
+          "dev.oneam.midnightmobile.MidnightMobileRuntimeModule",
+          "dev.oneam.midnightmobile.localprover.MidnightMobileLocalProverModule",
+        ],
       },
     },
     "Expo autolinking metadata",

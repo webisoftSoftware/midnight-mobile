@@ -23,20 +23,20 @@ export const EXPECTED_ABI = Object.freeze([
   "open_wallet_session",
   "resume_operation",
 ]);
-const SWIFT_MODULE = "MidnightNativeRuntime";
-const SWIFT_FFI_FILENAME = "MidnightNativeRuntimeFFI";
+const SWIFT_MODULE = "MidnightMobileRuntime";
+const SWIFT_FFI_FILENAME = "MidnightMobileRuntimeFFI";
 
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_DIRECTORY, "..");
-const RUNTIME_PACKAGE = "midnight-native-runtime";
+const RUNTIME_PACKAGE = "midnight-mobile-runtime";
 const BINDGEN_PACKAGE = "midnight-native-bindgen";
 const SWIFT_FILES = Object.freeze([
-  "MidnightNativeRuntime.swift",
-  "MidnightNativeRuntimeFFI.h",
-  "MidnightNativeRuntimeFFI.modulemap",
+  "MidnightMobileRuntime.swift",
+  "MidnightMobileRuntimeFFI.h",
+  "MidnightMobileRuntimeFFI.modulemap",
 ]);
 const KOTLIN_FILES = Object.freeze([
-  "expo/modules/midnightnative/uniffi/midnight_native_runtime.kt",
+  "dev/oneam/midnightmobile/uniffi/midnight_mobile_runtime.kt",
 ]);
 const SWIFT_TARGET = "packages/react-native/ios/generated";
 const KOTLIN_TARGET = "packages/react-native/android/generated";
@@ -47,11 +47,11 @@ function fail(message) {
 
 export function swiftModuleContractErrors(configuration, swift, modulemap) {
   const errors = [];
-  if (!/^ffi_module_name = "MidnightNativeRuntime"$/mu.test(configuration)) {
+  if (!/^ffi_module_name = "MidnightMobileRuntime"$/mu.test(configuration)) {
     errors.push("Swift ffi_module_name must match the framework module");
   }
   if (
-    !/^ffi_module_filename = "MidnightNativeRuntimeFFI"$/mu.test(configuration)
+    !/^ffi_module_filename = "MidnightMobileRuntimeFFI"$/mu.test(configuration)
   ) {
     errors.push("Swift ffi_module_filename must preserve reviewed filenames");
   }
@@ -125,9 +125,9 @@ function cargoTargetDirectory() {
 function runtimeLibrary(targetDirectory) {
   const debugDirectory = join(targetDirectory, "debug");
   const candidates = [
-    join(debugDirectory, "libmidnight_native_runtime.dylib"),
-    join(debugDirectory, "libmidnight_native_runtime.so"),
-    join(debugDirectory, "midnight_native_runtime.dll"),
+    join(debugDirectory, "libmidnight_mobile_runtime.dylib"),
+    join(debugDirectory, "libmidnight_mobile_runtime.so"),
+    join(debugDirectory, "midnight_mobile_runtime.dll"),
   ].filter(existsSync);
   if (candidates.length !== 1) {
     fail(
@@ -232,7 +232,7 @@ export function extractGeneratedAbi(swift, kotlin, header) {
   ).map(snakeCase);
   const headerNames = matches(
     header,
-    /\buniffi_midnight_native_runtime_fn_func_([a-z0-9_]+)\(/gu,
+    /\buniffi_midnight_mobile_runtime_fn_func_([a-z0-9_]+)\(/gu,
   );
   return { swiftNames, kotlinNames, headerNames };
 }

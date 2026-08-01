@@ -135,13 +135,18 @@ committed.
 | `sync`            | indexer | Standard synchronization request       |
 | `check`           | proof   | Check request in a proof sequence      |
 | `prove`           | proof   | Proving request in a proof sequence    |
-| `proveAndBalance` | proof   | Wallet transfer proof/balance request  |
+| `proveAndBalance` | proof   | Legacy combined proof/balance request  |
 | `balance`         | proof   | Balance-service request                |
 | `submit`          | node    | Finalized transaction submission       |
 | `confirm`         | node    | Submission confirmation when requested |
 
 The runtime chooses the role. The transport does not fail over to a different
 role or endpoint.
+
+Wallet transfers and explicit unproven-transaction finalization now progress
+through individual `check`/`prove` effects and then `balance`; they never use
+the legacy combined effect. The optional local-prover adapter intercepts only
+the individual proof effects, so balancing remains remote.
 
 ## Cancellation and lifecycle
 

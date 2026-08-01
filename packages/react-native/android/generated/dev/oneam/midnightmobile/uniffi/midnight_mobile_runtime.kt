@@ -3,7 +3,7 @@
 
 @file:Suppress("NAME_SHADOWING")
 
-package expo.modules.midnightnative.uniffi
+package dev.oneam.midnightmobile.uniffi
 
 // Common helper code.
 //
@@ -58,7 +58,7 @@ open class RustBuffer : Structure() {
     companion object {
         internal fun alloc(size: ULong = 0UL) = uniffiRustCall() { status ->
             // Note: need to convert the size to a `Long` value to make this work with JVM.
-            UniffiLib.ffi_midnight_native_runtime_rustbuffer_alloc(size.toLong(), status)
+            UniffiLib.ffi_midnight_mobile_runtime_rustbuffer_alloc(size.toLong(), status)
         }.also {
             if(it.data == null) {
                throw RuntimeException("RustBuffer.alloc() returned null data pointer (size=${size})")
@@ -74,7 +74,7 @@ open class RustBuffer : Structure() {
         }
 
         internal fun free(buf: RustBuffer.ByValue) = uniffiRustCall() { status ->
-            UniffiLib.ffi_midnight_native_runtime_rustbuffer_free(buf, status)
+            UniffiLib.ffi_midnight_mobile_runtime_rustbuffer_free(buf, status)
         }
     }
 
@@ -391,7 +391,7 @@ private fun findLibraryName(componentName: String): String {
     if (libOverride != null) {
         return libOverride
     }
-    return "midnight_native_runtime"
+    return "midnight_mobile_runtime"
 }
 
 // Define FFI callback types
@@ -668,27 +668,27 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 // We now use JNA's "direct mapping" - unclear if same considerations apply exactly.
 internal object IntegrityCheckingUniffiLib {
     init {
-        Native.register(IntegrityCheckingUniffiLib::class.java, findLibraryName(componentName = "midnight_native_runtime"))
+        Native.register(IntegrityCheckingUniffiLib::class.java, findLibraryName(componentName = "midnight_mobile_runtime"))
         uniffiCheckContractApiVersion(this)
         uniffiCheckApiChecksums(this)
     }
-    external fun uniffi_midnight_native_runtime_checksum_func_apply_sync_batch(
+    external fun uniffi_midnight_mobile_runtime_checksum_func_apply_sync_batch(
     ): Int
-    external fun uniffi_midnight_native_runtime_checksum_func_begin_command(
+    external fun uniffi_midnight_mobile_runtime_checksum_func_begin_command(
     ): Int
-    external fun uniffi_midnight_native_runtime_checksum_func_cancel_operation(
+    external fun uniffi_midnight_mobile_runtime_checksum_func_cancel_operation(
     ): Int
-    external fun uniffi_midnight_native_runtime_checksum_func_close_wallet_session(
+    external fun uniffi_midnight_mobile_runtime_checksum_func_close_wallet_session(
     ): Int
-    external fun uniffi_midnight_native_runtime_checksum_func_export_wallet_checkpoint(
+    external fun uniffi_midnight_mobile_runtime_checksum_func_export_wallet_checkpoint(
     ): Int
-    external fun uniffi_midnight_native_runtime_checksum_func_get_wallet_snapshot(
+    external fun uniffi_midnight_mobile_runtime_checksum_func_get_wallet_snapshot(
     ): Int
-    external fun uniffi_midnight_native_runtime_checksum_func_open_wallet_session(
+    external fun uniffi_midnight_mobile_runtime_checksum_func_open_wallet_session(
     ): Int
-    external fun uniffi_midnight_native_runtime_checksum_func_resume_operation(
+    external fun uniffi_midnight_mobile_runtime_checksum_func_resume_operation(
     ): Int
-    external fun ffi_midnight_native_runtime_uniffi_contract_version(
+    external fun ffi_midnight_mobile_runtime_uniffi_contract_version(
     ): Int
 
 
@@ -698,128 +698,128 @@ internal object UniffiLib {
 
 
     init {
-        Native.register(UniffiLib::class.java, findLibraryName(componentName = "midnight_native_runtime"))
+        Native.register(UniffiLib::class.java, findLibraryName(componentName = "midnight_mobile_runtime"))
 
     }
-    external fun uniffi_midnight_native_runtime_fn_func_apply_sync_batch(`sessionId`: Long,`generation`: Long,`stream`: RustBuffer.ByValue,`fromOffset`: Long,`toOffset`: Long,`payloads`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_midnight_mobile_runtime_fn_func_apply_sync_batch(`sessionId`: Long,`generation`: Long,`stream`: RustBuffer.ByValue,`fromOffset`: Long,`toOffset`: Long,`payloads`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_midnight_native_runtime_fn_func_begin_command(`sessionId`: Long,`generation`: Long,`commandJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_midnight_mobile_runtime_fn_func_begin_command(`sessionId`: Long,`generation`: Long,`commandJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_midnight_native_runtime_fn_func_cancel_operation(`operationId`: Long,`generation`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_midnight_mobile_runtime_fn_func_cancel_operation(`operationId`: Long,`generation`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun uniffi_midnight_native_runtime_fn_func_close_wallet_session(`sessionId`: Long,`generation`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_midnight_mobile_runtime_fn_func_close_wallet_session(`sessionId`: Long,`generation`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun uniffi_midnight_native_runtime_fn_func_export_wallet_checkpoint(`sessionId`: Long,`generation`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_midnight_mobile_runtime_fn_func_export_wallet_checkpoint(`sessionId`: Long,`generation`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_midnight_native_runtime_fn_func_get_wallet_snapshot(`sessionId`: Long,`generation`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_midnight_mobile_runtime_fn_func_get_wallet_snapshot(`sessionId`: Long,`generation`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_midnight_native_runtime_fn_func_open_wallet_session(`configJson`: RustBuffer.ByValue,`nightExternalKey`: RustBuffer.ByValue,`zswapSeed`: RustBuffer.ByValue,`dustSeed`: RustBuffer.ByValue,`checkpoint`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_midnight_mobile_runtime_fn_func_open_wallet_session(`configJson`: RustBuffer.ByValue,`nightExternalKey`: RustBuffer.ByValue,`zswapSeed`: RustBuffer.ByValue,`dustSeed`: RustBuffer.ByValue,`checkpoint`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_midnight_native_runtime_fn_func_resume_operation(`operationId`: Long,`generation`: Long,`networkResultJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_midnight_mobile_runtime_fn_func_resume_operation(`operationId`: Long,`generation`: Long,`networkResultJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun ffi_midnight_native_runtime_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun ffi_midnight_native_runtime_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun ffi_midnight_native_runtime_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun ffi_midnight_native_runtime_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun ffi_midnight_native_runtime_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_cancel_u8(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_cancel_u8(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_free_u8(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_free_u8(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
-    external fun ffi_midnight_native_runtime_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_cancel_i8(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_cancel_i8(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_free_i8(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_free_i8(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
-    external fun ffi_midnight_native_runtime_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_cancel_u16(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_cancel_u16(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_free_u16(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_free_u16(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
-    external fun ffi_midnight_native_runtime_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_cancel_i16(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_cancel_i16(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_free_i16(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_free_i16(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Short
-    external fun ffi_midnight_native_runtime_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_cancel_u32(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_cancel_u32(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_free_u32(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_free_u32(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
-    external fun ffi_midnight_native_runtime_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_cancel_i32(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_cancel_i32(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_free_i32(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_free_i32(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
-    external fun ffi_midnight_native_runtime_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_cancel_u64(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_cancel_u64(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_free_u64(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_free_u64(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
-    external fun ffi_midnight_native_runtime_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_cancel_i64(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_cancel_i64(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_free_i64(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_free_i64(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
-    external fun ffi_midnight_native_runtime_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_cancel_f32(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_cancel_f32(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_free_f32(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_free_f32(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Float
-    external fun ffi_midnight_native_runtime_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_cancel_f64(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_cancel_f64(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_free_f64(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_free_f64(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Double
-    external fun ffi_midnight_native_runtime_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_cancel_rust_buffer(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_cancel_rust_buffer(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_free_rust_buffer(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_free_rust_buffer(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun ffi_midnight_native_runtime_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_cancel_void(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_cancel_void(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_free_void(`handle`: Long,
+    external fun ffi_midnight_mobile_runtime_rust_future_free_void(`handle`: Long,
     ): Unit
-    external fun ffi_midnight_native_runtime_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_midnight_mobile_runtime_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
 
 
@@ -829,35 +829,35 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
     // Get the bindings contract version from our ComponentInterface
     val bindings_contract_version = 30
     // Get the scaffolding contract version by calling the into the dylib
-    val scaffolding_contract_version = lib.ffi_midnight_native_runtime_uniffi_contract_version()
+    val scaffolding_contract_version = lib.ffi_midnight_mobile_runtime_uniffi_contract_version()
     if (bindings_contract_version != scaffolding_contract_version) {
         throw RuntimeException("UniFFI contract version mismatch: try cleaning and rebuilding your project")
     }
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
-    if (lib.uniffi_midnight_native_runtime_checksum_func_apply_sync_batch() != 42134) {
+    if (lib.uniffi_midnight_mobile_runtime_checksum_func_apply_sync_batch() != 52762) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_midnight_native_runtime_checksum_func_begin_command() != 53809) {
+    if (lib.uniffi_midnight_mobile_runtime_checksum_func_begin_command() != 9918) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_midnight_native_runtime_checksum_func_cancel_operation() != 57555) {
+    if (lib.uniffi_midnight_mobile_runtime_checksum_func_cancel_operation() != 58975) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_midnight_native_runtime_checksum_func_close_wallet_session() != 13586) {
+    if (lib.uniffi_midnight_mobile_runtime_checksum_func_close_wallet_session() != 30161) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_midnight_native_runtime_checksum_func_export_wallet_checkpoint() != 20737) {
+    if (lib.uniffi_midnight_mobile_runtime_checksum_func_export_wallet_checkpoint() != 54417) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_midnight_native_runtime_checksum_func_get_wallet_snapshot() != 11475) {
+    if (lib.uniffi_midnight_mobile_runtime_checksum_func_get_wallet_snapshot() != 39753) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_midnight_native_runtime_checksum_func_open_wallet_session() != 903) {
+    if (lib.uniffi_midnight_mobile_runtime_checksum_func_open_wallet_session() != 24211) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_midnight_native_runtime_checksum_func_resume_operation() != 45157) {
+    if (lib.uniffi_midnight_mobile_runtime_checksum_func_resume_operation() != 13294) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1405,7 +1405,7 @@ public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<kotlin.
     @Throws(MidnightRuntimeException::class) fun `applySyncBatch`(`sessionId`: kotlin.ULong, `generation`: kotlin.ULong, `stream`: kotlin.String, `fromOffset`: kotlin.ULong, `toOffset`: kotlin.ULong, `payloads`: List<kotlin.ByteArray>): kotlin.String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MidnightRuntimeException) { _status ->
-    UniffiLib.uniffi_midnight_native_runtime_fn_func_apply_sync_batch(
+    UniffiLib.uniffi_midnight_mobile_runtime_fn_func_apply_sync_batch(
 
 
         FfiConverterULong.lower(`sessionId`),
@@ -1422,7 +1422,7 @@ public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<kotlin.
     @Throws(MidnightRuntimeException::class) fun `beginCommand`(`sessionId`: kotlin.ULong, `generation`: kotlin.ULong, `commandJson`: kotlin.String): kotlin.String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MidnightRuntimeException) { _status ->
-    UniffiLib.uniffi_midnight_native_runtime_fn_func_begin_command(
+    UniffiLib.uniffi_midnight_mobile_runtime_fn_func_begin_command(
 
 
         FfiConverterULong.lower(`sessionId`),
@@ -1436,7 +1436,7 @@ public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<kotlin.
     @Throws(MidnightRuntimeException::class) fun `cancelOperation`(`operationId`: kotlin.ULong, `generation`: kotlin.ULong)
         =
     uniffiRustCallWithError(MidnightRuntimeException) { _status ->
-    UniffiLib.uniffi_midnight_native_runtime_fn_func_cancel_operation(
+    UniffiLib.uniffi_midnight_mobile_runtime_fn_func_cancel_operation(
 
 
         FfiConverterULong.lower(`operationId`),
@@ -1448,7 +1448,7 @@ public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<kotlin.
     @Throws(MidnightRuntimeException::class) fun `closeWalletSession`(`sessionId`: kotlin.ULong, `generation`: kotlin.ULong)
         =
     uniffiRustCallWithError(MidnightRuntimeException) { _status ->
-    UniffiLib.uniffi_midnight_native_runtime_fn_func_close_wallet_session(
+    UniffiLib.uniffi_midnight_mobile_runtime_fn_func_close_wallet_session(
 
 
         FfiConverterULong.lower(`sessionId`),
@@ -1460,7 +1460,7 @@ public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<kotlin.
     @Throws(MidnightRuntimeException::class) fun `exportWalletCheckpoint`(`sessionId`: kotlin.ULong, `generation`: kotlin.ULong): kotlin.ByteArray {
             return FfiConverterByteArray.lift(
     uniffiRustCallWithError(MidnightRuntimeException) { _status ->
-    UniffiLib.uniffi_midnight_native_runtime_fn_func_export_wallet_checkpoint(
+    UniffiLib.uniffi_midnight_mobile_runtime_fn_func_export_wallet_checkpoint(
 
 
         FfiConverterULong.lower(`sessionId`),
@@ -1473,7 +1473,7 @@ public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<kotlin.
     @Throws(MidnightRuntimeException::class) fun `getWalletSnapshot`(`sessionId`: kotlin.ULong, `generation`: kotlin.ULong): kotlin.String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MidnightRuntimeException) { _status ->
-    UniffiLib.uniffi_midnight_native_runtime_fn_func_get_wallet_snapshot(
+    UniffiLib.uniffi_midnight_mobile_runtime_fn_func_get_wallet_snapshot(
 
 
         FfiConverterULong.lower(`sessionId`),
@@ -1486,7 +1486,7 @@ public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<kotlin.
     @Throws(MidnightRuntimeException::class) fun `openWalletSession`(`configJson`: kotlin.String, `nightExternalKey`: kotlin.ByteArray, `zswapSeed`: kotlin.ByteArray, `dustSeed`: kotlin.ByteArray, `checkpoint`: kotlin.ByteArray?): RuntimeSessionHandle {
             return FfiConverterTypeRuntimeSessionHandle.lift(
     uniffiRustCallWithError(MidnightRuntimeException) { _status ->
-    UniffiLib.uniffi_midnight_native_runtime_fn_func_open_wallet_session(
+    UniffiLib.uniffi_midnight_mobile_runtime_fn_func_open_wallet_session(
 
 
         FfiConverterString.lower(`configJson`),
@@ -1502,7 +1502,7 @@ public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<kotlin.
     @Throws(MidnightRuntimeException::class) fun `resumeOperation`(`operationId`: kotlin.ULong, `generation`: kotlin.ULong, `networkResultJson`: kotlin.String?): kotlin.String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MidnightRuntimeException) { _status ->
-    UniffiLib.uniffi_midnight_native_runtime_fn_func_resume_operation(
+    UniffiLib.uniffi_midnight_mobile_runtime_fn_func_resume_operation(
 
 
         FfiConverterULong.lower(`operationId`),

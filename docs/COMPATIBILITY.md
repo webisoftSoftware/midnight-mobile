@@ -31,7 +31,7 @@ reporting a compatibility defect.
 | Minimum OS              | iOS `15.1`                                                                                       |
 | Device architecture     | `arm64`                                                                                          |
 | Simulator architectures | `arm64`, `x86_64`                                                                                |
-| Build product           | Dynamic `MidnightNativeRuntime.xcframework` embedded by CocoaPods                                |
+| Build product           | Dynamic `MidnightMobileRuntime.xcframework` embedded by CocoaPods                                |
 | Swift setting           | Swift `5.9` in the package podspec                                                               |
 | M5 release baseline     | Xcode `26.3`, CocoaPods `1.16.2`                                                                 |
 | Integration             | Expo autolinking and CocoaPods through generated iOS project                                     |
@@ -78,7 +78,7 @@ real-service wallet smoke testing remain M6 release-candidate gates.
 | Rust coverage tool           | `cargo-llvm-cov 0.8.6`                                                          |
 | Midnight Ledger release line | `8.1.0`                                                                         |
 | Ledger Git revision          | `02716c2c95d50654aeb3cb63bfd8386046e4ca7d`                                      |
-| Runtime crate                | `midnight-native-runtime`, `publish = false`                                    |
+| Runtime crate                | `midnight-mobile-runtime`, `publish = false`                                    |
 | UniFFI                       | `0.32.0`                                                                        |
 | Apple deployment target      | `15.1`                                                                          |
 | Android API/NDK              | API `24`, NDK `27.1.12297006`                                                   |
@@ -105,9 +105,9 @@ gate and never runs for untrusted pull requests.
 
 | Package path                                                       | Required content                                              |
 | ------------------------------------------------------------------ | ------------------------------------------------------------- |
-| `ios/build/MidnightNativeRuntime.xcframework`                      | iOS arm64 and simulator arm64/x86_64 dynamic framework slices |
-| `android/src/main/jniLibs/arm64-v8a/libmidnight_native_runtime.so` | AArch64 Android runtime                                       |
-| `android/src/main/jniLibs/x86_64/libmidnight_native_runtime.so`    | x86-64 Android runtime                                        |
+| `ios/build/MidnightMobileRuntime.xcframework`                      | iOS arm64 and simulator arm64/x86_64 dynamic framework slices |
+| `android/src/main/jniLibs/arm64-v8a/libmidnight_mobile_runtime.so` | AArch64 Android runtime                                       |
+| `android/src/main/jniLibs/x86_64/libmidnight_mobile_runtime.so`    | x86-64 Android runtime                                        |
 
 No consumer Rust, Cargo, NDK, binary downloader, or npm `postinstall` is
 permitted. See [native distribution](./NATIVE_DISTRIBUTION.md) for inspection

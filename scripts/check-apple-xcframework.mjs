@@ -110,7 +110,7 @@ try {
   }
   const consumer = validateAppleConsumer(
     installedXcframework,
-    join(installedPackage, "ios/ExpoMidnightNative.podspec"),
+    join(installedPackage, "ios/MidnightMobileRuntime.podspec"),
     join(temporaryRoot, "consumer"),
   );
   const expoConsumer = validateTarballExpoConsumer(

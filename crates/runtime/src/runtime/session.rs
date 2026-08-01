@@ -191,6 +191,7 @@ pub fn apply_sync_batch(
     }
 
     NativeWalletState::validate_wire_offsets(&stream, &payloads, from_offset, to_offset)?;
+    NativeWalletState::validate_v2_trailer(&stream, &payloads, to_offset)?;
 
     // Decode and apply against cloned native wallet state. None of the stream
     // offsets, receipts, or wallet structures are committed until the entire

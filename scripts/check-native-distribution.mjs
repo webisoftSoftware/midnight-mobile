@@ -20,7 +20,7 @@ import { removeTree } from "./quality-utils.mjs";
 
 const PACKAGE_ROOT = "packages/react-native";
 const ARTIFACT_ROOT = "artifacts/native";
-const LIBRARY = "libmidnight_native_runtime.so";
+const LIBRARY = "libmidnight_mobile_runtime.so";
 const ANDROID_ABIS = ["arm64-v8a", "x86_64"];
 const PEERS = ["expo", "expo-modules-core", "react", "react-native"];
 

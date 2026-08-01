@@ -33,6 +33,69 @@ impl NativeWalletState {
         Ok(())
     }
 
+    pub(crate) fn validate_v2_trailer(
+        stream: &str,
+        payloads: &[Vec<u8>],
+        to_offset: u64,
+    ) -> Result<(), MidnightRuntimeError> {
+        if !matches!(stream, "shielded-v2" | "dust-v2") {
+            return Ok(());
+        }
+        let [payload] = payloads else {
+            return Err(MidnightRuntimeError::InvalidArgument);
+        };
+        let trailer = payload
+            .len()
+            .checked_sub(8)
+            .and_then(|start| payload.get(start..))
+            .and_then(|bytes| bytes.try_into().ok())
+            .map(u64::from_le_bytes)
+            .ok_or(MidnightRuntimeError::InvalidArgument)?;
+        if trailer == 0 || trailer != to_offset {
+            return Err(MidnightRuntimeError::SyncGap);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn snapshot_sync_request(
+        stream: &str,
+        zswap_seed: &[u8],
+        dust_seed: &[u8],
+    ) -> Result<Vec<u8>, MidnightRuntimeError> {
+        match stream {
+            "shielded" => {
+                let mut seed: [u8; 32] = zswap_seed
+                    .try_into()
+                    .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
+                let keys = ZswapSecretKeys::from(ZswapSeed::from(seed));
+                seed.zeroize();
+                let mut viewing_key = Vec::new();
+                tagged_serialize(&keys.encryption_secret_key, &mut viewing_key)
+                    .map_err(|_| MidnightRuntimeError::NativeInternal)?;
+                serde_json::to_vec(&serde_json::json!({
+                    "viewingKey": hex::encode(viewing_key),
+                    "coinPublicKey": serializable_hex(&keys.coin_public_key())?,
+                }))
+                .map_err(|_| MidnightRuntimeError::NativeInternal)
+            }
+            "dust" => {
+                let mut seed: [u8; 32] = dust_seed
+                    .try_into()
+                    .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
+                let secret_key = DustSecretKey::derive_secret_key(&seed);
+                seed.zeroize();
+                let public_key = DustPublicKey::from(secret_key);
+                let public_key =
+                    BigUint::from_bytes_le(&public_key.0.as_le_bytes()).to_str_radix(16);
+                serde_json::to_vec(&serde_json::json!({
+                    "dustPublicKey": format!("{public_key:0>64}"),
+                }))
+                .map_err(|_| MidnightRuntimeError::NativeInternal)
+            }
+            _ => Err(MidnightRuntimeError::InvalidArgument),
+        }
+    }
+
     pub(crate) fn shielded_spent_request(&self) -> Result<Vec<u8>, MidnightRuntimeError> {
         let mut nullifier_prefixes = Vec::new();
         for (_, coin) in self.shielded.coins.iter() {

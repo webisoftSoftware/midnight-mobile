@@ -7,8 +7,8 @@ import Foundation
 // Depending on the consumer's build setup, the low-level FFI code
 // might be in a separate module, or it might be compiled inline into
 // this module. This is a bit of light hackery to work with both.
-#if canImport(MidnightNativeRuntime)
-import MidnightNativeRuntime
+#if canImport(MidnightMobileRuntime)
+import MidnightMobileRuntime
 #endif
 
 fileprivate extension RustBuffer {
@@ -25,13 +25,13 @@ fileprivate extension RustBuffer {
     }
 
     static func from(_ ptr: UnsafeBufferPointer<UInt8>) -> RustBuffer {
-        try! rustCall { ffi_midnight_native_runtime_rustbuffer_from_bytes(ForeignBytes(bufferPointer: ptr), $0) }
+        try! rustCall { ffi_midnight_mobile_runtime_rustbuffer_from_bytes(ForeignBytes(bufferPointer: ptr), $0) }
     }
 
     // Frees the buffer in place.
     // The buffer must not be used after this is called.
     func deallocate() {
-        try! rustCall { ffi_midnight_native_runtime_rustbuffer_free(self, $0) }
+        try! rustCall { ffi_midnight_mobile_runtime_rustbuffer_free(self, $0) }
     }
 }
 
@@ -327,7 +327,7 @@ private func makeRustCall<T, E: Swift.Error>(
     _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T,
     errorHandler: ((RustBuffer) throws -> E)?
 ) throws -> T {
-    uniffiEnsureMidnightNativeRuntimeInitialized()
+    uniffiEnsureMidnightMobileRuntimeInitialized()
     var callStatus = RustCallStatus.init()
     let returnedVal = callback(&callStatus)
     try uniffiCheckCallStatus(callStatus: callStatus, errorHandler: errorHandler)
@@ -808,7 +808,7 @@ fileprivate struct FfiConverterSequenceData: FfiConverterRustBuffer {
 public func applySyncBatch(sessionId: UInt64, generation: UInt64, stream: String, fromOffset: UInt64, toOffset: UInt64, payloads: [Data])throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeMidnightRuntimeError_lift) {
         uniffiCallStatus in
-    uniffi_midnight_native_runtime_fn_func_apply_sync_batch(
+    uniffi_midnight_mobile_runtime_fn_func_apply_sync_batch(
         FfiConverterUInt64.lower(sessionId),
         FfiConverterUInt64.lower(generation),
         FfiConverterString.lower(stream),
@@ -821,7 +821,7 @@ public func applySyncBatch(sessionId: UInt64, generation: UInt64, stream: String
 public func beginCommand(sessionId: UInt64, generation: UInt64, commandJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeMidnightRuntimeError_lift) {
         uniffiCallStatus in
-    uniffi_midnight_native_runtime_fn_func_begin_command(
+    uniffi_midnight_mobile_runtime_fn_func_begin_command(
         FfiConverterUInt64.lower(sessionId),
         FfiConverterUInt64.lower(generation),
         FfiConverterString.lower(commandJson),uniffiCallStatus
@@ -830,7 +830,7 @@ public func beginCommand(sessionId: UInt64, generation: UInt64, commandJson: Str
 }
 public func cancelOperation(operationId: UInt64, generation: UInt64)throws   {try rustCallWithError(FfiConverterTypeMidnightRuntimeError_lift) {
         uniffiCallStatus in
-    uniffi_midnight_native_runtime_fn_func_cancel_operation(
+    uniffi_midnight_mobile_runtime_fn_func_cancel_operation(
         FfiConverterUInt64.lower(operationId),
         FfiConverterUInt64.lower(generation),uniffiCallStatus
     )
@@ -838,7 +838,7 @@ public func cancelOperation(operationId: UInt64, generation: UInt64)throws   {tr
 }
 public func closeWalletSession(sessionId: UInt64, generation: UInt64)throws   {try rustCallWithError(FfiConverterTypeMidnightRuntimeError_lift) {
         uniffiCallStatus in
-    uniffi_midnight_native_runtime_fn_func_close_wallet_session(
+    uniffi_midnight_mobile_runtime_fn_func_close_wallet_session(
         FfiConverterUInt64.lower(sessionId),
         FfiConverterUInt64.lower(generation),uniffiCallStatus
     )
@@ -847,7 +847,7 @@ public func closeWalletSession(sessionId: UInt64, generation: UInt64)throws   {t
 public func exportWalletCheckpoint(sessionId: UInt64, generation: UInt64)throws  -> Data  {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeMidnightRuntimeError_lift) {
         uniffiCallStatus in
-    uniffi_midnight_native_runtime_fn_func_export_wallet_checkpoint(
+    uniffi_midnight_mobile_runtime_fn_func_export_wallet_checkpoint(
         FfiConverterUInt64.lower(sessionId),
         FfiConverterUInt64.lower(generation),uniffiCallStatus
     )
@@ -856,7 +856,7 @@ public func exportWalletCheckpoint(sessionId: UInt64, generation: UInt64)throws 
 public func getWalletSnapshot(sessionId: UInt64, generation: UInt64)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeMidnightRuntimeError_lift) {
         uniffiCallStatus in
-    uniffi_midnight_native_runtime_fn_func_get_wallet_snapshot(
+    uniffi_midnight_mobile_runtime_fn_func_get_wallet_snapshot(
         FfiConverterUInt64.lower(sessionId),
         FfiConverterUInt64.lower(generation),uniffiCallStatus
     )
@@ -865,7 +865,7 @@ public func getWalletSnapshot(sessionId: UInt64, generation: UInt64)throws  -> S
 public func openWalletSession(configJson: String, nightExternalKey: Data, zswapSeed: Data, dustSeed: Data, checkpoint: Data?)throws  -> RuntimeSessionHandle  {
     return try  FfiConverterTypeRuntimeSessionHandle_lift(try rustCallWithError(FfiConverterTypeMidnightRuntimeError_lift) {
         uniffiCallStatus in
-    uniffi_midnight_native_runtime_fn_func_open_wallet_session(
+    uniffi_midnight_mobile_runtime_fn_func_open_wallet_session(
         FfiConverterString.lower(configJson),
         FfiConverterData.lower(nightExternalKey),
         FfiConverterData.lower(zswapSeed),
@@ -877,7 +877,7 @@ public func openWalletSession(configJson: String, nightExternalKey: Data, zswapS
 public func resumeOperation(operationId: UInt64, generation: UInt64, networkResultJson: String?)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeMidnightRuntimeError_lift) {
         uniffiCallStatus in
-    uniffi_midnight_native_runtime_fn_func_resume_operation(
+    uniffi_midnight_mobile_runtime_fn_func_resume_operation(
         FfiConverterUInt64.lower(operationId),
         FfiConverterUInt64.lower(generation),
         FfiConverterOptionString.lower(networkResultJson),uniffiCallStatus
@@ -896,32 +896,32 @@ private let initializationResult: InitializationResult = {
     // Get the bindings contract version from our ComponentInterface
     let bindings_contract_version = 30
     // Get the scaffolding contract version by calling the into the dylib
-    let scaffolding_contract_version = ffi_midnight_native_runtime_uniffi_contract_version()
+    let scaffolding_contract_version = ffi_midnight_mobile_runtime_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_midnight_native_runtime_checksum_func_apply_sync_batch() != 42134) {
+    if (uniffi_midnight_mobile_runtime_checksum_func_apply_sync_batch() != 52762) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_midnight_native_runtime_checksum_func_begin_command() != 53809) {
+    if (uniffi_midnight_mobile_runtime_checksum_func_begin_command() != 9918) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_midnight_native_runtime_checksum_func_cancel_operation() != 57555) {
+    if (uniffi_midnight_mobile_runtime_checksum_func_cancel_operation() != 58975) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_midnight_native_runtime_checksum_func_close_wallet_session() != 13586) {
+    if (uniffi_midnight_mobile_runtime_checksum_func_close_wallet_session() != 30161) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_midnight_native_runtime_checksum_func_export_wallet_checkpoint() != 20737) {
+    if (uniffi_midnight_mobile_runtime_checksum_func_export_wallet_checkpoint() != 54417) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_midnight_native_runtime_checksum_func_get_wallet_snapshot() != 11475) {
+    if (uniffi_midnight_mobile_runtime_checksum_func_get_wallet_snapshot() != 39753) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_midnight_native_runtime_checksum_func_open_wallet_session() != 903) {
+    if (uniffi_midnight_mobile_runtime_checksum_func_open_wallet_session() != 24211) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_midnight_native_runtime_checksum_func_resume_operation() != 45157) {
+    if (uniffi_midnight_mobile_runtime_checksum_func_resume_operation() != 13294) {
         return InitializationResult.apiChecksumMismatch
     }
 
@@ -930,7 +930,7 @@ private let initializationResult: InitializationResult = {
 
 // Make the ensure init function public so that other modules which have external type references to
 // our types can call it.
-public func uniffiEnsureMidnightNativeRuntimeInitialized() {
+public func uniffiEnsureMidnightMobileRuntimeInitialized() {
     switch initializationResult {
     case .ok:
         break

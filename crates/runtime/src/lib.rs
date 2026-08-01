@@ -7,10 +7,16 @@ use num_bigint::BigUint;
 use zeroize::Zeroize;
 
 mod codec;
+#[cfg(feature = "local-prover")]
+mod local_prover;
 mod runtime;
 mod transaction;
 mod wallet_state;
 
+#[cfg(feature = "local-prover")]
+pub use local_prover::{
+    deterministic_zswap_spend_check_request, deterministic_zswap_spend_request,
+};
 pub use runtime::{
     RuntimeSessionHandle, apply_sync_batch, begin_command, cancel_operation, close_wallet_session,
     export_wallet_checkpoint, get_wallet_snapshot, open_wallet_session, resume_operation,

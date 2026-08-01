@@ -89,6 +89,12 @@ impl NativeWalletState {
                     .replay_events(&key, events.iter())
                     .map_err(|_| MidnightRuntimeError::SyncGap)?;
             }
+            "shielded-v2" => {
+                if payloads.len() != 1 {
+                    return Err(MidnightRuntimeError::InvalidArgument);
+                }
+                proposed = self.import_shielded_v2(&payloads[0], zswap_seed)?;
+            }
             "dust" => {
                 let mut seed: [u8; 32] = dust_seed
                     .try_into()
@@ -100,6 +106,12 @@ impl NativeWalletState {
                     .dust
                     .replay_events(&key, events.iter())
                     .map_err(|_| MidnightRuntimeError::SyncGap)?;
+            }
+            "dust-v2" => {
+                if payloads.len() != 1 {
+                    return Err(MidnightRuntimeError::InvalidArgument);
+                }
+                proposed = self.import_dust_v2(&payloads[0], dust_seed)?;
             }
             "unshielded" => {
                 for payload in payloads {
@@ -127,6 +139,53 @@ impl NativeWalletState {
             zswap_seed,
             &mut OsRng,
         )
+    }
+
+    pub(crate) fn shielded_mint_context(
+        &self,
+        zswap_seed: &[u8],
+    ) -> Result<ShieldedMintContext, MidnightRuntimeError> {
+        let mut seed: [u8; 32] = zswap_seed
+            .try_into()
+            .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
+        let keys = ZswapSecretKeys::from(ZswapSeed::from(seed));
+        seed.zeroize();
+        Ok(ShieldedMintContext {
+            coin_public_key: keys.coin_public_key(),
+            encryption_public_key: keys.enc_public_key(),
+            output_index: self.shielded.first_free,
+        })
+    }
+
+    pub(crate) fn watch_shielded_mint(
+        &self,
+        raw_coin: &[u8],
+        expected_output_index: u64,
+        zswap_seed: &[u8],
+    ) -> Result<(Self, u64), MidnightRuntimeError> {
+        if self.shielded.first_free != expected_output_index {
+            return Err(MidnightRuntimeError::SyncGap);
+        }
+        let mut remaining = raw_coin;
+        let coin: ShieldedCoinInfo = tagged_deserialize(&mut remaining)
+            .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+        let mut canonical = Vec::new();
+        tagged_serialize(&coin, &mut canonical)
+            .map_err(|_| MidnightRuntimeError::NativeInternal)?;
+        if !remaining.is_empty() || canonical != raw_coin {
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
+
+        let mut seed: [u8; 32] = zswap_seed
+            .try_into()
+            .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
+        let keys = ZswapSecretKeys::from(ZswapSeed::from(seed));
+        seed.zeroize();
+        let mut proposed = self.clone();
+        proposed.shielded = proposed.shielded.watch_for(&keys.coin_public_key(), &coin);
+        proposed.refresh_coin_hashes(&keys)?;
+        let output_index = proposed.shielded.first_free;
+        Ok((proposed, output_index))
     }
 
     pub(crate) fn build_unshielded_transfer(

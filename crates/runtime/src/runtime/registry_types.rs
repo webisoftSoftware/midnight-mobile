@@ -38,8 +38,16 @@ enum PendingOperationKind {
     SubmitFinalized {
         transaction_hash: String,
     },
-    Transfer {
-        proposed_state: NativeWalletState,
+    FinalizeTransactionProof {
+        raw: Vec<u8>,
+        key_material: transaction::RemoteProofKeyMaterials,
+        proposed_state: Option<NativeWalletState>,
+        expected_identifiers: Vec<String>,
+        responses: transaction::RemoteProofResponses,
+        pending_request: transaction::RemoteProofRequest,
+    },
+    FinalizeTransactionBalance {
+        proposed_state: Option<NativeWalletState>,
         expected_identifiers: Vec<String>,
     },
     DappIntentProof {
