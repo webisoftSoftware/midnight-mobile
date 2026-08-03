@@ -2,11 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import {
-  parseElfReport,
-  validateElfReport,
-  validateNativeBuildConfig,
-} from "./build-android-native.mjs";
+import { createAndroidBuildPlan } from "./android-build-plan.mjs";
+import { parseElfReport, validateElfReport } from "./android-elf-report.mjs";
+import { validateNativeBuildConfig } from "./build-android-native.mjs";
 
 const config = JSON.parse(
   readFileSync(new URL("./native-build-config.json", import.meta.url), "utf8"),
@@ -34,6 +32,41 @@ await test("native build config pins the exact M4 Android contract", () => {
       apple: { ...config.apple, moduleName: "MidnightMobileRuntimeFFI" },
     }).join("\n"),
     /framework and generated module names must match/u,
+  );
+});
+
+await test("Android release builds keep two-target reproducibility by default", () => {
+  const plan = createAndroidBuildPlan(config);
+  assert.equal(plan.verifyReproducible, true);
+  assert.deepEqual(
+    plan.targets.map(({ abi }) => abi),
+    ["arm64-v8a", "x86_64"],
+  );
+});
+
+await test("explicit consumer builds may select one arm64 single pass", () => {
+  const plan = createAndroidBuildPlan(config, [
+    "--single-pass",
+    "--abi",
+    "arm64-v8a",
+  ]);
+  assert.equal(plan.verifyReproducible, false);
+  assert.deepEqual(
+    plan.targets.map(({ abi }) => abi),
+    ["arm64-v8a"],
+  );
+  assert.throws(
+    () => createAndroidBuildPlan(config, ["--abi", "arm64-v8a"]),
+    /only with explicit --single-pass/u,
+  );
+  assert.throws(
+    () =>
+      createAndroidBuildPlan(config, ["--single-pass", "--abi", "armeabi-v7a"]),
+    /unsupported Android ABI/u,
+  );
+  assert.throws(
+    () => createAndroidBuildPlan(config, ["--single-pass", "--unknown"]),
+    /unsupported argument/u,
   );
 });
 
