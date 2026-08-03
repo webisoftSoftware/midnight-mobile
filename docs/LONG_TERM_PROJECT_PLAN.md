@@ -166,10 +166,12 @@ Status: complete.
    - M5 must re-enable and require the lightweight repository-quality and
      dependency-security checks before release;
    - no force pushes or branch deletion;
-   - one maintainer approval for ordinary contributor changes;
-   - repository-owner merge authority for completed agent-authored pull requests
-     after primary review, a recorded passing full local gate, and the required
-     lightweight checks from M5 onward.
+   - owner approval for changes authored by another contributor;
+   - during temporary solo-maintainer pre-release iteration, repository-owner
+     authority to merge an owner-authored or completed agent-authored pull
+     request without independent approval after primary review, a recorded
+     passing full local gate, and the required lightweight checks from M5
+     onward.
 8. Add `CODEOWNERS` for Rust, React Native, native packaging, security docs, and
    workflows when maintainers are assigned.
 9. Keep repository-authored bootstrap material under the existing provisional
