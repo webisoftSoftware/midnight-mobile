@@ -26,14 +26,16 @@ server-side repository settings.
 Configure a ruleset or branch protection rule that:
 
 - requires a pull request before merging;
-- requires at least one approving review;
-- dismisses stale approvals when reviewable content changes;
-- requires review from Code Owners;
+- temporarily requires zero approving reviews and does not require Code Owner
+  review while `@ADGLx` is the only maintainer, because GitHub does not permit
+  pull-request authors to approve their own changes;
+- requires owner approval for pull requests authored by anyone else;
 - requires all review conversations to be resolved;
 - blocks force pushes and branch deletion;
-- permits repository-owner or administrator merge authority for completed
-  agent-authored pull requests after primary review and a successful full local
-  `npm run quality`, as defined in `AGENTS.md`;
+- permits the repository owner to merge their own completed pull request after
+  primary review and a recorded successful full local `npm run quality`;
+- restores at least one approving review and required Code Owner review when a
+  second maintainer is assigned, and no later than release acceptance;
 - never permits bypass of a failing required check, unresolved third-party
   feedback, or an independent approval the user explicitly required.
 
@@ -105,7 +107,8 @@ Record evidence that:
 3. during M1-M4, required status checks are absent by deliberate policy, the
    workflow is manual-only, and completed changes have full local quality
    evidence;
-4. CODEOWNERS review is requested on representative protected paths;
+4. during the solo-maintainer period, owner-authored pull requests can merge
+   without self-approval while other contributors still require owner approval;
 5. issue forms apply their configured labels;
 6. before M6, the private pre-release contact path is reachable; during the M6
    visibility change, private vulnerability reporting is enabled and reachable;

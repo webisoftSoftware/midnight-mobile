@@ -1,11 +1,7 @@
 name: Quality
 
 on:
-  pull_request:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_dispatch: # Temporary pre-release local-integration pause; restore PR/main triggers before milestone/release acceptance.
 
 permissions:
   contents: read
