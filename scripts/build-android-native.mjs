@@ -12,6 +12,8 @@ import {
 import { basename, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { createAndroidBuildPlan } from "./android-build-plan.mjs";
+import { parseElfReport, validateElfReport } from "./android-elf-report.mjs";
 import { findForbiddenBinaryContent } from "./check-wallet-core-artifacts.mjs";
 import { removeTree } from "./quality-utils.mjs";
 
@@ -194,59 +196,6 @@ function validateAndroidLocalProver(localProver, errors) {
   }
 }
 
-export function parseElfReport(header, dynamic, symbols) {
-  const field = (name) =>
-    new RegExp(`^\\s*${name}:\\s*(.+)$`, "mu").exec(header)?.[1]?.trim() ?? "";
-  const needed = [...dynamic.matchAll(/Shared library: \[([^\]]+)\]/gu)]
-    .map((match) => match[1])
-    .sort();
-  const functions = [
-    ...symbols.matchAll(
-      /\buniffi_midnight_mobile_runtime_fn_func_([a-z0-9_]+)$/gmu,
-    ),
-  ]
-    .map((match) => match[1])
-    .sort();
-  const localProverFunctions = [
-    ...symbols.matchAll(/\b(midnight_mobile_local_prover_[a-z0-9_]+)$/gmu),
-  ]
-    .map((match) => match[1])
-    .sort();
-  return {
-    type: field("Type"),
-    machine: field("Machine"),
-    needed,
-    functions,
-    localProverFunctions,
-  };
-}
-
-export function validateElfReport(report, target, config) {
-  const errors = [];
-  if (!report.type.startsWith("DYN ")) {
-    errors.push(`${target.abi}: ELF type must be DYN`);
-  }
-  if (report.machine !== target.machine) {
-    errors.push(`${target.abi}: ELF machine must be ${target.machine}`);
-  }
-  if (!sameArray(report.needed, [...config.android.neededLibraries].sort())) {
-    errors.push(`${target.abi}: shared-library dependencies drifted`);
-  }
-  const functions = [...config.rust.uniffiFunctions].sort();
-  if (!sameArray(report.functions, functions)) {
-    errors.push(`${target.abi}: exported UniFFI function ABI drifted`);
-  }
-  if (
-    !sameArray(
-      report.localProverFunctions,
-      [...config.android.localProver.exportedFunctions].sort(),
-    )
-  ) {
-    errors.push(`${target.abi}: exported local prover C ABI drifted`);
-  }
-  return errors;
-}
-
 function loadConfiguration(repositoryRoot) {
   const config = JSON.parse(
     readFileSync(resolve(repositoryRoot, CONFIG_PATH), "utf8"),
@@ -256,7 +205,7 @@ function loadConfiguration(repositoryRoot) {
   return config;
 }
 
-function requireToolchain(repositoryRoot, config) {
+function requireToolchain(repositoryRoot, config, targets) {
   const rustc = runChecked(
     repositoryRoot,
     "rustc",
@@ -274,7 +223,7 @@ function requireToolchain(repositoryRoot, config) {
     ["target", "list", "--installed"],
     "Rust target inspection",
   ).stdout.split(/\s+/u);
-  for (const target of config.android.targets) {
+  for (const target of targets) {
     if (!installed.includes(target.rustTarget)) {
       throw new Error(
         `required Rust target is not installed: ${target.rustTarget}`,
@@ -397,7 +346,14 @@ function inspectLibrary(repositoryRoot, path, target, config, toolchain) {
   if (errors.length > 0) throw new Error(errors.sort().join("\n"));
 }
 
-function buildTarget(repositoryRoot, roots, target, config, toolchain) {
+function buildTarget(
+  repositoryRoot,
+  roots,
+  target,
+  config,
+  toolchain,
+  verifyReproducible,
+) {
   cargoBuild(repositoryRoot, roots.cargo, target, config, toolchain);
   const source = resolve(
     roots.cargo,
@@ -405,12 +361,14 @@ function buildTarget(repositoryRoot, roots, target, config, toolchain) {
     "release",
     `lib${config.rust.libraryBaseName}.so`,
   );
-  const first = resolve(roots.repro, `${target.abi}-first.so`);
-  copyFileSync(source, first);
-  cargoClean(repositoryRoot, roots.cargo, target, config);
-  cargoBuild(repositoryRoot, roots.cargo, target, config, toolchain);
-  if (sha256(first) !== sha256(source)) {
-    throw new Error(`${target.abi} native library is not reproducible`);
+  if (verifyReproducible) {
+    const first = resolve(roots.repro, `${target.abi}-first.so`);
+    copyFileSync(source, first);
+    cargoClean(repositoryRoot, roots.cargo, target, config);
+    cargoBuild(repositoryRoot, roots.cargo, target, config, toolchain);
+    if (sha256(first) !== sha256(source)) {
+      throw new Error(`${target.abi} native library is not reproducible`);
+    }
   }
   inspectLibrary(repositoryRoot, source, target, config, toolchain);
   const artifact = resolve(roots.output, target.abi, basename(source));
@@ -437,9 +395,11 @@ function buildTarget(repositoryRoot, roots, target, config, toolchain) {
 export function buildAndroidNativeDistribution(
   repositoryRoot = process.cwd(),
   artifactRoot = resolve(repositoryRoot, "artifacts/native/android"),
+  argumentsList = [],
 ) {
   const config = loadConfiguration(repositoryRoot);
-  requireToolchain(repositoryRoot, config);
+  const plan = createAndroidBuildPlan(config, argumentsList);
+  requireToolchain(repositoryRoot, config, plan.targets);
   const toolchain = resolveNdk(repositoryRoot, config);
   const packaged = resolve(
     repositoryRoot,
@@ -454,8 +414,15 @@ export function buildAndroidNativeDistribution(
     repro: resolve(artifactRoot, "repro"),
   };
   mkdirSync(roots.repro, { recursive: true });
-  const binaries = config.android.targets.map((target) =>
-    buildTarget(repositoryRoot, roots, target, config, toolchain),
+  const binaries = plan.targets.map((target) =>
+    buildTarget(
+      repositoryRoot,
+      roots,
+      target,
+      config,
+      toolchain,
+      plan.verifyReproducible,
+    ),
   );
   const totalBytes = binaries.reduce((total, binary) => total + binary.size, 0);
   if (totalBytes > config.android.combinedBudgetBytes) {
@@ -476,14 +443,18 @@ export function buildAndroidNativeDistribution(
     resolve(artifactRoot, "android-binaries.json"),
     `${JSON.stringify(result, null, 2)}\n`,
   );
-  return result;
+  return { ...result, reproducible: plan.verifyReproducible };
 }
 
 function main() {
   try {
-    const result = buildAndroidNativeDistribution();
+    const result = buildAndroidNativeDistribution(
+      process.cwd(),
+      resolve(process.cwd(), "artifacts/native/android"),
+      process.argv.slice(2),
+    );
     console.log(
-      `Android native distribution passed: abis=${result.binaries.map((binary) => binary.abi).join(",")}, bytes=${String(result.totalBytes)}, reproducible=true`,
+      `Android native distribution passed: abis=${result.binaries.map((binary) => binary.abi).join(",")}, bytes=${String(result.totalBytes)}, reproducible=${String(result.reproducible)}`,
     );
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

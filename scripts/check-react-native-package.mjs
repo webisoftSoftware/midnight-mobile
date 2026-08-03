@@ -47,6 +47,7 @@ const EXPECTED_TESTED_DEPENDENCIES = Object.freeze({
   "react-native": "0.83.6",
   typescript: "5.9.3",
 });
+const EXPECTED_ENGINES = Object.freeze({ node: ">=22 <23 || >=24 <25" });
 const REQUIRED_PACKED_FILES = Object.freeze([
   "README.md",
   "android/build.gradle",
@@ -169,7 +170,7 @@ export function validatePackageMetadata(metadata, autolinking) {
     errors,
   );
   validateExact(metadata.sideEffects, false, "sideEffects", errors);
-  validateExact(metadata.engines, { node: ">=22 <23" }, "engines", errors);
+  validateExact(metadata.engines, EXPECTED_ENGINES, "engines", errors);
   for (const field of [
     "dependencies",
     "optionalDependencies",

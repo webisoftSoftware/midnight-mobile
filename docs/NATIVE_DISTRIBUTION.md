@@ -23,6 +23,39 @@ distribution terms.
 The machine-readable contract is
 [`scripts/native-build-config.json`](../scripts/native-build-config.json).
 
+## Consumer source builds
+
+Release builds remain reproducible by default: `npm run build:native:android`
+builds both reviewed Android ABIs twice and compares their byte output, while
+`npm run build:native:apple` performs the equivalent two-pass XCFramework check.
+Only an explicit consumer source build may opt into one pass. The stable
+commands from a clean recursive checkout are:
+
+```sh
+# JavaScript and declarations
+npm ci
+npm run build:package
+
+# Android arm64-v8a consumer native output
+rustup target add aarch64-linux-android
+cargo fetch --locked --target aarch64-linux-android
+CARGO_NET_OFFLINE=true node scripts/build-android-native.mjs \
+  --single-pass --abi arm64-v8a
+
+# Apple device/simulator XCFramework consumer output
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+cargo fetch --locked --target aarch64-apple-ios
+cargo fetch --locked --target aarch64-apple-ios-sim
+cargo fetch --locked --target x86_64-apple-ios
+CARGO_NET_OFFLINE=true node scripts/build-apple-xcframework.mjs --single-pass
+```
+
+These commands require the pinned Node, npm, Rust, NDK/Xcode, and platform
+inputs in the [compatibility matrix](COMPATIBILITY.md). `--single-pass` is for
+consumer source-build latency only. It must not be used to create SDK release
+artifacts or release evidence, and it changes no runtime, ABI, or proof
+semantics.
+
 ## Release artifacts
 
 Run `npm run build:native` before packing a release. It creates:

@@ -57,7 +57,7 @@ const metadata = {
     "react-native": "0.83.6",
     typescript: "5.9.3",
   },
-  engines: { node: ">=22 <23" },
+  engines: { node: ">=22 <23 || >=24 <25" },
 };
 const autolinking = {
   platforms: ["apple", "android"],
@@ -127,6 +127,13 @@ await test("package metadata enforces the M4 consumer contract", () => {
       autolinking,
     ).join("\n"),
     /scripts\.postinstall must be absent/u,
+  );
+  assert.match(
+    validatePackageMetadata(
+      { ...metadata, engines: { node: ">=22" } },
+      autolinking,
+    ).join("\n"),
+    /engines/u,
   );
 });
 
