@@ -9,7 +9,7 @@ evidence agree.
 
 | Layer             | Exact tested version                          | Declared support                                        | Not supported or not tested                      |
 | ----------------- | --------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------ |
-| Node.js           | `22.x` repository engine                      | Node.js 22 for install/build tooling                    | Node 21 or earlier; Node 23 or later             |
+| Node.js           | `22.x` repository; `24.15.0` consumer         | Node.js 22 or 24 for consuming the package              | Node 21 or earlier; Node 23; Node 25 or later    |
 | npm               | `11.12.1`                                     | Exact lockfile/package-manager version for reproduction | Yarn, pnpm, Bun, or a regenerated lockfile       |
 | Expo              | `55.0.28`                                     | `>=55.0.0 <56.0.0`                                      | Expo Go; SDK 54 or 56+                           |
 | Expo Modules Core | `55.0.25`                                     | `>=55.0.0 <56.0.0`                                      | Other major SDK lines                            |

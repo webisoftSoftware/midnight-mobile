@@ -56,6 +56,6 @@
     "test": "tsc -p tsconfig.test.json && node --import ./test-support/register-peer-stubs.mjs --test .staging-build/tests/*.test.js"
   },
   "engines": {
-    "node": ">=22 <23"
+    "node": ">=22 <23 || >=24 <25"
   }
 }
