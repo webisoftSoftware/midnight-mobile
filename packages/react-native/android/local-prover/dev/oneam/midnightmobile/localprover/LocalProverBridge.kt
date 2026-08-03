@@ -39,8 +39,11 @@ data class LocalProverConfiguration(
 
 class LocalProverBridgeException(val stableCode: String) : IllegalStateException(stableCode)
 
+// JNA instantiates these reflectively from com.sun.jna.Klass, so they must be
+// public with a public no-arg constructor. Kotlin's `private` compiles to
+// package-private and makes every configure fail with IllegalAccessException.
 @Structure.FieldOrder("k", "bytes", "bytesLen", "sha256")
-private open class ParameterDescriptor : Structure() {
+open class ParameterDescriptor : Structure() {
   @JvmField var k: Int = 0
   @JvmField var bytes: Pointer? = null
   @JvmField var bytesLen: Long = 0
@@ -60,7 +63,7 @@ private open class ParameterDescriptor : Structure() {
   "irLen",
   "irSha256",
 )
-private open class CircuitDescriptor : Structure() {
+open class CircuitDescriptor : Structure() {
   @JvmField var keyLocation: Pointer? = null
   @JvmField var keyLocationLen: Long = 0
   @JvmField var proverKey: Pointer? = null
@@ -75,7 +78,7 @@ private open class CircuitDescriptor : Structure() {
 }
 
 @Structure.FieldOrder("bytes", "bytesLen")
-private open class NativeResponse : Structure() {
+open class NativeResponse : Structure() {
   @JvmField var bytes: Pointer? = null
   @JvmField var bytesLen: Long = 0
 
