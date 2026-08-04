@@ -327,6 +327,30 @@ impl NativeWalletState {
         }
         dust.sync_time = midnight_base_crypto::time::Timestamp::from_secs(sync_time);
 
+        // A snapshot can arrive with commitment and generating trees that no
+        // longer match the chain, and nothing on the way in looks at them: the
+        // divergence only surfaces at the node, as InvalidDustSpendProof, after
+        // the wallet has already spent half a minute proving against it. Trial
+        // spend every output at a zero fee — that resolves both merkle paths
+        // while leaving the value check unreachable — and refuse the whole
+        // import if any path fails to resolve, so the caller retries against a
+        // fresh snapshot instead of building on a bad one.
+        //
+        // TTLs are processed first because that is what drops dead and orphaned
+        // outputs; without it a single expired UTXO would reject every
+        // otherwise sound snapshot.
+        let now = midnight_base_crypto::time::Timestamp::from_secs(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+        );
+        dust = dust.process_ttls(now);
+        for utxo in dust.utxos().collect::<Vec<_>>() {
+            dust.spend(&secret_key, &utxo, 0, now)
+                .map_err(|_| MidnightRuntimeError::SyncGap)?;
+        }
+
         let mut proposed = self.clone();
         proposed.dust = dust;
         Ok(proposed)
