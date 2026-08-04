@@ -111,11 +111,11 @@ fn transaction_and_dust_reservations_block_sync_and_cleanup() {
             proposed_state,
             expected_identifiers: Vec::new(),
             responses: transaction::RemoteProofResponses::default(),
-            pending_request: transaction::RemoteProofRequest {
+            pending_requests: vec![transaction::RemoteProofRequest {
                 key: "dust-reservation".to_owned(),
                 kind: transaction::RemoteProofKind::Check,
                 body: vec![2],
-            },
+            }],
         },
     )
     .unwrap();

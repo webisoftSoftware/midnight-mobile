@@ -21,6 +21,10 @@ private const val MAX_ARTIFACT_BYTES = 512L * 1024 * 1024
 private const val MAX_TOTAL_ARTIFACT_BYTES = 2L * 1024 * 1024 * 1024
 private const val MAX_KEY_LOCATION_BYTES = 1_024
 
+// Mirrors crates/runtime/src/transaction.rs's MAX_PROOF_BATCH: the cap the native
+// midnight_mobile_local_prover_prove_batch entrypoint enforces on request_count.
+private const val MAX_PROOF_BATCH = 64
+
 data class LocalProverFile(val uri: String, val size: Long, val sha256: String)
 
 data class LocalProverParameter(val k: Int, val file: LocalProverFile)
@@ -85,6 +89,15 @@ open class NativeResponse : Structure() {
   class ByReference : NativeResponse(), Structure.ByReference
 }
 
+// See the comment on ParameterDescriptor: JNA instantiates this reflectively, so it must stay
+// public with a public no-arg constructor, and the field order below must match the Rust
+// #[repr(C)] LocalProverRequestDescriptor field order exactly (bytes, then bytes_len).
+@Structure.FieldOrder("bytes", "bytesLen")
+open class RequestDescriptor : Structure() {
+  @JvmField var bytes: Pointer? = null
+  @JvmField var bytesLen: Long = 0
+}
+
 private interface LocalProverNative : Library {
   fun midnight_mobile_local_prover_configure(
     parameters: Pointer?,
@@ -108,7 +121,18 @@ private interface LocalProverNative : Library {
     output: NativeResponse.ByReference,
   ): Int
 
+  fun midnight_mobile_local_prover_prove_batch(
+    handle: Long,
+    requests: Pointer?,
+    requestCount: Long,
+    outputs: Pointer?,
+  ): Int
+
+  fun midnight_mobile_local_prover_cancel(handle: Long): Int
+
   fun midnight_mobile_local_prover_close(handle: Long): Int
+
+  fun midnight_mobile_local_prover_set_max_concurrency(limit: Long): Int
 
   fun midnight_mobile_local_prover_free(bytes: Pointer?, bytesLen: Long)
 }
@@ -128,7 +152,13 @@ private data class NativeConfiguration(
   val retainedBuffers: List<ByteBuffer>,
 )
 
-class LocalProverBridge(private val assets: AssetManager? = null) {
+class LocalProverBridge(
+  private val assets: AssetManager? = null,
+  // Phase 2 admission policy: "configured_max = 1 on ActivityManager.isLowRamDevice". Applied once
+  // at configure time rather than continuously, since it reflects a fixed device characteristic,
+  // not a transient memory-pressure signal (that is `setMaxConcurrency`, called from trim-memory).
+  private val lowRamDevice: Boolean = false,
+) {
   private val lock = Any()
   private val native: LocalProverNative by lazy {
     Native.load("midnight_mobile_runtime", LocalProverNative::class.java)
@@ -150,6 +180,7 @@ class LocalProverBridge(private val assets: AssetManager? = null) {
     synchronized(lock) {
       state = RegistryState(handle.value, bindings.mappings)
     }
+    if (lowRamDevice) setMaxConcurrency(1)
     return handle.value
   }
 
@@ -158,6 +189,57 @@ class LocalProverBridge(private val assets: AssetManager? = null) {
 
   fun prove(request: ByteArray): ByteArray =
     execute(request, native::midnight_mobile_local_prover_prove)
+
+  fun proveBatch(requests: List<ByteArray>): List<ByteArray> {
+    if (requests.isEmpty()) throw LocalProverBridgeException("INVALID_REQUEST")
+    if (requests.size > MAX_PROOF_BATCH) throw LocalProverBridgeException("INVALID_CONFIGURATION")
+    requests.forEach { if (it.isEmpty()) throw LocalProverBridgeException("INVALID_REQUEST") }
+    val current = synchronized(lock) { state } ?: throw LocalProverBridgeException("STALE_REGISTRY")
+
+    val requestMemories = requests.map { request ->
+      Memory(request.size.toLong()).apply { write(0, request, 0, request.size) }
+    }
+    val descriptorArray = descriptors<RequestDescriptor>(requests.size)
+    requestMemories.forEachIndexed { index, memory ->
+      descriptorArray[index].apply {
+        bytes = memory
+        bytesLen = memory.size()
+        write()
+      }
+    }
+    val outputArray = descriptors<NativeResponse>(requests.size)
+    return try {
+      val code = native.midnight_mobile_local_prover_prove_batch(
+        current.handle,
+        descriptorArray.firstOrNull()?.pointer,
+        descriptorArray.size.toLong(),
+        outputArray.firstOrNull()?.pointer,
+      )
+      outputArray.forEach { it.read() }
+      requireSuccess(code)
+      outputArray.map { output ->
+        val pointer = output.bytes ?: throw LocalProverBridgeException("NATIVE_INTERNAL")
+        val size = Math.toIntExact(output.bytesLen)
+        try {
+          pointer.getByteArray(0, size)
+        } finally {
+          native.midnight_mobile_local_prover_free(pointer, output.bytesLen)
+        }
+      }
+    } finally {
+      requestMemories.forEach { it.clear() }
+    }
+  }
+
+  fun cancel() {
+    val current = synchronized(lock) { state } ?: return
+    native.midnight_mobile_local_prover_cancel(current.handle)
+  }
+
+  /** Phase 5 memory-pressure hook: clamps to `1..=4` on the native side. */
+  fun setMaxConcurrency(limit: Int) {
+    native.midnight_mobile_local_prover_set_max_concurrency(limit.toLong())
+  }
 
   fun close() {
     val current = synchronized(lock) { state } ?: return

@@ -2,9 +2,11 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::ptr;
 
 use super::{
-    CircuitArtifact, LocalProverError, ParameterArtifact, close_registry, configure_registry,
-    run_check, run_prove,
+    CircuitArtifact, LocalProverError, ParameterArtifact, cancel_all, close_registry,
+    configure_registry, run_check, run_prove, run_prove_batch, set_max_concurrency, set_profiling,
+    take_timings,
 };
+use crate::transaction::MAX_PROOF_BATCH;
 
 const MAX_PARAMETER_COUNT: usize = 32;
 const MAX_CIRCUIT_COUNT: usize = 256;
@@ -30,6 +32,12 @@ pub struct LocalProverCircuitDescriptor {
     pub ir: *const u8,
     pub ir_len: usize,
     pub ir_sha256: *const u8,
+}
+
+#[repr(C)]
+pub struct LocalProverRequestDescriptor {
+    pub bytes: *const u8,
+    pub bytes_len: usize,
 }
 
 #[repr(C)]
@@ -140,6 +148,21 @@ unsafe fn circuit_inputs<'a>(
                     ir_sha256: required_slice(descriptor.ir_sha256, 32)?,
                 })
             }
+        })
+        .collect()
+}
+
+unsafe fn batch_request_inputs<'a>(
+    pointer: *const LocalProverRequestDescriptor,
+    count: usize,
+) -> Result<Vec<&'a [u8]>, LocalProverError> {
+    // SAFETY: Validity, including the MAX_PROOF_BATCH cap, is checked before any field is read.
+    let descriptors = unsafe { optional_array(pointer, count, MAX_PROOF_BATCH)? };
+    descriptors
+        .iter()
+        .map(|descriptor| {
+            // SAFETY: Every pointer remains caller-owned and readable for this synchronous call.
+            unsafe { required_slice(descriptor.bytes, descriptor.bytes_len) }
         })
         .collect()
 }
@@ -256,10 +279,108 @@ pub unsafe extern "C" fn midnight_mobile_local_prover_prove(
     unsafe { run_request(handle, request, request_len, output, run_prove) }
 }
 
+/// Executes the official Ledger 8.1.0 `/prove` request shape for up to `MAX_PROOF_BATCH` requests
+/// in one call. Fans out inside Rust so a single admission decision, the shared bounded-permit
+/// gate, and the shared Rayon pool govern every request the same way they govern a single
+/// `midnight_mobile_local_prover_prove` call; see `run_prove_batch`'s doc comment.
+///
+/// Ownership is all-or-nothing: `outputs` is zeroed at entry, and on any failure every
+/// `outputs[i]` is left as that null default -- no response is ever leaked without a corresponding
+/// live slot the caller can free. On success every slot holds a leaked buffer to be freed with
+/// `midnight_mobile_local_prover_free`, exactly like the single-request entrypoints.
+///
+/// # Safety
+///
+/// `requests`, every descriptor's referenced byte range, and `outputs` must remain valid for this
+/// synchronous call. When `request_count` is nonzero, `outputs` must address at least
+/// `request_count` writable `LocalProverResponse` slots.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn midnight_mobile_local_prover_prove_batch(
+    handle: u64,
+    requests: *const LocalProverRequestDescriptor,
+    request_count: usize,
+    outputs: *mut LocalProverResponse,
+) -> i32 {
+    if request_count > MAX_PROOF_BATCH {
+        return LocalProverError::InvalidConfiguration.ffi_code();
+    }
+    if request_count == 0 {
+        return 0;
+    }
+    if outputs.is_null() {
+        return LocalProverError::InvalidRequest.ffi_code();
+    }
+    // SAFETY: Output was checked non-null and the caller guarantees request_count writable slots.
+    let outputs = unsafe { std::slice::from_raw_parts_mut(outputs, request_count) };
+    for output in outputs.iter_mut() {
+        *output = LocalProverResponse::default();
+    }
+    guarded_code(|| {
+        // SAFETY: Caller guarantees descriptor storage remains readable for this call.
+        let requests = unsafe { batch_request_inputs(requests, request_count)? };
+        let responses = run_prove_batch(handle, &requests)?;
+        for (output, bytes) in outputs.iter_mut().zip(responses) {
+            *output = leak_response(bytes);
+        }
+        Ok(())
+    })
+}
+
+/// Bumps the process-wide cancellation epoch so batch workers (see
+/// `midnight_mobile_local_prover_prove_batch`) that have not yet started their individual proof
+/// abandon it. Cannot interrupt a proof already inside `preimage.prove(...)`, which is pinned
+/// upstream ledger code with no cancellation token; `handle` is accepted for interface symmetry
+/// with the other entrypoints, but cancellation itself is process-wide since only one registry is
+/// ever configured at a time.
+#[unsafe(no_mangle)]
+pub extern "C" fn midnight_mobile_local_prover_cancel(handle: u64) -> i32 {
+    let _ = handle;
+    cancel_all();
+    0
+}
+
 /// Clears the configured registry when `handle` is current.
 #[unsafe(no_mangle)]
 pub extern "C" fn midnight_mobile_local_prover_close(handle: u64) -> i32 {
     guarded_code(|| close_registry(handle))
+}
+
+/// Enables or disables per-proof stage timing collection (Phase 1 instrumentation). Disabled by
+/// default; when enabled, `run_prove` additionally times the exact per-proof work a typed
+/// initialized-circuit cache would eliminate, so only enable this for measurement, not in normal
+/// operation.
+#[unsafe(no_mangle)]
+pub extern "C" fn midnight_mobile_local_prover_set_profiling(enabled: bool) -> i32 {
+    set_profiling(enabled);
+    0
+}
+
+/// Drains recorded stage-timing samples as a UTF-8 JSON array through the usual
+/// `LocalProverResponse` ownership contract; free with `midnight_mobile_local_prover_free`. Emits
+/// `[]` when there are no samples.
+///
+/// # Safety
+///
+/// `output` must remain valid for this synchronous call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn midnight_mobile_local_prover_take_timings(
+    output: *mut LocalProverResponse,
+) -> i32 {
+    if output.is_null() {
+        return LocalProverError::InvalidRequest.ffi_code();
+    }
+    // SAFETY: Output pointer was checked non-null and caller guarantees writable storage.
+    let output = unsafe { &mut *output };
+    *output = LocalProverResponse::default();
+    guarded_response(output, take_timings)
+}
+
+/// Sets the maximum number of concurrent shared permits (`run_check`/`run_prove`), clamped to
+/// `1..=4`. Does not affect in-flight permits already granted.
+#[unsafe(no_mangle)]
+pub extern "C" fn midnight_mobile_local_prover_set_max_concurrency(limit: usize) -> i32 {
+    set_max_concurrency(limit);
+    0
 }
 
 /// Frees response bytes returned by check or prove.
@@ -505,5 +626,146 @@ mod tests {
             midnight_mobile_local_prover_close(0),
             LocalProverError::StaleRegistry.ffi_code()
         );
+    }
+
+    #[test]
+    fn batch_descriptor_decoding_fails_closed_on_null_oversized_and_empty_shapes() {
+        assert!(matches!(
+            // SAFETY: A zero-length array is a valid shape and never dereferences the pointer.
+            unsafe { batch_request_inputs(ptr::null(), 0) },
+            Ok(decoded) if decoded.is_empty()
+        ));
+        assert!(matches!(
+            // SAFETY: A null pointer with a nonzero count is rejected before any dereference.
+            unsafe { batch_request_inputs(ptr::null(), 1) },
+            Err(LocalProverError::InvalidConfiguration)
+        ));
+        assert!(matches!(
+            // SAFETY: An oversized count is rejected before the null pointer is dereferenced.
+            unsafe { batch_request_inputs(ptr::null(), MAX_PROOF_BATCH + 1) },
+            Err(LocalProverError::InvalidConfiguration)
+        ));
+
+        let bytes = [1_u8, 2, 3];
+        let null_request = LocalProverRequestDescriptor {
+            bytes: ptr::null(),
+            bytes_len: bytes.len(),
+        };
+        assert!(matches!(
+            // SAFETY: Descriptor is live; its null request pointer is rejected before dereference.
+            unsafe { batch_request_inputs(&null_request, 1) },
+            Err(LocalProverError::ResourcePreflightFailed)
+        ));
+
+        let empty_request = LocalProverRequestDescriptor {
+            bytes: bytes.as_ptr(),
+            bytes_len: 0,
+        };
+        assert!(matches!(
+            // SAFETY: Descriptor and its buffer are live; the zero length is rejected.
+            unsafe { batch_request_inputs(&empty_request, 1) },
+            Err(LocalProverError::ResourcePreflightFailed)
+        ));
+
+        let valid_request = LocalProverRequestDescriptor {
+            bytes: bytes.as_ptr(),
+            bytes_len: bytes.len(),
+        };
+        // SAFETY: Descriptor and buffer remain live for decoding.
+        let decoded = unsafe { batch_request_inputs(&valid_request, 1) }.unwrap();
+        assert_eq!(decoded[0], bytes);
+    }
+
+    #[test]
+    fn prove_batch_nulls_outputs_at_entry_and_leaves_them_null_on_a_decode_failure() {
+        let _serial = super::super::PROVER_TEST_LOCK.lock().unwrap();
+        let sentinel_backing = [9_u8; 4];
+        let mut outputs = [
+            LocalProverResponse {
+                bytes: sentinel_backing.as_ptr().cast_mut(),
+                bytes_len: sentinel_backing.len(),
+            },
+            LocalProverResponse {
+                bytes: sentinel_backing.as_ptr().cast_mut(),
+                bytes_len: sentinel_backing.len(),
+            },
+        ];
+        // The request array is null with a nonzero count, so decoding fails inside guarded_code --
+        // after the entry zeroing and before any request is read.
+        // SAFETY: The output array is live and writable; the null request array is rejected first.
+        let code = unsafe {
+            midnight_mobile_local_prover_prove_batch(1, ptr::null(), 2, outputs.as_mut_ptr())
+        };
+        assert_eq!(code, LocalProverError::InvalidConfiguration.ffi_code());
+        for output in &outputs {
+            assert!(output.bytes.is_null());
+            assert_eq!(output.bytes_len, 0);
+        }
+    }
+
+    #[test]
+    fn prove_batch_fails_closed_on_a_stale_handle_and_frees_nothing() {
+        let _serial = super::super::PROVER_TEST_LOCK.lock().unwrap();
+        super::super::registry_slot().lock().unwrap().value = None;
+        let bytes = [7_u8; 4];
+        let descriptors = [
+            LocalProverRequestDescriptor {
+                bytes: bytes.as_ptr(),
+                bytes_len: bytes.len(),
+            },
+            LocalProverRequestDescriptor {
+                bytes: bytes.as_ptr(),
+                bytes_len: bytes.len(),
+            },
+        ];
+        let mut outputs = [
+            LocalProverResponse::default(),
+            LocalProverResponse::default(),
+        ];
+        // SAFETY: Descriptors, their request buffers, and the output array all remain live.
+        let code = unsafe {
+            midnight_mobile_local_prover_prove_batch(
+                1,
+                descriptors.as_ptr(),
+                descriptors.len(),
+                outputs.as_mut_ptr(),
+            )
+        };
+        assert_eq!(code, LocalProverError::StaleRegistry.ffi_code());
+        for output in &outputs {
+            assert!(output.bytes.is_null());
+        }
+    }
+
+    #[test]
+    fn prove_batch_rejects_an_oversized_request_count_before_touching_memory() {
+        let mut outputs = [LocalProverResponse::default()];
+        // SAFETY: The oversized count is rejected before the null request array is dereferenced.
+        let code = unsafe {
+            midnight_mobile_local_prover_prove_batch(
+                1,
+                ptr::null(),
+                MAX_PROOF_BATCH + 1,
+                outputs.as_mut_ptr(),
+            )
+        };
+        assert_eq!(code, LocalProverError::InvalidConfiguration.ffi_code());
+    }
+
+    #[test]
+    fn prove_batch_of_zero_requests_is_a_trivial_success() {
+        let outputs = ptr::null_mut();
+        // SAFETY: A zero request count reads neither the request array nor the output array.
+        let code = unsafe { midnight_mobile_local_prover_prove_batch(1, ptr::null(), 0, outputs) };
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn cancel_bumps_the_process_wide_epoch() {
+        let _serial = super::super::PROVER_TEST_LOCK.lock().unwrap();
+        let before = super::super::CANCEL_EPOCH.load(std::sync::atomic::Ordering::Acquire);
+        assert_eq!(midnight_mobile_local_prover_cancel(1), 0);
+        let after = super::super::CANCEL_EPOCH.load(std::sync::atomic::Ordering::Acquire);
+        assert_eq!(after, before + 1);
     }
 }

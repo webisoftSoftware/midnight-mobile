@@ -26,6 +26,7 @@
                         effect: None,
                         endpoint_role: None,
                         body_base64: None,
+                        effects: None,
                         result_json: Some(submission_result(
                             transaction_hash,
                             identifiers,
@@ -78,6 +79,7 @@
                     effect: None,
                     endpoint_role: None,
                     body_base64: None,
+                    effects: None,
                     result_json: Some(balance_service_transaction_result(
                         &response,
                         &finalized,

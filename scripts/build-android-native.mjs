@@ -185,11 +185,16 @@ function validateAndroidLocalProver(localProver, errors) {
   }
   if (
     !sameArray(localProver?.exportedFunctions, [
+      "midnight_mobile_local_prover_cancel",
       "midnight_mobile_local_prover_check",
       "midnight_mobile_local_prover_close",
       "midnight_mobile_local_prover_configure",
       "midnight_mobile_local_prover_free",
       "midnight_mobile_local_prover_prove",
+      "midnight_mobile_local_prover_prove_batch",
+      "midnight_mobile_local_prover_set_max_concurrency",
+      "midnight_mobile_local_prover_set_profiling",
+      "midnight_mobile_local_prover_take_timings",
     ])
   ) {
     errors.push("Android local prover C ABI drifted");

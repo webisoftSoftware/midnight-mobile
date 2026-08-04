@@ -72,6 +72,13 @@ export interface MidnightLocalProver {
   configure(configuration: MidnightLocalProverConfiguration): Promise<void>;
   check(request: Uint8Array): Promise<Uint8Array>;
   prove(request: Uint8Array): Promise<Uint8Array>;
+  /**
+   * Optional native fast path: proves every request in one native call.
+   * Only present when the underlying native module implements it (older
+   * native binaries do not); callers must be prepared to fall back to
+   * individual `prove` calls when this is `undefined`.
+   */
+  proveBatch?(requests: readonly Uint8Array[]): Promise<Uint8Array[]>;
   close(): Promise<void>;
 }
 
@@ -79,6 +86,8 @@ export interface NativeLocalProverModule {
   configure(configurationJson: string): Promise<number>;
   check(request: Uint8Array): Promise<Uint8Array>;
   prove(request: Uint8Array): Promise<Uint8Array>;
+  /** Optional: may be absent on older native binaries. */
+  proveBatch?(requests: readonly Uint8Array[]): Promise<Uint8Array[]>;
   close(): Promise<void>;
 }
 
@@ -190,8 +199,15 @@ function validateConfiguration(
 
 class NativeMidnightLocalProver implements MidnightLocalProver {
   private closed = false;
+  readonly proveBatch?: (
+    requests: readonly Uint8Array[],
+  ) => Promise<Uint8Array[]>;
 
-  constructor(private readonly native: NativeLocalProverModule) {}
+  constructor(private readonly native: NativeLocalProverModule) {
+    if (typeof native.proveBatch === "function") {
+      this.proveBatch = (requests) => this.executeBatchRequest(requests);
+    }
+  }
 
   async configure(
     configuration: MidnightLocalProverConfiguration,
@@ -237,6 +253,26 @@ class NativeMidnightLocalProver implements MidnightLocalProver {
       copy.fill(0);
     }
   }
+
+  private async executeBatchRequest(
+    requests: readonly Uint8Array[],
+  ): Promise<Uint8Array[]> {
+    for (const request of requests) {
+      this.requireOpen(request);
+    }
+    const copies = requests.map((request) => request.slice());
+    const native = this.native;
+    try {
+      return await nativeCall(() => {
+        if (native.proveBatch === undefined) {
+          throw new MidnightLocalProverError("NATIVE_INTERNAL");
+        }
+        return native.proveBatch(copies);
+      });
+    } finally {
+      for (const copy of copies) copy.fill(0);
+    }
+  }
 }
 
 export async function createMidnightLocalProver(
@@ -259,9 +295,11 @@ export function createLocalProverMidnightTransport(
   config: MidnightTransportConfiguration,
   prover: MidnightLocalProver,
 ): MidnightStandardTransport {
+  const proveBatch = prover.proveBatch?.bind(prover);
   return createMidnightTransportWithProofAdapter(config, {
     execute(effect, request) {
       return effect === "check" ? prover.check(request) : prover.prove(request);
     },
+    ...(proveBatch === undefined ? {} : { executeProveBatch: proveBatch }),
   });
 }

@@ -126,6 +126,18 @@ export type MidnightOperationStep<K extends MidnightCommandKind> =
       readonly effect: MidnightNetworkEffect;
       readonly endpointRole: MidnightEndpointRole;
       readonly bodyBase64: string;
+      /**
+       * Present only when this round batches 2+ independent proof requests.
+       * The singular `effectId`/`effect`/`endpointRole`/`bodyBase64` fields
+       * above mirror the first element for backwards compatibility with
+       * consumers that only understand a single effect per round.
+       */
+      readonly effects?: readonly {
+        readonly effectId: string;
+        readonly effect: "check" | "prove";
+        readonly endpointRole: "proof";
+        readonly bodyBase64: string;
+      }[];
     }
   | {
       readonly kind: "complete";
@@ -155,7 +167,8 @@ export interface MidnightRuntimeApi {
   ): Promise<MidnightOperationStep<K>>;
   resumeOperation<K extends MidnightCommandKind>(
     operation: MidnightOperationHandle<K>,
-    networkResult: MidnightNetworkResult | null,
+    networkResult:
+      MidnightNetworkResult | readonly MidnightNetworkResult[] | null,
   ): Promise<MidnightOperationStep<K>>;
   cancelOperation(operation: MidnightOperationHandle): Promise<void>;
   closeWalletSession(session: MidnightSessionHandle): Promise<void>;

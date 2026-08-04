@@ -258,6 +258,25 @@ struct NetworkResult {
     body_base64: Option<String>,
 }
 
+/// A resume payload carries either one result (every effect except a batched proof
+/// round) or one result per effect of a batched proof round. The single form stays
+/// wire-identical to the pre-batching protocol.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+enum NetworkResults {
+    Single(NetworkResult),
+    Batch(Vec<NetworkResult>),
+}
+
+impl NetworkResults {
+    fn into_vec(self) -> Vec<NetworkResult> {
+        match self {
+            Self::Single(result) => vec![result],
+            Self::Batch(results) => results,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct BalanceServiceResult {
@@ -274,6 +293,17 @@ struct OperationHandle {
     generation: u64,
 }
 
+/// One effect of a multi-effect round. Emitted only alongside the singular fields, so
+/// consumers that predate batching keep reading the first effect and ignore this list.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OperationEffect {
+    effect_id: String,
+    effect: &'static str,
+    endpoint_role: &'static str,
+    body_base64: String,
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct OperationStep {
@@ -283,6 +313,10 @@ struct OperationStep {
     effect: Option<&'static str>,
     endpoint_role: Option<&'static str>,
     body_base64: Option<String>,
+    /// Present only when the round carries two or more effects; the singular fields
+    /// above always mirror the first entry.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    effects: Option<Vec<OperationEffect>>,
     #[serde(rename = "result", serialize_with = "serialize_embedded_json")]
     result_json: Option<String>,
 }

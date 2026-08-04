@@ -44,7 +44,7 @@ enum PendingOperationKind {
         proposed_state: Option<NativeWalletState>,
         expected_identifiers: Vec<String>,
         responses: transaction::RemoteProofResponses,
-        pending_request: transaction::RemoteProofRequest,
+        pending_requests: Vec<transaction::RemoteProofRequest>,
     },
     FinalizeTransactionBalance {
         proposed_state: Option<NativeWalletState>,
@@ -53,22 +53,64 @@ enum PendingOperationKind {
     DappIntentProof {
         raw: Vec<u8>,
         responses: transaction::RemoteProofResponses,
-        pending_request: transaction::RemoteProofRequest,
+        pending_requests: Vec<transaction::RemoteProofRequest>,
     },
     GenerateDustProof {
         raw: Vec<u8>,
         proposed_state: NativeWalletState,
         expected_identifiers: Vec<String>,
         responses: transaction::RemoteProofResponses,
-        pending_request: transaction::RemoteProofRequest,
+        pending_requests: Vec<transaction::RemoteProofRequest>,
     },
     Balance {
         original_raw: Vec<u8>,
         original_sealed: bool,
         balancing_raw: Vec<u8>,
         responses: transaction::RemoteProofResponses,
-        pending_request: transaction::RemoteProofRequest,
+        pending_requests: Vec<transaction::RemoteProofRequest>,
     },
+}
+
+impl PendingOperationKind {
+    /// The proof requests this operation is currently waiting on, or `None` for the
+    /// kinds that never carry proof effects.
+    fn pending_requests(&self) -> Option<&[transaction::RemoteProofRequest]> {
+        match self {
+            Self::FinalizeTransactionProof {
+                pending_requests, ..
+            }
+            | Self::DappIntentProof {
+                pending_requests, ..
+            }
+            | Self::GenerateDustProof {
+                pending_requests, ..
+            }
+            | Self::Balance {
+                pending_requests, ..
+            } => Some(pending_requests),
+            Self::SubmitFinalized { .. } | Self::FinalizeTransactionBalance { .. } => None,
+        }
+    }
+
+    /// Replaces the outstanding requests after a replay discovered the next round. The
+    /// displaced requests zeroize their bodies on drop.
+    fn set_pending_requests(&mut self, requests: Vec<transaction::RemoteProofRequest>) {
+        match self {
+            Self::FinalizeTransactionProof {
+                pending_requests, ..
+            }
+            | Self::DappIntentProof {
+                pending_requests, ..
+            }
+            | Self::GenerateDustProof {
+                pending_requests, ..
+            }
+            | Self::Balance {
+                pending_requests, ..
+            } => *pending_requests = requests,
+            Self::SubmitFinalized { .. } | Self::FinalizeTransactionBalance { .. } => {}
+        }
+    }
 }
 
 struct PendingOperation {

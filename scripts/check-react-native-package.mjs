@@ -23,6 +23,7 @@ const EXPECTED_FILES = Object.freeze([
   "expo-module.config.json",
   "ios/MidnightMobileRuntime.podspec",
   "ios/MidnightMobileLocalProverModule.swift",
+  "ios/MidnightMobileLocalProverArtifacts.swift",
   "ios/MidnightMobileRuntimeModule.swift",
   "ios/MidnightMobileLocalProverFFI.h",
   "ios/build/MidnightMobileRuntime.xcframework",
@@ -64,6 +65,7 @@ const REQUIRED_PACKED_FILES = Object.freeze([
   "expo-module.config.json",
   "ios/MidnightMobileRuntime.podspec",
   "ios/MidnightMobileLocalProverModule.swift",
+  "ios/MidnightMobileLocalProverArtifacts.swift",
   "ios/MidnightMobileRuntimeModule.swift",
   "ios/MidnightMobileLocalProverFFI.h",
   "ios/build/MidnightMobileRuntime.xcframework/Info.plist",
@@ -71,7 +73,7 @@ const REQUIRED_PACKED_FILES = Object.freeze([
   "package.json",
 ]);
 const ALLOWED_PACKED_PATH =
-  /^(?:README\.md|package\.json|dist\/|expo-module\.config\.json$|android\/(?:build\.gradle$|generated\/|local-prover\/|src\/main\/)|ios\/(?:MidnightMobileRuntime\.podspec$|MidnightMobile(?:LocalProver|Runtime)Module\.swift$|MidnightMobileLocalProverFFI\.h$|build\/MidnightMobileRuntime\.xcframework\/|generated\/))/u;
+  /^(?:README\.md|package\.json|dist\/|expo-module\.config\.json$|android\/(?:build\.gradle$|generated\/|local-prover\/|src\/main\/)|ios\/(?:MidnightMobileRuntime\.podspec$|MidnightMobile(?:LocalProver(?:Module|Artifacts)|RuntimeModule)\.swift$|MidnightMobileLocalProverFFI\.h$|build\/MidnightMobileRuntime\.xcframework\/|generated\/))/u;
 const ALLOWED_NATIVE_BINARY_PATH =
   /^(?:android\/src\/main\/jniLibs\/(?:arm64-v8a|x86_64)\/libmidnight_mobile_runtime\.so|ios\/build\/MidnightMobileRuntime\.xcframework\/[^/]+\/MidnightMobileRuntime\.framework\/MidnightMobileRuntime)$/u;
 const NATIVE_BINARY_PATH = /\.(?:a|aar|dll|dylib|so)(?:\/|$)/u;

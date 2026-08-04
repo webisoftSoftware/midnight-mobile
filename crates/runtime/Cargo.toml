@@ -45,7 +45,7 @@ midnight-transient-crypto = { git = "https://github.com/midnightntwrk/midnight-l
 midnight-zswap = { git = "https://github.com/midnightntwrk/midnight-ledger.git", rev = "02716c2c95d50654aeb3cb63bfd8386046e4ca7d", default-features = false }
 midnight-zkir = { git = "https://github.com/midnightntwrk/midnight-ledger.git", rev = "02716c2c95d50654aeb3cb63bfd8386046e4ca7d", default-features = false, optional = true }
 futures-executor = { version = "=0.3.32", optional = true }
-midnight-proofs = { version = "=0.7.2", optional = true }
+midnight-proofs = { version = "=0.7.3", optional = true }
 rayon = { version = "=1.12.0", optional = true }
 
 [dev-dependencies]

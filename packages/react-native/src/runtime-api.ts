@@ -219,7 +219,8 @@ async function beginCommand<K extends MidnightCommandKind>(
 async function resumeOperation<K extends MidnightCommandKind>(
   loader: NativeRuntimeModuleLoader,
   operation: MidnightOperationHandle<K>,
-  networkResult: MidnightNetworkResult | null,
+  networkResult:
+    MidnightNetworkResult | readonly MidnightNetworkResult[] | null,
 ): Promise<MidnightOperationStep<K>> {
   validateHandle(operation);
   const native = requireModule(loader);

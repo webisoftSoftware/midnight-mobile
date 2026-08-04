@@ -123,9 +123,8 @@ if let RuntimeCommand::GenerateDust {
             state.wallet_state = proposed;
             return complete_json(finalized_transaction_result(&finalized)?);
         }
-        transaction::BalanceProgress::Network(pending_request) => {
-            let body = Zeroizing::new(pending_request.body.clone());
-            let effect = proof_effect(pending_request.kind);
+        transaction::BalanceProgress::Network(pending_requests) => {
+            let bodies = proof_step_bodies(&pending_requests);
             reserve_operation(&mut state)?;
             drop(state);
             let (operation, effect_id) = match register_reserved_operation(
@@ -137,7 +136,7 @@ if let RuntimeCommand::GenerateDust {
                     proposed_state: proposed,
                     expected_identifiers,
                     responses,
-                    pending_request,
+                    pending_requests,
                 },
             ) {
                 Ok(registered) => registered,
@@ -147,15 +146,8 @@ if let RuntimeCommand::GenerateDust {
                 }
             };
             let operation_id = operation.id;
-            let result = to_json(&OperationStep {
-                kind: "network",
-                operation: Some(operation),
-                effect_id: Some(effect_id),
-                effect: Some(effect),
-                endpoint_role: Some("proof"),
-                body_base64: Some(encode_base64(&body)),
-                result_json: None,
-            });
+            let result = proof_step_from_bodies(operation, &effect_id, bodies)
+                .and_then(|step| to_json(&step));
             if result.is_err() {
                 discard_operation(operation_id);
             }

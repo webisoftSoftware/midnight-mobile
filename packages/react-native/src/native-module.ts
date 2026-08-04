@@ -28,6 +28,12 @@ export interface NativeRuntimeModule {
     generation: number,
     commandJson: string,
   ): Promise<string>;
+  /**
+   * `networkResultJson` serializes to a JSON object for a single network
+   * result (unchanged behaviour) or a JSON array of the same shape when
+   * resuming a batched round of 2+ proof effects. `null` means no network
+   * result is being supplied (e.g. resuming past a non-network step).
+   */
   resumeOperation(
     operationId: number,
     generation: number,

@@ -245,6 +245,192 @@ await test("transport keeps only check and prove local", async () => {
   assert.equal(remoteCalls, 2);
 });
 
+function batchProofApi(
+  effects: readonly { readonly id: string; readonly body: Uint8Array }[],
+  onResume: (
+    result: MidnightNetworkResult | readonly MidnightNetworkResult[] | null,
+  ) => void,
+): MidnightRuntimeApi {
+  const first = effects[0];
+  if (first === undefined) throw new Error("effects must be non-empty");
+  return {
+    openWalletSession: () => Promise.reject(new Error("unused")),
+    applySyncBatch: () => Promise.reject(new Error("unused")),
+    getWalletSnapshot: () => Promise.reject(new Error("unused")),
+    exportWalletCheckpoint: () => Promise.reject(new Error("unused")),
+    beginCommand<K extends MidnightCommandKind>(
+      _session: MidnightSessionHandle,
+      command: MidnightCommand<K>,
+    ): Promise<MidnightOperationStep<K>> {
+      return Promise.resolve({
+        kind: "network",
+        operation: { id: 1, generation: 1, commandKind: command.kind },
+        effectId: first.id,
+        effect: "prove",
+        endpointRole: "proof",
+        bodyBase64: encodeBase64(first.body),
+        effects: effects.map((entry) => ({
+          effectId: entry.id,
+          effect: "prove" as const,
+          endpointRole: "proof" as const,
+          bodyBase64: encodeBase64(entry.body),
+        })),
+      });
+    },
+    resumeOperation<K extends MidnightCommandKind>(
+      _operation: MidnightOperationHandle<K>,
+      result: MidnightNetworkResult | readonly MidnightNetworkResult[] | null,
+    ): Promise<MidnightOperationStep<K>> {
+      onResume(result);
+      return Promise.resolve({
+        kind: "complete",
+        operation: null,
+        result: { signatureHex: "00" },
+      } as unknown as MidnightOperationStep<K>);
+    },
+    cancelOperation: () => Promise.resolve(),
+    closeWalletSession: () => Promise.resolve(),
+  };
+}
+
+await test("local prover exposes proveBatch only when the native module implements it", async () => {
+  const fixture = nativeFixture();
+  const withoutBatch = await createMidnightLocalProver(configuration, {
+    nativeModuleLoader: () => fixture.module,
+  });
+  assert.equal(typeof withoutBatch.proveBatch, "undefined");
+
+  fixture.module.proveBatch = (requests) =>
+    Promise.resolve(
+      requests.map((request) => new Uint8Array([request[0] ?? 0])),
+    );
+  const withBatch = await createMidnightLocalProver(configuration, {
+    nativeModuleLoader: () => fixture.module,
+  });
+  assert.equal(typeof withBatch.proveBatch, "function");
+});
+
+await test("proveBatch copies each request, wipes every copy, and maps native errors", async () => {
+  const fixture = nativeFixture();
+  const seenCopies: Uint8Array[] = [];
+  fixture.module.proveBatch = (requests) => {
+    for (const request of requests) seenCopies.push(request);
+    return Promise.resolve(
+      requests.map((request) => new Uint8Array([(request[0] ?? 0) + 1])),
+    );
+  };
+  const prover = await createMidnightLocalProver(configuration, {
+    nativeModuleLoader: () => fixture.module,
+  });
+  const requestA = new Uint8Array([5]);
+  const requestB = new Uint8Array([6]);
+  const results = await prover.proveBatch?.([requestA, requestB]);
+  assert.deepEqual(results, [new Uint8Array([6]), new Uint8Array([7])]);
+  // originals are untouched, native received copies, and those copies are
+  // wiped afterwards
+  assert.deepEqual(requestA, new Uint8Array([5]));
+  assert.deepEqual(requestB, new Uint8Array([6]));
+  assert.equal(seenCopies.length, 2);
+  for (const copy of seenCopies) {
+    assert.equal(
+      Array.from(copy).every((byte) => byte === 0),
+      true,
+    );
+  }
+
+  fixture.module.proveBatch = () =>
+    Promise.reject(
+      Object.assign(new Error("native batch failed"), { code: "PROOF_FAILED" }),
+    );
+  await assert.rejects(
+    prover.proveBatch?.([new Uint8Array([1])]) ?? Promise.resolve(),
+    {
+      code: "PROOF_FAILED",
+    },
+  );
+});
+
+await test("createLocalProverMidnightTransport uses the native batch entrypoint for a prove-only batch", async () => {
+  const fixture = nativeFixture();
+  const batchCalls: (readonly Uint8Array[])[] = [];
+  fixture.module.proveBatch = (requests) => {
+    batchCalls.push(requests.map((request) => request.slice()));
+    return Promise.resolve(
+      requests.map((request) => new Uint8Array([(request[0] ?? 0) + 100])),
+    );
+  };
+  const prover = await createMidnightLocalProver(configuration, {
+    nativeModuleLoader: () => fixture.module,
+  });
+  const resumeCalls: (
+    MidnightNetworkResult | readonly MidnightNetworkResult[] | null
+  )[] = [];
+  const api = batchProofApi(
+    [
+      { id: "p0", body: Uint8Array.of(1) },
+      { id: "p1", body: Uint8Array.of(2) },
+    ],
+    (result) => resumeCalls.push(result),
+  );
+  const transport = createLocalProverMidnightTransport(
+    transportConfig(() => Promise.reject(new Error("unused"))),
+    prover,
+  );
+  await transport.runCommand(api, { id: 1, generation: 1 }, {
+    kind: "signData",
+    domain: "test",
+    dataBase64: "AA==",
+  } as const);
+  assert.equal(batchCalls.length, 1);
+  assert.equal(
+    fixture.calls.filter((call) => call.startsWith("prove:")).length,
+    0,
+  );
+  const results = resumeCalls[0];
+  assert.equal(Array.isArray(results), true);
+  assert.deepEqual(
+    (results as MidnightNetworkResult[]).map((result) => result.effectId),
+    ["p0", "p1"],
+  );
+});
+
+await test("createLocalProverMidnightTransport falls back to individual prove calls without a native batch entrypoint", async () => {
+  const fixture = nativeFixture();
+  const prover = await createMidnightLocalProver(configuration, {
+    nativeModuleLoader: () => fixture.module,
+  });
+  assert.equal(typeof prover.proveBatch, "undefined");
+  const resumeCalls: (
+    MidnightNetworkResult | readonly MidnightNetworkResult[] | null
+  )[] = [];
+  const api = batchProofApi(
+    [
+      { id: "p0", body: Uint8Array.of(3) },
+      { id: "p1", body: Uint8Array.of(4) },
+    ],
+    (result) => resumeCalls.push(result),
+  );
+  const transport = createLocalProverMidnightTransport(
+    transportConfig(() => Promise.reject(new Error("unused"))),
+    prover,
+  );
+  await transport.runCommand(api, { id: 1, generation: 1 }, {
+    kind: "signData",
+    domain: "test",
+    dataBase64: "AA==",
+  } as const);
+  assert.equal(
+    fixture.calls.filter((call) => call.startsWith("prove:")).length,
+    2,
+  );
+  const results = resumeCalls[0];
+  assert.equal(Array.isArray(results), true);
+  assert.deepEqual(
+    (results as MidnightNetworkResult[]).map((result) => result.effectId),
+    ["p0", "p1"],
+  );
+});
+
 await test("standard transport routes proof effects to exact service paths", async () => {
   const urls: string[] = [];
   const fetch: MidnightFetch = (url) => {

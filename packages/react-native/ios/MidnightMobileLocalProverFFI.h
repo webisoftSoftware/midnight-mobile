@@ -24,6 +24,11 @@ typedef struct MidnightMobileLocalProverCircuitDescriptor {
   const uint8_t *_Nonnull ir_sha256;
 } MidnightMobileLocalProverCircuitDescriptor;
 
+typedef struct MidnightMobileLocalProverRequestDescriptor {
+  const uint8_t *_Nonnull bytes;
+  size_t bytes_len;
+} MidnightMobileLocalProverRequestDescriptor;
+
 typedef struct MidnightMobileLocalProverResponse {
   uint8_t *_Nullable bytes;
   size_t bytes_len;
@@ -48,6 +53,16 @@ int32_t midnight_mobile_local_prover_prove(
     size_t request_len,
     MidnightMobileLocalProverResponse *_Nonnull output);
 
+int32_t midnight_mobile_local_prover_prove_batch(
+    uint64_t handle,
+    const MidnightMobileLocalProverRequestDescriptor *_Nullable requests,
+    size_t request_count,
+    MidnightMobileLocalProverResponse *_Nullable outputs);
+
+int32_t midnight_mobile_local_prover_cancel(uint64_t handle);
+
 int32_t midnight_mobile_local_prover_close(uint64_t handle);
+
+int32_t midnight_mobile_local_prover_set_max_concurrency(size_t limit);
 
 void midnight_mobile_local_prover_free(uint8_t *_Nullable bytes, size_t bytes_len);

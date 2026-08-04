@@ -1828,9 +1828,9 @@ dependencies = [
 
 [[package]]
 name = "midnight-proofs"
-version = "0.7.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a2035e922ae9afe8a1dd39bfd3654c76edef9334146db581d83e642b1c0c580"
+checksum = "86d40952370a114d52a1ca5a5730a1a96e07380bb1a632ef7f494bd38c7bd482"
 dependencies = [
  "blake2b_simd",
  "ff",
