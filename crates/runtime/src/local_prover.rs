@@ -15,7 +15,7 @@ use midnight_transient_crypto::proofs::{
     WrappedIr, Zkir,
 };
 use midnight_zkir::IrSource;
-use midnight_zswap::Input;
+use midnight_zswap::{Input, Output};
 use rand::SeedableRng;
 use rand::rngs::{OsRng, StdRng};
 use rayon::{ThreadPool, ThreadPoolBuilder};
@@ -29,6 +29,9 @@ const MAX_TOTAL_ARTIFACT_BYTES: usize = 2 * 1024 * 1024 * 1024;
 const MAX_PARAMETER_COUNT: usize = 32;
 const MAX_CIRCUIT_COUNT: usize = 256;
 const MAX_KEY_LOCATION_BYTES: usize = 1_024;
+// Four threads match the measured Android device's performance-core cluster
+// while keeping mobile proof parallelism bounded for memory and thermals.
+const PROVER_THREAD_COUNT: usize = 4;
 
 static PROVER_ACTIVE: AtomicBool = AtomicBool::new(false);
 static PROVER_POOL: OnceLock<Result<ThreadPool, rayon::ThreadPoolBuildError>> = OnceLock::new();
@@ -310,7 +313,11 @@ fn request_preflight(request: &[u8]) -> Result<(), LocalProverError> {
 
 fn prover_pool() -> Result<&'static ThreadPool, LocalProverError> {
     PROVER_POOL
-        .get_or_init(|| ThreadPoolBuilder::new().num_threads(2).build())
+        .get_or_init(|| {
+            ThreadPoolBuilder::new()
+                .num_threads(PROVER_THREAD_COUNT)
+                .build()
+        })
         .as_ref()
         .map_err(|_| LocalProverError::ResourcePreflightFailed)
 }
@@ -419,9 +426,32 @@ fn deterministic_zswap_spend_preimage()
         .map_err(|_| LocalProverError::ProofFailed)
 }
 
+fn deterministic_zswap_output_preimage()
+-> Result<Arc<midnight_transient_crypto::proofs::ProofPreimage>, LocalProverError> {
+    let mut rng = StdRng::seed_from_u64(0x42);
+    let qualified_coin = QualifiedCoinInfo {
+        value: Default::default(),
+        type_: Default::default(),
+        nonce: rand::Rng::r#gen(&mut rng),
+        mt_index: 0,
+    };
+    let coin = CoinInfo::from(&qualified_coin);
+    Output::<_, InMemoryDB>::new_contract_owned(&mut rng, &coin, None, Default::default())
+        .map(|output| output.proof)
+        .map_err(|_| LocalProverError::ProofFailed)
+}
+
 pub fn deterministic_zswap_spend_request() -> Result<Vec<u8>, LocalProverError> {
     serialize_response(&(
         ProofPreimageVersioned::V2(deterministic_zswap_spend_preimage()?),
+        None::<ProvingKeyMaterial>,
+        None::<Fr>,
+    ))
+}
+
+pub fn deterministic_zswap_output_request() -> Result<Vec<u8>, LocalProverError> {
+    serialize_response(&(
+        ProofPreimageVersioned::V2(deterministic_zswap_output_preimage()?),
         None::<ProvingKeyMaterial>,
         None::<Fr>,
     ))

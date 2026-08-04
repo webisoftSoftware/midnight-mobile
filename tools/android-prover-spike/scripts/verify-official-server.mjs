@@ -20,6 +20,9 @@ const request = readFileSync(resolve(targetRoot, "artifacts/request.bin"));
 const checkRequest = readFileSync(
   resolve(targetRoot, "artifacts/check-request.bin"),
 );
+const outputRequest = readFileSync(
+  resolve(targetRoot, "artifacts/output-request.bin"),
+);
 const base = endpoint.endsWith("/") ? endpoint : `${endpoint}/`;
 const checkResponse = await fetch(new URL("check", base), {
   method: "POST",
@@ -81,8 +84,44 @@ const validation = spawnSync(
 if (validation.status !== 0) {
   throw new Error(`official response is not tagged V2: ${validation.stderr}`);
 }
+const outputResponse = await fetch(new URL("prove", base), {
+  method: "POST",
+  headers: { "content-type": "application/octet-stream" },
+  body: outputRequest,
+});
+if (!outputResponse.ok) {
+  throw new Error(
+    `official output /prove returned HTTP ${String(outputResponse.status)}`,
+  );
+}
+const outputProof = Buffer.from(await outputResponse.arrayBuffer());
+writeFileSync(
+  resolve(targetRoot, "official-server-output-proof.bin"),
+  outputProof,
+);
+const outputValidation = spawnSync(
+  "cargo",
+  [
+    "run",
+    "--offline",
+    "--locked",
+    "--quiet",
+    "--package",
+    "midnight-mobile-runtime",
+    "--features",
+    "local-prover",
+    "--example",
+    "validate_android_prover_proof",
+  ],
+  { cwd: repositoryRoot, input: outputProof, encoding: "utf8" },
+);
+if (outputValidation.status !== 0) {
+  throw new Error(
+    `official output response is not tagged V2: ${outputValidation.stderr}`,
+  );
+}
 console.log(
-  `official /check and /prove accepted requests: checkBytes=${String(checked.length)} ` +
-    `proofBytes=${String(proof.length)} ` +
+  `official /check and both /prove requests accepted: checkBytes=${String(checked.length)} ` +
+    `spendProofBytes=${String(proof.length)} outputProofBytes=${String(outputProof.length)} ` +
     `sha256=${createHash("sha256").update(proof).digest("hex")}`,
 );

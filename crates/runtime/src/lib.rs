@@ -15,7 +15,8 @@ mod wallet_state;
 
 #[cfg(feature = "local-prover")]
 pub use local_prover::{
-    deterministic_zswap_spend_check_request, deterministic_zswap_spend_request,
+    deterministic_zswap_output_request, deterministic_zswap_spend_check_request,
+    deterministic_zswap_spend_request,
 };
 pub use runtime::{
     RuntimeSessionHandle, apply_sync_batch, begin_command, cancel_operation, close_wallet_session,

@@ -179,10 +179,15 @@ function buildApk() {
   const assetPaths = [
     "assets/request.bin",
     "assets/check-request.bin",
+    "assets/output-request.bin",
     "assets/bls_midnight_2p15",
     "assets/zswap/9/spend.prover",
     "assets/zswap/9/spend.verifier",
     "assets/zswap/9/spend.bzkir",
+    "assets/bls_midnight_2p14",
+    "assets/zswap/9/output.prover",
+    "assets/zswap/9/output.verifier",
+    "assets/zswap/9/output.bzkir",
   ];
   const storedAssets = [];
   for (const path of assetPaths) {

@@ -34,6 +34,14 @@ private val PROVER_CONFIGURATION = LocalProverConfiguration(
         "724c7c3d779148bb113c7ee9c034b2f27db16e6bdf315fde90105a9bad00b1de",
       ),
     ),
+    LocalProverParameter(
+      14,
+      asset(
+        "asset://bls_midnight_2p14",
+        3_146_116,
+        "fc253016885ec830e97808c9ec920bb5cab5c21af590380a6cb5eb0538e2b244",
+      ),
+    ),
   ),
   circuits = listOf(
     LocalProverCircuit(
@@ -52,6 +60,24 @@ private val PROVER_CONFIGURATION = LocalProverConfiguration(
         "asset://zswap/9/spend.bzkir",
         1_294,
         "7cb5bbcf67cb212a3336fb439a77e8f32f0aa8a56185c8e1247d6cbfc7300205",
+      ),
+    ),
+    LocalProverCircuit(
+      keyLocation = "midnight/zswap/output",
+      proverKey = asset(
+        "asset://zswap/9/output.prover",
+        5_730_182,
+        "d992b04f13c3fd432f55fb8bfe6466d87bc181f1a2acf233ec228030bbdd4ed8",
+      ),
+      verifierKey = asset(
+        "asset://zswap/9/output.verifier",
+        2_311,
+        "72e8074856f2f5c504ade25a86a2b8902c64aeb9497c4c8e6b26dea842a0ab08",
+      ),
+      ir = asset(
+        "asset://zswap/9/output.bzkir",
+        494,
+        "91dc8b401dd8385e8d29eaac018c70b578505f48c7952452ef319bc397fa1f1b",
       ),
     ),
   ),
@@ -83,7 +109,7 @@ class MainActivity : Activity() {
       setPadding(32, 32, 32, 32)
     }
     runButton = Button(this).apply {
-      text = "Run local /check and k=15 Zswap spend /prove"
+      text = "Run local /check plus k=15 spend and k=14 output /prove"
       setOnClickListener { startProbe() }
     }
     setContentView(LinearLayout(this).apply {
@@ -140,14 +166,27 @@ class MainActivity : Activity() {
       }
       val proveMillis = elapsedMillis(proveStarted)
       writeResult("proof-v2.bin", proof)
+
+      val outputProveStarted = System.nanoTime()
+      val outputProveRequest = assets.open("output-request.bin").use { it.readBytes() }
+      val outputProof = try {
+        bridge.prove(outputProveRequest)
+      } finally {
+        outputProveRequest.fill(0)
+      }
+      val outputProveMillis = elapsedMillis(outputProveStarted)
+      writeResult("output-proof-v2.bin", outputProof)
       Log.i(
         LOG_TAG,
         "PROBE_RESULT status=SUCCESS proofSize=${proof.size} checkSize=${check.size} " +
           "configurationMs=$configurationMillis checkMs=$checkMillis provingMs=$proveMillis " +
-          "proofPath=${File(filesDir, "proof-v2.bin").absolutePath}",
+          "outputProofSize=${outputProof.size} outputProvingMs=$outputProveMillis " +
+          "proofPath=${File(filesDir, "proof-v2.bin").absolutePath} " +
+          "outputProofPath=${File(filesDir, "output-proof-v2.bin").absolutePath}",
       )
-      "Success: ${proof.size}-byte tagged V2 proof\n" +
-        "Configure $configurationMillis ms; check $checkMillis ms; prove+verify $proveMillis ms"
+      "Success: ${proof.size}-byte spend and ${outputProof.size}-byte output tagged V2 proofs\n" +
+        "Configure $configurationMillis ms; check $checkMillis ms; " +
+        "spend $proveMillis ms; output $outputProveMillis ms"
     } finally {
       bridge.close()
     }

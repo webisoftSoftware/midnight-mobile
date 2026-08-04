@@ -60,7 +60,7 @@ fn install_synthetic_registry() -> u64 {
 }
 
 #[test]
-fn official_request_generators_have_exact_tuple_shapes() {
+fn official_request_generators_have_exact_tuple_shapes() -> Result<(), &'static str> {
     let prove = deterministic_zswap_spend_request().unwrap();
     let (versioned, material, binding): (
         ProofPreimageVersioned,
@@ -71,11 +71,31 @@ fn official_request_generators_have_exact_tuple_shapes() {
     assert!(material.is_none());
     assert!(binding.is_none());
 
+    let output = deterministic_zswap_output_request().unwrap();
+    let (versioned, material, binding): (
+        ProofPreimageVersioned,
+        Option<ProvingKeyMaterial>,
+        Option<Fr>,
+    ) = tagged_deserialize(&mut &output[..]).unwrap();
+    let ProofPreimageVersioned::V2(output_preimage) = versioned else {
+        return Err("deterministic output request must use V2");
+    };
+    assert_eq!(output_preimage.key_location.0, "midnight/zswap/output");
+    assert!(material.is_none());
+    assert!(binding.is_none());
+    assert_eq!(output, deterministic_zswap_output_request().unwrap());
+    assert_eq!(output.len(), 430);
+    assert_eq!(
+        hex::encode(Sha256::digest(&output)),
+        "af7c9cb545b8601be70c6a9cfe39bd06d32083f9fbde36c5f84500c25b9c0172"
+    );
+
     let check = deterministic_zswap_spend_check_request().unwrap();
     let (versioned, ir): (ProofPreimageVersioned, Option<WrappedIr>) =
         tagged_deserialize(&mut &check[..]).unwrap();
     assert!(matches!(versioned, ProofPreimageVersioned::V2(_)));
     assert!(ir.is_none());
+    Ok(())
 }
 
 #[test]
@@ -117,10 +137,17 @@ fn hash_location_count_and_size_preflights_are_typed() {
         validate_supplied_material(&material(vec![1, 2, 3])),
         Err(LocalProverError::UnsupportedCircuit)
     );
-    assert!(prover_pool().is_ok());
     assert_eq!(
         build_registry(&[], &[]).map(|_| ()),
         Err(LocalProverError::InvalidConfiguration)
+    );
+}
+
+#[test]
+fn prover_pool_uses_bounded_mobile_parallelism() {
+    assert_eq!(
+        prover_pool().unwrap().current_num_threads(),
+        PROVER_THREAD_COUNT
     );
 }
 
@@ -351,35 +378,64 @@ fn staged_artifacts_produce_and_check_official_responses() {
     );
     let read = |name: &str| std::fs::read(directory.join(name)).unwrap();
     let params = read("bls_midnight_2p15");
+    let output_params = read("bls_midnight_2p14");
     let prover = read("zswap/9/spend.prover");
     let verifier = read("zswap/9/spend.verifier");
     let ir = read("zswap/9/spend.bzkir");
+    let output_prover = read("zswap/9/output.prover");
+    let output_verifier = read("zswap/9/output.verifier");
+    let output_ir = read("zswap/9/output.bzkir");
     let digest = |bytes: &[u8]| Sha256::digest(bytes).to_vec();
     let params_hash = digest(&params);
+    let output_params_hash = digest(&output_params);
     let prover_hash = digest(&prover);
     let verifier_hash = digest(&verifier);
     let ir_hash = digest(&ir);
+    let output_prover_hash = digest(&output_prover);
+    let output_verifier_hash = digest(&output_verifier);
+    let output_ir_hash = digest(&output_ir);
     let handle = configure_registry(
-        &[ParameterArtifact {
-            k: 15,
-            bytes: &params,
-            sha256: &params_hash,
-        }],
-        &[CircuitArtifact {
-            key_location: "midnight/zswap/spend",
-            prover_key: &prover,
-            prover_key_sha256: &prover_hash,
-            verifier_key: &verifier,
-            verifier_key_sha256: &verifier_hash,
-            ir: &ir,
-            ir_sha256: &ir_hash,
-        }],
+        &[
+            ParameterArtifact {
+                k: 15,
+                bytes: &params,
+                sha256: &params_hash,
+            },
+            ParameterArtifact {
+                k: 14,
+                bytes: &output_params,
+                sha256: &output_params_hash,
+            },
+        ],
+        &[
+            CircuitArtifact {
+                key_location: "midnight/zswap/spend",
+                prover_key: &prover,
+                prover_key_sha256: &prover_hash,
+                verifier_key: &verifier,
+                verifier_key_sha256: &verifier_hash,
+                ir: &ir,
+                ir_sha256: &ir_hash,
+            },
+            CircuitArtifact {
+                key_location: "midnight/zswap/output",
+                prover_key: &output_prover,
+                prover_key_sha256: &output_prover_hash,
+                verifier_key: &output_verifier,
+                verifier_key_sha256: &output_verifier_hash,
+                ir: &output_ir,
+                ir_sha256: &output_ir_hash,
+            },
+        ],
     )
     .unwrap();
     let check = run_check(handle, &deterministic_zswap_spend_check_request().unwrap()).unwrap();
     let _: Vec<Option<u64>> = tagged_deserialize(&mut &check[..]).unwrap();
     let proof = run_prove(handle, &deterministic_zswap_spend_request().unwrap()).unwrap();
     let decoded: ProofVersioned = tagged_deserialize(&mut &proof[..]).unwrap();
+    assert!(matches!(decoded, ProofVersioned::V2(_)));
+    let output_proof = run_prove(handle, &deterministic_zswap_output_request().unwrap()).unwrap();
+    let decoded: ProofVersioned = tagged_deserialize(&mut &output_proof[..]).unwrap();
     assert!(matches!(decoded, ProofVersioned::V2(_)));
     close_registry(handle).unwrap();
 }
