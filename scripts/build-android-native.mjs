@@ -175,14 +175,6 @@ function validateAndroidDependencies(android, errors) {
 }
 
 function validateAndroidLocalProver(localProver, errors) {
-  if (localProver?.enabled !== true) {
-    errors.push("Android local prover must be explicitly enabled");
-  }
-  if (!sameArray(localProver?.cargoFeatures, ["local-prover"])) {
-    errors.push(
-      "Android local prover Cargo feature must be exactly local-prover",
-    );
-  }
   if (
     !sameArray(localProver?.exportedFunctions, [
       "midnight_mobile_local_prover_cancel",
@@ -280,9 +272,6 @@ function cargoEnvironment(toolchain, target, config) {
 }
 
 function cargoBuild(repositoryRoot, cargoTarget, target, config, toolchain) {
-  const featureArguments = config.android.localProver.enabled
-    ? ["--features", config.android.localProver.cargoFeatures.join(",")]
-    : [];
   runChecked(
     repositoryRoot,
     "cargo",
@@ -296,7 +285,6 @@ function cargoBuild(repositoryRoot, cargoTarget, target, config, toolchain) {
       target.rustTarget,
       "--target-dir",
       cargoTarget,
-      ...featureArguments,
     ],
     `${target.abi} Rust release build`,
     { env: cargoEnvironment(toolchain, target, config), stdio: "inherit" },
@@ -439,7 +427,6 @@ export function buildAndroidNativeDistribution(
     schemaVersion: 1,
     ndkVersion: config.android.ndkVersion,
     apiLevel: config.android.apiLevel,
-    cargoFeatures: config.android.localProver.cargoFeatures,
     shippingBudgetBytes: config.android.combinedBudgetBytes,
     totalBytes,
     binaries,

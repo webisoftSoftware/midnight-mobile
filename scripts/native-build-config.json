@@ -39,8 +39,6 @@
     ],
     "compressedBudgetBytes": 15728640,
     "localProver": {
-      "enabled": true,
-      "cargoFeatures": ["local-prover"],
       "exportedFunctions": [
         "midnight_mobile_local_prover_cancel",
         "midnight_mobile_local_prover_check",
@@ -79,8 +77,6 @@
     },
     "combinedBudgetBytes": 31457280,
     "localProver": {
-      "enabled": true,
-      "cargoFeatures": ["local-prover"],
       "exportedFunctions": [
         "midnight_mobile_local_prover_cancel",
         "midnight_mobile_local_prover_check",

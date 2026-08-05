@@ -104,8 +104,6 @@ function pullAndValidate(name, destinationName, example) {
       "--quiet",
       "--package",
       "midnight-mobile-runtime",
-      "--features",
-      "local-prover",
       "--example",
       example,
     ],

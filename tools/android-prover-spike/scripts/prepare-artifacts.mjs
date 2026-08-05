@@ -122,8 +122,6 @@ function stageRequest(example, path) {
       "--quiet",
       "--package",
       "midnight-mobile-runtime",
-      "--features",
-      "local-prover",
       "--example",
       example,
     ],

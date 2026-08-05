@@ -139,8 +139,6 @@ function buildRust(toolchain) {
       "--release",
       "--package",
       "midnight-mobile-runtime",
-      "--features",
-      "local-prover",
       "--target",
       rustTarget,
       "--target-dir",
