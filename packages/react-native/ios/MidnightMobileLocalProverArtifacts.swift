@@ -68,7 +68,9 @@ final class MutableRequestCopy {
   var count: Int { storage.length }
 
   var pointer: UnsafePointer<UInt8> {
-    storage.mutableBytes.assumingMemoryBound(to: UInt8.self)
+    // `mutableBytes` is the mutable raw pointer `wipe()` needs; the FFI only
+    // reads through it, so hand out the immutable view.
+    UnsafePointer(storage.mutableBytes.assumingMemoryBound(to: UInt8.self))
   }
 
   func wipe() {
