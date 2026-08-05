@@ -134,6 +134,10 @@ private interface LocalProverNative : Library {
 
   fun midnight_mobile_local_prover_set_max_concurrency(limit: Long): Int
 
+  fun midnight_mobile_local_prover_set_profiling(enabled: Boolean): Int
+
+  fun midnight_mobile_local_prover_take_timings(output: NativeResponse.ByReference): Int
+
   fun midnight_mobile_local_prover_free(bytes: Pointer?, bytesLen: Long)
 }
 
@@ -239,6 +243,33 @@ class LocalProverBridge(
   /** Phase 5 memory-pressure hook: clamps to `1..=4` on the native side. */
   fun setMaxConcurrency(limit: Int) {
     native.midnight_mobile_local_prover_set_max_concurrency(limit.toLong())
+  }
+
+  /**
+   * Per-proof stage instrumentation. Process-wide and registry-independent, so it takes no handle
+   * and stays usable across a reconfigure.
+   */
+  fun setProfiling(enabled: Boolean) {
+    requireSuccess(native.midnight_mobile_local_prover_set_profiling(enabled))
+  }
+
+  /**
+   * Drains recorded samples as the JSON string the platform layer forwards verbatim. Destructive:
+   * a second call with no proofs in between yields `[]`.
+   */
+  fun takeTimings(): String {
+    val output = NativeResponse.ByReference()
+    output.write()
+    val code = native.midnight_mobile_local_prover_take_timings(output)
+    output.read()
+    requireSuccess(code)
+    val pointer = output.bytes ?: return "[]"
+    val size = Math.toIntExact(output.bytesLen)
+    return try {
+      if (size == 0) "[]" else String(pointer.getByteArray(0, size), Charsets.UTF_8)
+    } finally {
+      native.midnight_mobile_local_prover_free(pointer, output.bytesLen)
+    }
   }
 
   fun close() {

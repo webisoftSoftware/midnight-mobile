@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -64,5 +65,10 @@ int32_t midnight_mobile_local_prover_cancel(uint64_t handle);
 int32_t midnight_mobile_local_prover_close(uint64_t handle);
 
 int32_t midnight_mobile_local_prover_set_max_concurrency(size_t limit);
+
+int32_t midnight_mobile_local_prover_set_profiling(bool enabled);
+
+int32_t midnight_mobile_local_prover_take_timings(
+    MidnightMobileLocalProverResponse *_Nonnull output);
 
 void midnight_mobile_local_prover_free(uint8_t *_Nullable bytes, size_t bytes_len);

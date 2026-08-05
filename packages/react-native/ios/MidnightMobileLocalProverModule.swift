@@ -109,6 +109,31 @@ private final class LocalProverBridge {
     _ = midnight_mobile_local_prover_cancel(current.handle)
   }
 
+  /// Per-proof stage instrumentation. Process-wide and registry-independent, so it takes no
+  /// handle and stays usable while a registry is being replaced.
+  func setProfiling(_ enabled: Bool) throws {
+    try requireSuccess(midnight_mobile_local_prover_set_profiling(enabled))
+  }
+
+  /// Drains recorded samples as the JSON the platform layer forwards verbatim. Empties the native
+  /// queue, so a second call with no proofs in between yields `[]`.
+  func takeTimings() throws -> String {
+    var response = MidnightMobileLocalProverResponse(bytes: nil, bytes_len: 0)
+    let code = midnight_mobile_local_prover_take_timings(&response)
+    defer {
+      if response.bytes != nil {
+        midnight_mobile_local_prover_free(response.bytes, response.bytes_len)
+      }
+    }
+    try requireSuccess(code)
+    guard let responseBytes = response.bytes, response.bytes_len > 0 else { return "[]" }
+    let data = Data(bytes: responseBytes, count: response.bytes_len)
+    guard let json = String(data: data, encoding: .utf8) else {
+      throw LocalProverBridgeFailure(code: "NATIVE_INTERNAL")
+    }
+    return json
+  }
+
   func close() throws {
     guard let current = synchronized({ state }) else { return }
     let code = midnight_mobile_local_prover_close(current.handle)
@@ -315,6 +340,22 @@ public final class MidnightMobileLocalProverModule: Module {
 
     AsyncFunction("cancel") {
       bridge.cancel()
+    }.runOnQueue(localProverQueue)
+
+    AsyncFunction("setProfiling") { (enabled: Bool) in
+      do {
+        try bridge.setProfiling(enabled)
+      } catch {
+        throw localProverException(error, fallback: "NATIVE_INTERNAL")
+      }
+    }.runOnQueue(localProverQueue)
+
+    AsyncFunction("takeTimings") { () -> String in
+      do {
+        return try bridge.takeTimings()
+      } catch {
+        throw localProverException(error, fallback: "NATIVE_INTERNAL")
+      }
     }.runOnQueue(localProverQueue)
 
     AsyncFunction("close") {

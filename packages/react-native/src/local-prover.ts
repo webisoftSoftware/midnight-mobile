@@ -79,6 +79,22 @@ export interface MidnightLocalProver {
    * individual `prove` calls when this is `undefined`.
    */
   proveBatch?(requests: readonly Uint8Array[]): Promise<Uint8Array[]>;
+  /**
+   * Optional: turns the native per-proof stage instrumentation on or off.
+   *
+   * Absent on native binaries built before the instrumentation was exposed.
+   * Enabling it makes every proof additionally re-run the IR load and key init
+   * it would otherwise do once, to price what an initialized-key cache would
+   * save — so it measures at the cost of what it measures, and belongs in a
+   * measurement run rather than in normal operation.
+   */
+  setProfiling?(enabled: boolean): Promise<void>;
+  /**
+   * Optional: drains recorded stage samples as a JSON array string, oldest
+   * first, and empties the native queue. Yields `[]` when nothing was recorded,
+   * which is what a caller should expect whenever profiling is off.
+   */
+  takeTimings?(): Promise<string>;
   close(): Promise<void>;
 }
 
@@ -88,6 +104,10 @@ export interface NativeLocalProverModule {
   prove(request: Uint8Array): Promise<Uint8Array>;
   /** Optional: may be absent on older native binaries. */
   proveBatch?(requests: readonly Uint8Array[]): Promise<Uint8Array[]>;
+  /** Optional: may be absent on older native binaries. */
+  setProfiling?(enabled: boolean): Promise<void>;
+  /** Optional: may be absent on older native binaries. */
+  takeTimings?(): Promise<string>;
   close(): Promise<void>;
 }
 
@@ -202,10 +222,23 @@ class NativeMidnightLocalProver implements MidnightLocalProver {
   readonly proveBatch?: (
     requests: readonly Uint8Array[],
   ) => Promise<Uint8Array[]>;
+  readonly setProfiling?: (enabled: boolean) => Promise<void>;
+  readonly takeTimings?: () => Promise<string>;
 
   constructor(private readonly native: NativeLocalProverModule) {
     if (typeof native.proveBatch === "function") {
       this.proveBatch = (requests) => this.executeBatchRequest(requests);
+    }
+    // Instrumentation, not proving: these stay callable on a closed prover and
+    // never take the registry handle, so a drain after the last proof of a
+    // session still reports that proof.
+    const setProfiling = native.setProfiling?.bind(native);
+    if (setProfiling !== undefined) {
+      this.setProfiling = (enabled) => nativeCall(() => setProfiling(enabled));
+    }
+    const takeTimings = native.takeTimings?.bind(native);
+    if (takeTimings !== undefined) {
+      this.takeTimings = () => nativeCall(() => takeTimings());
     }
   }
 

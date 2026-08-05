@@ -7,7 +7,40 @@ import android.content.res.Configuration
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
+
+// Matches the native MAX_CONCURRENT_PROOFS_CEILING: admission is still decided in Rust, this only
+// has to be wide enough not to become the narrower bound.
+private const val PROVER_QUEUE_THREADS = 4
+
+// Declared before the queue that uses it: top-level property initializers run in file order.
+private val threadCounter = AtomicInteger(0)
+
+/**
+ * A queue of this module's own, and not Expo's default.
+ *
+ * Every Expo `AsyncFunction` body otherwise runs on the single
+ * `expo.modules.AsyncFunctionQueue` HandlerThread shared by every module in the app. A proof holds
+ * that thread for seconds — around 15 s for a two-proof round on the measured device — which
+ * blocks every other module's async calls for the duration and serializes two `prove` calls that
+ * the caller asked to overlap. iOS's module has always declared a concurrent queue; this is the
+ * Android counterpart.
+ */
+private val localProverQueue = CoroutineScope(
+  Executors.newFixedThreadPool(PROVER_QUEUE_THREADS) { runnable ->
+    thread(start = false, name = "midnight-local-prover-${threadCounter.incrementAndGet()}") {
+      runnable.run()
+    }
+  }.asCoroutineDispatcher() +
+    SupervisorJob() +
+    CoroutineName("midnight.localProverQueue")
+)
 
 private fun localProverException(error: Throwable, fallbackCode: String): CodedException {
   val code = (error as? LocalProverBridgeException)?.stableCode ?: fallbackCode
@@ -41,7 +74,7 @@ class MidnightMobileLocalProverModule : Module() {
       } catch (error: Throwable) {
         throw localProverException(error, "INVALID_CONFIGURATION")
       }
-    }
+    }.runOnQueue(localProverQueue)
 
     AsyncFunction("check") { request: ByteArray ->
       try {
@@ -51,7 +84,7 @@ class MidnightMobileLocalProverModule : Module() {
       } finally {
         request.fill(0)
       }
-    }
+    }.runOnQueue(localProverQueue)
 
     AsyncFunction("prove") { request: ByteArray ->
       try {
@@ -61,7 +94,7 @@ class MidnightMobileLocalProverModule : Module() {
       } finally {
         request.fill(0)
       }
-    }
+    }.runOnQueue(localProverQueue)
 
     AsyncFunction("proveBatch") { requests: List<ByteArray> ->
       try {
@@ -71,11 +104,30 @@ class MidnightMobileLocalProverModule : Module() {
       } finally {
         requests.forEach { it.fill(0) }
       }
-    }
+    }.runOnQueue(localProverQueue)
 
     AsyncFunction("cancel") {
       bridge?.cancel()
-    }
+    }.runOnQueue(localProverQueue)
+
+    // Instrumentation, not proving: both are process-wide, take no registry handle, and stay
+    // callable when no registry is configured, so a drain still reports the last proof of a
+    // session after its registry has been closed.
+    AsyncFunction("setProfiling") { enabled: Boolean ->
+      try {
+        proverBridge().setProfiling(enabled)
+      } catch (error: Throwable) {
+        throw localProverException(error, "NATIVE_INTERNAL")
+      }
+    }.runOnQueue(localProverQueue)
+
+    AsyncFunction("takeTimings") {
+      try {
+        proverBridge().takeTimings()
+      } catch (error: Throwable) {
+        throw localProverException(error, "NATIVE_INTERNAL")
+      }
+    }.runOnQueue(localProverQueue)
 
     AsyncFunction("close") {
       try {
@@ -83,7 +135,7 @@ class MidnightMobileLocalProverModule : Module() {
       } catch (error: Throwable) {
         throw localProverException(error, "NATIVE_INTERNAL")
       }
-    }
+    }.runOnQueue(localProverQueue)
 
     OnCreate {
       // Phase 5 memory-pressure hook: Expo's module DSL has no dedicated trim-memory event, so
