@@ -227,8 +227,11 @@ impl NativeWalletState {
         let parameters = if parameter_bytes.is_empty() {
             INITIAL_DUST_PARAMETERS
         } else {
-            <DustParameters as Deserializable>::deserialize(&mut &parameter_bytes[..], 0)
-                .map_err(|_| MidnightRuntimeError::InvalidArgument)?
+            // The gateway serializes these tagged. A plain read consumes the
+            // ASCII tag as field data and *succeeds*, yielding a ratio and decay
+            // rate that are silently wrong — every coin then caps out at a
+            // fraction of its real value instead of failing loudly.
+            deserialize_tagged_or_plain::<DustParameters>(parameter_bytes)?
         };
         let sync_time = cursor.u64_le()?;
         let body_length = cursor
