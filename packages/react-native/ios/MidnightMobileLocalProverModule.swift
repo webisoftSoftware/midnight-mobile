@@ -2,161 +2,13 @@ import Darwin
 import ExpoModulesCore
 import Foundation
 import MidnightMobileRuntime
+import UIKit
 
 private let localProverQueue = DispatchQueue(
   label: "dev.oneam.midnightmobile.local-prover",
   qos: .userInitiated,
   attributes: .concurrent
 )
-
-private struct LocalProverFileDefinition: Decodable {
-  let uri: String
-  let size: UInt64
-  let sha256: String
-}
-
-private struct LocalProverParameterDefinition: Decodable {
-  let k: UInt32
-  let file: LocalProverFileDefinition
-}
-
-private struct LocalProverCircuitDefinition: Decodable {
-  let keyLocation: String
-  let proverKey: LocalProverFileDefinition
-  let verifierKey: LocalProverFileDefinition
-  let ir: LocalProverFileDefinition
-}
-
-private struct LocalProverConfiguration: Decodable {
-  let parameters: [LocalProverParameterDefinition]
-  let circuits: [LocalProverCircuitDefinition]
-}
-
-private struct LocalProverBridgeFailure: Error {
-  let code: String
-}
-
-private final class StableBytes {
-  private let storage: NSData
-
-  init(_ bytes: [UInt8]) {
-    storage = bytes.withUnsafeBytes { pointer in
-      NSData(bytes: pointer.baseAddress, length: pointer.count)
-    }
-  }
-
-  var pointer: UnsafePointer<UInt8> {
-    storage.bytes.assumingMemoryBound(to: UInt8.self)
-  }
-}
-
-private final class MappedLocalProverFile {
-  let count: Int
-  let hash: StableBytes
-  private let address: UnsafeMutableRawPointer
-
-  init(definition: LocalProverFileDefinition) throws {
-    let decodedHash = try Self.decodeHash(definition.sha256)
-    let file = try Self.resolve(definition.uri)
-    let descriptor = Darwin.open(file.path, O_RDONLY | O_CLOEXEC)
-    guard descriptor >= 0 else { throw LocalProverBridgeFailure(code: "INVALID_CONFIGURATION") }
-    defer { Darwin.close(descriptor) }
-
-    var metadata = stat()
-    guard fstat(descriptor, &metadata) == 0,
-          metadata.st_size > 0,
-          UInt64(metadata.st_size) == definition.size,
-          let mappedCount = Int(exactly: metadata.st_size) else {
-      throw LocalProverBridgeFailure(code: "INVALID_CONFIGURATION")
-    }
-    guard let mapped = mmap(nil, mappedCount, PROT_READ, MAP_PRIVATE, descriptor, 0),
-          mapped != MAP_FAILED else {
-      throw LocalProverBridgeFailure(code: "RESOURCE_PREFLIGHT_FAILED")
-    }
-    address = mapped
-    count = mappedCount
-    hash = StableBytes(decodedHash)
-  }
-
-  deinit {
-    munmap(address, count)
-  }
-
-  var pointer: UnsafePointer<UInt8> {
-    UnsafeRawPointer(address).assumingMemoryBound(to: UInt8.self)
-  }
-
-  private static func resolve(_ uri: String) throws -> URL {
-    guard !uri.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
-      throw LocalProverBridgeFailure(code: "INVALID_CONFIGURATION")
-    }
-    if uri.hasPrefix("bundle://") {
-      let relative = String(uri.dropFirst("bundle://".count))
-      guard !relative.isEmpty, !relative.hasPrefix("/") else {
-        throw LocalProverBridgeFailure(code: "INVALID_CONFIGURATION")
-      }
-      guard let resourceRoot = Bundle.main.resourceURL else {
-        throw LocalProverBridgeFailure(code: "RESOURCE_PREFLIGHT_FAILED")
-      }
-      return try containedFile(relative, root: resourceRoot)
-    }
-    guard uri.hasPrefix("/") else {
-      throw LocalProverBridgeFailure(code: "INVALID_CONFIGURATION")
-    }
-    let root = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
-    return try containedFile(uri, root: root, absolute: true)
-  }
-
-  private static func containedFile(
-    _ path: String,
-    root: URL,
-    absolute: Bool = false
-  ) throws -> URL {
-    let canonicalRoot = root.standardizedFileURL.resolvingSymlinksInPath()
-    let candidate = (absolute ? URL(fileURLWithPath: path) : root.appendingPathComponent(path))
-      .standardizedFileURL.resolvingSymlinksInPath()
-    let prefix = canonicalRoot.path.hasSuffix("/")
-      ? canonicalRoot.path
-      : "\(canonicalRoot.path)/"
-    guard candidate.path.hasPrefix(prefix) else {
-      throw LocalProverBridgeFailure(code: "INVALID_CONFIGURATION")
-    }
-    return candidate
-  }
-
-  private static func decodeHash(_ value: String) throws -> [UInt8] {
-    let encoded = Array(value.utf8)
-    guard encoded.count == 64 else {
-      throw LocalProverBridgeFailure(code: "INVALID_CONFIGURATION")
-    }
-    return try stride(from: 0, to: encoded.count, by: 2).map { index in
-      guard let high = nibble(encoded[index]), let low = nibble(encoded[index + 1]) else {
-        throw LocalProverBridgeFailure(code: "INVALID_CONFIGURATION")
-      }
-      return high << 4 | low
-    }
-  }
-
-  private static func nibble(_ value: UInt8) -> UInt8? {
-    switch value {
-    case 48...57: value - 48
-    case 97...102: value - 87
-    default: nil
-    }
-  }
-}
-
-private struct NativeLocalProverConfiguration {
-  let parameters: [MidnightMobileLocalProverParameterDescriptor]
-  let circuits: [MidnightMobileLocalProverCircuitDescriptor]
-  let mappings: [MappedLocalProverFile]
-  let locations: [StableBytes]
-}
-
-private struct LocalProverState {
-  let handle: UInt64
-  let mappings: [MappedLocalProverFile]
-}
 
 private final class LocalProverBridge {
   private let lock = NSLock()
@@ -200,6 +52,86 @@ private final class LocalProverBridge {
 
   func prove(_ request: Data) throws -> Data {
     try execute(request, prove: true)
+  }
+
+  func proveBatch(_ requests: [Data]) throws -> [Data] {
+    guard let current = synchronized({ state }) else {
+      throw LocalProverBridgeFailure(code: "STALE_REGISTRY")
+    }
+    guard !requests.isEmpty else {
+      throw LocalProverBridgeFailure(code: "INVALID_REQUEST")
+    }
+    guard requests.count <= 64 else {
+      throw LocalProverBridgeFailure(code: "INVALID_CONFIGURATION")
+    }
+    for request in requests where request.isEmpty {
+      throw LocalProverBridgeFailure(code: "INVALID_REQUEST")
+    }
+
+    let owned = requests.map(MutableRequestCopy.init)
+    defer { owned.forEach { $0.wipe() } }
+
+    let descriptors = owned.map { copy in
+      MidnightMobileLocalProverRequestDescriptor(bytes: copy.pointer, bytes_len: copy.count)
+    }
+    var outputs = [MidnightMobileLocalProverResponse](
+      repeating: MidnightMobileLocalProverResponse(bytes: nil, bytes_len: 0),
+      count: owned.count
+    )
+    let code = withExtendedLifetime(owned) {
+      descriptors.withUnsafeBufferPointer { descriptorBuffer in
+        outputs.withUnsafeMutableBufferPointer { outputBuffer -> Int32 in
+          midnight_mobile_local_prover_prove_batch(
+            current.handle,
+            descriptorBuffer.baseAddress,
+            descriptorBuffer.count,
+            outputBuffer.baseAddress
+          )
+        }
+      }
+    }
+    defer {
+      for output in outputs where output.bytes != nil {
+        midnight_mobile_local_prover_free(output.bytes, output.bytes_len)
+      }
+    }
+    try requireSuccess(code)
+    return try outputs.map { response in
+      guard let responseBytes = response.bytes, response.bytes_len > 0 else {
+        throw LocalProverBridgeFailure(code: "NATIVE_INTERNAL")
+      }
+      return Data(bytes: responseBytes, count: response.bytes_len)
+    }
+  }
+
+  func cancel() {
+    guard let current = synchronized({ state }) else { return }
+    _ = midnight_mobile_local_prover_cancel(current.handle)
+  }
+
+  /// Per-proof stage instrumentation. Process-wide and registry-independent, so it takes no
+  /// handle and stays usable while a registry is being replaced.
+  func setProfiling(_ enabled: Bool) throws {
+    try requireSuccess(midnight_mobile_local_prover_set_profiling(enabled))
+  }
+
+  /// Drains recorded samples as the JSON the platform layer forwards verbatim. Empties the native
+  /// queue, so a second call with no proofs in between yields `[]`.
+  func takeTimings() throws -> String {
+    var response = MidnightMobileLocalProverResponse(bytes: nil, bytes_len: 0)
+    let code = midnight_mobile_local_prover_take_timings(&response)
+    defer {
+      if response.bytes != nil {
+        midnight_mobile_local_prover_free(response.bytes, response.bytes_len)
+      }
+    }
+    try requireSuccess(code)
+    guard let responseBytes = response.bytes, response.bytes_len > 0 else { return "[]" }
+    let data = Data(bytes: responseBytes, count: response.bytes_len)
+    guard let json = String(data: data, encoding: .utf8) else {
+      throw LocalProverBridgeFailure(code: "NATIVE_INTERNAL")
+    }
+    return json
   }
 
   func close() throws {
@@ -369,6 +301,7 @@ private func localProverException(_ error: Error, fallback: String) -> Exception
 
 public final class MidnightMobileLocalProverModule: Module {
   private let bridge = LocalProverBridge()
+  private var memoryWarningObserver: NSObjectProtocol?
 
   public func definition() -> ModuleDefinition {
     Name("MidnightMobileLocalProver")
@@ -397,6 +330,34 @@ public final class MidnightMobileLocalProverModule: Module {
       }
     }.runOnQueue(localProverQueue)
 
+    AsyncFunction("proveBatch") { (requests: [Data]) -> [Data] in
+      do {
+        return try bridge.proveBatch(requests)
+      } catch {
+        throw localProverException(error, fallback: "NATIVE_INTERNAL")
+      }
+    }.runOnQueue(localProverQueue)
+
+    AsyncFunction("cancel") {
+      bridge.cancel()
+    }.runOnQueue(localProverQueue)
+
+    AsyncFunction("setProfiling") { (enabled: Bool) in
+      do {
+        try bridge.setProfiling(enabled)
+      } catch {
+        throw localProverException(error, fallback: "NATIVE_INTERNAL")
+      }
+    }.runOnQueue(localProverQueue)
+
+    AsyncFunction("takeTimings") { () -> String in
+      do {
+        return try bridge.takeTimings()
+      } catch {
+        throw localProverException(error, fallback: "NATIVE_INTERNAL")
+      }
+    }.runOnQueue(localProverQueue)
+
     AsyncFunction("close") {
       do {
         try bridge.close()
@@ -405,8 +366,25 @@ public final class MidnightMobileLocalProverModule: Module {
       }
     }.runOnQueue(localProverQueue)
 
+    OnCreate {
+      // Phase 5 memory pressure hook: drop the admission limit to 1 and refuse new admissions
+      // above that until the process is relaunched. `set_max_concurrency` only affects permits
+      // acquired after this call; already-admitted proofs run to completion.
+      self.memoryWarningObserver = NotificationCenter.default.addObserver(
+        forName: UIApplication.didReceiveMemoryWarningNotification,
+        object: nil,
+        queue: nil
+      ) { _ in
+        _ = midnight_mobile_local_prover_set_max_concurrency(1)
+      }
+    }
+
     OnDestroy {
       bridge.destroy()
+      if let observer = self.memoryWarningObserver {
+        NotificationCenter.default.removeObserver(observer)
+        self.memoryWarningObserver = nil
+      }
     }
   }
 }

@@ -91,6 +91,147 @@ fn take_proving_key_material_map(
     Ok(decoded)
 }
 
+/// Effect id advertised for entry `index` of a `total`-effect proof round.
+///
+/// A single-effect round keeps the bare operation effect id, so the batched protocol is
+/// byte-identical to the pre-batching one whenever a round holds one request. Ids are
+/// opaque to consumers, which must echo back exactly what they were given.
+fn proof_effect_id(operation_effect_id: &str, index: usize, total: usize) -> String {
+    if total <= 1 {
+        return operation_effect_id.to_owned();
+    }
+    format!("{operation_effect_id}#{index}")
+}
+
+/// Captures the wire form of each request before the batch moves into the pending
+/// operation, so the step can be built once the registered effect id is known.
+fn proof_step_bodies(
+    requests: &[transaction::RemoteProofRequest],
+) -> Vec<(&'static str, String)> {
+    requests
+        .iter()
+        .map(|request| (proof_effect(request.kind), encode_base64(&request.body)))
+        .collect()
+}
+
+/// Builds the network step for a proof round. The singular fields always mirror the
+/// first effect; `effects` appears only for a genuine batch.
+fn proof_step_from_bodies(
+    handle: OperationHandle,
+    effect_id: &str,
+    bodies: Vec<(&'static str, String)>,
+) -> Result<OperationStep, MidnightRuntimeError> {
+    let total = bodies.len();
+    let (first_effect, first_body) = bodies.first().ok_or(MidnightRuntimeError::ProofFailed)?;
+    let effects = (total > 1).then(|| {
+        bodies
+            .iter()
+            .enumerate()
+            .map(|(index, (effect, body))| OperationEffect {
+                effect_id: proof_effect_id(effect_id, index, total),
+                effect,
+                endpoint_role: "proof",
+                body_base64: body.clone(),
+            })
+            .collect()
+    });
+    Ok(OperationStep {
+        kind: "network",
+        operation: Some(handle),
+        effect_id: Some(proof_effect_id(effect_id, 0, total)),
+        effect: Some(first_effect),
+        endpoint_role: Some("proof"),
+        body_base64: Some(first_body.clone()),
+        effects,
+        result_json: None,
+    })
+}
+
+/// Builds the next network step from the requests already stored on the operation,
+/// after `set_pending_requests` and the effect-id advance.
+fn pending_proof_step(
+    operation: &PendingOperation,
+    operation_id: u64,
+    generation: u64,
+) -> Result<OperationStep, MidnightRuntimeError> {
+    let bodies = proof_step_bodies(
+        operation
+            .kind
+            .pending_requests()
+            .ok_or(MidnightRuntimeError::NativeInternal)?,
+    );
+    proof_step_from_bodies(
+        OperationHandle {
+            id: operation_id,
+            generation,
+        },
+        &operation.effect_id,
+        bodies,
+    )
+}
+
+/// Pairs each submitted result with its outstanding request and returns the decoded
+/// bodies in request order.
+///
+/// Fails closed: the submitted set must match the advertised effect ids exactly, with no
+/// missing, extra, or duplicated entries, so a partial batch can never silently
+/// under-fill the response map. `InvalidArgument` leaves the operation resumable; every
+/// other error retires it, matching the pre-batching single-effect semantics.
+fn decode_proof_batch(
+    results: &[NetworkResult],
+    pending: &[transaction::RemoteProofRequest],
+    effect_id: &str,
+) -> Result<Vec<Vec<u8>>, MidnightRuntimeError> {
+    if pending.is_empty()
+        || results.len() != pending.len()
+        || pending.len() > transaction::MAX_PROOF_BATCH
+    {
+        return Err(MidnightRuntimeError::InvalidArgument);
+    }
+    let mut by_effect_id = HashMap::with_capacity(results.len());
+    for result in results {
+        if by_effect_id
+            .insert(result.effect_id.as_str(), result)
+            .is_some()
+        {
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
+    }
+    let mut bodies = Vec::with_capacity(pending.len());
+    for index in 0..pending.len() {
+        let expected = proof_effect_id(effect_id, index, pending.len());
+        let result = by_effect_id
+            .remove(expected.as_str())
+            .ok_or(MidnightRuntimeError::InvalidArgument)?;
+        match result.outcome.as_str() {
+            "accepted" => {}
+            "rejected" | "statusUnknown" => return Err(MidnightRuntimeError::ProofFailed),
+            _ => return Err(MidnightRuntimeError::InvalidArgument),
+        }
+        let body = result
+            .body_base64
+            .as_deref()
+            .ok_or(MidnightRuntimeError::ProofFailed)?;
+        bodies.push(decode_base64(body).map_err(|_| MidnightRuntimeError::ProofFailed)?);
+    }
+    Ok(bodies)
+}
+
+/// Memoizes one decoded body per outstanding request before the single replay pass.
+fn accept_proof_batch(
+    responses: &mut transaction::RemoteProofResponses,
+    pending: &[transaction::RemoteProofRequest],
+    bodies: Vec<Vec<u8>>,
+) -> Result<(), MidnightRuntimeError> {
+    if bodies.len() != pending.len() {
+        return Err(MidnightRuntimeError::ProofFailed);
+    }
+    for (request, body) in pending.iter().zip(bodies) {
+        responses.accept(request, body)?;
+    }
+    Ok(())
+}
+
 fn next_effect_id(generation: u64, operation_id: u64, current: &str) -> String {
     let sequence = current
         .rsplit(':')
@@ -221,9 +362,8 @@ fn start_transaction_finalization(
             ..
         } = input;
         match progress {
-            transaction::BalanceProgress::Network(pending_request) => {
-                let body = Zeroizing::new(pending_request.body.clone());
-                let effect = proof_effect(pending_request.kind);
+            transaction::BalanceProgress::Network(pending_requests) => {
+                let bodies = proof_step_bodies(&pending_requests);
                 let (operation, effect_id) = register_reserved_operation(
                     session_id,
                     generation,
@@ -234,19 +374,11 @@ fn start_transaction_finalization(
                         proposed_state,
                         expected_identifiers,
                         responses,
-                        pending_request,
+                        pending_requests,
                     },
                 )?;
                 registered_operation = Some(operation.id);
-                to_json(&OperationStep {
-                    kind: "network",
-                    operation: Some(operation),
-                    effect_id: Some(effect_id),
-                    effect: Some(effect),
-                    endpoint_role: Some("proof"),
-                    body_base64: Some(encode_base64(&body)),
-                    result_json: None,
-                })
+                to_json(&proof_step_from_bodies(operation, &effect_id, bodies)?)
             }
             transaction::BalanceProgress::Complete(finalized) => start_transaction_balance(
                 session_id,
@@ -302,6 +434,7 @@ fn start_transaction_balance(
         effect: Some("balance"),
         endpoint_role: Some("proof"),
         body_base64: Some(encode_base64(&body)),
+        effects: None,
         result_json: None,
     })
 }

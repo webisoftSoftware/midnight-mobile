@@ -198,6 +198,7 @@ function assembleStagingPackage(repositoryRoot, errors) {
     "expo-module.config.json",
     "ios/MidnightMobileRuntime.podspec",
     "ios/MidnightMobileLocalProverModule.swift",
+    "ios/MidnightMobileLocalProverArtifacts.swift",
     "ios/MidnightMobileRuntimeModule.swift",
     "ios/MidnightMobileLocalProverFFI.h",
     "ios/generated",

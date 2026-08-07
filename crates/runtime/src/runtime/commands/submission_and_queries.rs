@@ -50,6 +50,7 @@ if let RuntimeCommand::SubmitFinalized { raw_base64 } = &command {
         effect: Some("submit"),
         endpoint_role: Some("node"),
         body_base64: Some(encode_base64(&finalized.canonical)),
+        effects: None,
         result_json: None,
     });
 }

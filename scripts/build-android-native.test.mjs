@@ -12,6 +12,18 @@ const config = JSON.parse(
 
 await test("native build config pins the exact M4 Android contract", () => {
   assert.deepEqual(validateNativeBuildConfig(config), []);
+  assert.deepEqual(config.android.localProver.exportedFunctions, [
+    "midnight_mobile_local_prover_cancel",
+    "midnight_mobile_local_prover_check",
+    "midnight_mobile_local_prover_close",
+    "midnight_mobile_local_prover_configure",
+    "midnight_mobile_local_prover_free",
+    "midnight_mobile_local_prover_prove",
+    "midnight_mobile_local_prover_prove_batch",
+    "midnight_mobile_local_prover_set_max_concurrency",
+    "midnight_mobile_local_prover_set_profiling",
+    "midnight_mobile_local_prover_take_timings",
+  ]);
   assert.match(
     validateNativeBuildConfig({
       ...config,
@@ -32,6 +44,24 @@ await test("native build config pins the exact M4 Android contract", () => {
       apple: { ...config.apple, moduleName: "MidnightMobileRuntimeFFI" },
     }).join("\n"),
     /framework and generated module names must match/u,
+  );
+  assert.match(
+    validateNativeBuildConfig({
+      ...config,
+      android: {
+        ...config.android,
+        localProver: {
+          ...config.android.localProver,
+          exportedFunctions:
+            config.android.localProver.exportedFunctions.filter(
+              (name) =>
+                name !== "midnight_mobile_local_prover_prove_batch" &&
+                name !== "midnight_mobile_local_prover_set_max_concurrency",
+            ),
+        },
+      },
+    }).join("\n"),
+    /local prover C ABI drifted/u,
   );
 });
 

@@ -104,8 +104,6 @@ function pullAndValidate(name, destinationName, example) {
       "--quiet",
       "--package",
       "midnight-mobile-runtime",
-      "--features",
-      "local-prover",
       "--example",
       example,
     ],
@@ -157,7 +155,12 @@ function validateSuccessfulProof(resultLine, alive) {
       "device-proof-v2.bin",
       "validate_android_prover_proof",
     );
-    return { success: true, proofPath, checkPath };
+    const outputProofPath = pullAndValidate(
+      "output-proof-v2.bin",
+      "device-output-proof-v2.bin",
+      "validate_android_prover_proof",
+    );
+    return { success: true, proofPath, outputProofPath, checkPath };
   } catch (error) {
     return { success: false, hostValidationError: String(error) };
   }
@@ -177,8 +180,13 @@ async function main() {
   const alive = tryShell(`pidof ${packageName}`).length > 0;
   const timedOut = resultLine === undefined && elapsedMillis >= timeoutMillis;
   const after = captureAfterSnapshot();
-  const { success, proofPath, checkPath, hostValidationError } =
-    validateSuccessfulProof(resultLine, alive);
+  const {
+    success,
+    proofPath,
+    outputProofPath,
+    checkPath,
+    hostValidationError,
+  } = validateSuccessfulProof(resultLine, alive);
   const report = {
     schemaVersion: 1,
     timeoutMillis,
@@ -189,6 +197,7 @@ async function main() {
     processAlive: alive,
     resultLine: resultLine ?? null,
     proofPath: proofPath ?? null,
+    outputProofPath: outputProofPath ?? null,
     checkPath: checkPath ?? null,
     hostValidationError: hostValidationError ?? null,
     samples,

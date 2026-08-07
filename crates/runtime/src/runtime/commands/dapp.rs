@@ -73,9 +73,8 @@ if let RuntimeCommand::DappIntent { inputs, outputs } = &mut command {
         transaction::BalanceProgress::Complete(finalized) => {
             return complete_json(finalized_transaction_result(&finalized)?);
         }
-        transaction::BalanceProgress::Network(pending_request) => {
-            let body = pending_request.body.clone();
-            let effect = proof_effect(pending_request.kind);
+        transaction::BalanceProgress::Network(pending_requests) => {
+            let bodies = proof_step_bodies(&pending_requests);
             drop(state);
             let (operation, effect_id) = register_operation(
                 session_id,
@@ -84,18 +83,10 @@ if let RuntimeCommand::DappIntent { inputs, outputs } = &mut command {
                 PendingOperationKind::DappIntentProof {
                     raw,
                     responses,
-                    pending_request,
+                    pending_requests,
                 },
             )?;
-            return to_json(&OperationStep {
-                kind: "network",
-                operation: Some(operation),
-                effect_id: Some(effect_id),
-                effect: Some(effect),
-                endpoint_role: Some("proof"),
-                body_base64: Some(encode_base64(&body)),
-                result_json: None,
-            });
+            return to_json(&proof_step_from_bodies(operation, &effect_id, bodies)?);
         }
     }
 }

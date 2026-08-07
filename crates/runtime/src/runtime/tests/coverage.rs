@@ -376,7 +376,7 @@ fn resumable_operation_variants_clear_or_preserve_state_on_failure() {
             proposed_state: Some(wallet_state.clone()),
             expected_identifiers: Vec::new(),
             responses: transaction::RemoteProofResponses::default(),
-            pending_request: request(),
+            pending_requests: vec![request()],
         },
         PendingOperationKind::FinalizeTransactionBalance {
             proposed_state: Some(wallet_state.clone()),
@@ -385,21 +385,21 @@ fn resumable_operation_variants_clear_or_preserve_state_on_failure() {
         PendingOperationKind::DappIntentProof {
             raw: vec![0xff],
             responses: transaction::RemoteProofResponses::default(),
-            pending_request: request(),
+            pending_requests: vec![request()],
         },
         PendingOperationKind::GenerateDustProof {
             raw: vec![0xff],
             proposed_state: wallet_state,
             expected_identifiers: Vec::new(),
             responses: transaction::RemoteProofResponses::default(),
-            pending_request: request(),
+            pending_requests: vec![request()],
         },
         PendingOperationKind::Balance {
             original_raw: vec![0xff],
             original_sealed: false,
             balancing_raw: vec![0xff],
             responses: transaction::RemoteProofResponses::default(),
-            pending_request: request(),
+            pending_requests: vec![request()],
         },
     ];
     for kind in kinds {
@@ -416,4 +416,147 @@ fn resumable_operation_variants_clear_or_preserve_state_on_failure() {
         Some(operation.id)
     );
     cancel_operation(operation.id, operation.generation).unwrap();
+}
+
+fn batch_request(key: &str, body: u8) -> transaction::RemoteProofRequest {
+    transaction::RemoteProofRequest {
+        key: key.to_owned(),
+        kind: transaction::RemoteProofKind::Prove,
+        body: vec![body],
+    }
+}
+
+fn batch_result(effect_id: &str, outcome: &str, body: Option<&str>) -> NetworkResult {
+    NetworkResult {
+        effect_id: effect_id.to_owned(),
+        outcome: outcome.to_owned(),
+        body_base64: body.map(str::to_owned),
+    }
+}
+
+#[test]
+fn proof_rounds_advertise_one_effect_per_request_and_keep_the_singular_form_for_one() {
+    let handle = OperationHandle {
+        id: 4,
+        generation: 9,
+    };
+    let single = proof_step_from_bodies(handle.clone(), "9:4:1", vec![("prove", "AQ==".to_owned())])
+        .unwrap();
+    assert_eq!(single.effect_id.as_deref(), Some("9:4:1"));
+    assert_eq!(single.effect, Some("prove"));
+    assert_eq!(single.body_base64.as_deref(), Some("AQ=="));
+    assert!(
+        single.effects.is_none(),
+        "a one-effect round must stay wire-identical to the pre-batching protocol"
+    );
+
+    let batch = proof_step_from_bodies(
+        handle,
+        "9:4:1",
+        vec![
+            ("check", "AQ==".to_owned()),
+            ("prove", "Ag==".to_owned()),
+            ("prove", "Aw==".to_owned()),
+        ],
+    )
+    .unwrap();
+    let effects = batch.effects.as_deref().unwrap();
+    assert_eq!(effects.len(), 3);
+    assert_eq!(
+        effects
+            .iter()
+            .map(|effect| effect.effect_id.as_str())
+            .collect::<Vec<_>>(),
+        ["9:4:1#0", "9:4:1#1", "9:4:1#2"]
+    );
+    assert!(effects.iter().all(|effect| effect.endpoint_role == "proof"));
+    // The singular fields mirror the first effect so older consumers still make progress.
+    assert_eq!(batch.effect_id.as_deref(), Some("9:4:1#0"));
+    assert_eq!(batch.effect, Some("check"));
+    assert_eq!(batch.body_base64.as_deref(), Some("AQ=="));
+}
+
+#[test]
+fn batched_proof_results_must_match_the_advertised_effect_ids_exactly() {
+    let pending = vec![batch_request("a", 1), batch_request("b", 2)];
+    let ok = decode_proof_batch(
+        &[
+            // Deliberately out of order: pairing is by effect id, not position.
+            batch_result("7:1:1#1", "accepted", Some("Ag==")),
+            batch_result("7:1:1#0", "accepted", Some("AQ==")),
+        ],
+        &pending,
+        "7:1:1",
+    )
+    .unwrap();
+    assert_eq!(ok, vec![vec![1], vec![2]], "bodies follow request order");
+
+    for (label, results) in [
+        (
+            "missing entry",
+            vec![batch_result("7:1:1#0", "accepted", Some("AQ=="))],
+        ),
+        (
+            "duplicated entry",
+            vec![
+                batch_result("7:1:1#0", "accepted", Some("AQ==")),
+                batch_result("7:1:1#0", "accepted", Some("AQ==")),
+            ],
+        ),
+        (
+            "unknown effect id",
+            vec![
+                batch_result("7:1:1#0", "accepted", Some("AQ==")),
+                batch_result("7:1:1#9", "accepted", Some("Ag==")),
+            ],
+        ),
+        (
+            "single-effect id for a batched round",
+            vec![
+                batch_result("7:1:1", "accepted", Some("AQ==")),
+                batch_result("7:1:1#1", "accepted", Some("Ag==")),
+            ],
+        ),
+    ] {
+        assert!(
+            matches!(
+                decode_proof_batch(&results, &pending, "7:1:1"),
+                Err(MidnightRuntimeError::InvalidArgument)
+            ),
+            "{label} must stay resumable rather than under-fill the batch"
+        );
+    }
+
+    for (label, outcome, body) in [
+        ("rejected", "rejected", Some("Ag==")),
+        ("statusUnknown", "statusUnknown", Some("Ag==")),
+        ("accepted without a body", "accepted", None),
+    ] {
+        assert!(
+            matches!(
+                decode_proof_batch(
+                    &[
+                        batch_result("7:1:1#0", "accepted", Some("AQ==")),
+                        batch_result("7:1:1#1", outcome, body),
+                    ],
+                    &pending,
+                    "7:1:1",
+                ),
+                Err(MidnightRuntimeError::ProofFailed)
+            ),
+            "{label} must retire the operation"
+        );
+    }
+
+    // A one-request round keeps the bare effect id.
+    assert_eq!(
+        decode_proof_batch(
+            &[batch_result("7:1:1", "accepted", Some("AQ=="))],
+            &pending[..1],
+            "7:1:1",
+        )
+        .unwrap(),
+        vec![vec![1]]
+    );
+    assert!(decode_proof_batch(&[], &[], "7:1:1").is_err());
 }

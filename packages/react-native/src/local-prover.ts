@@ -72,6 +72,29 @@ export interface MidnightLocalProver {
   configure(configuration: MidnightLocalProverConfiguration): Promise<void>;
   check(request: Uint8Array): Promise<Uint8Array>;
   prove(request: Uint8Array): Promise<Uint8Array>;
+  /**
+   * Optional native fast path: proves every request in one native call.
+   * Only present when the underlying native module implements it (older
+   * native binaries do not); callers must be prepared to fall back to
+   * individual `prove` calls when this is `undefined`.
+   */
+  proveBatch?(requests: readonly Uint8Array[]): Promise<Uint8Array[]>;
+  /**
+   * Optional: turns the native per-proof stage instrumentation on or off.
+   *
+   * Absent on native binaries built before the instrumentation was exposed.
+   * Enabling it makes every proof additionally re-run the IR load and key init
+   * it would otherwise do once, to price what an initialized-key cache would
+   * save — so it measures at the cost of what it measures, and belongs in a
+   * measurement run rather than in normal operation.
+   */
+  setProfiling?(enabled: boolean): Promise<void>;
+  /**
+   * Optional: drains recorded stage samples as a JSON array string, oldest
+   * first, and empties the native queue. Yields `[]` when nothing was recorded,
+   * which is what a caller should expect whenever profiling is off.
+   */
+  takeTimings?(): Promise<string>;
   close(): Promise<void>;
 }
 
@@ -79,6 +102,12 @@ export interface NativeLocalProverModule {
   configure(configurationJson: string): Promise<number>;
   check(request: Uint8Array): Promise<Uint8Array>;
   prove(request: Uint8Array): Promise<Uint8Array>;
+  /** Optional: may be absent on older native binaries. */
+  proveBatch?(requests: readonly Uint8Array[]): Promise<Uint8Array[]>;
+  /** Optional: may be absent on older native binaries. */
+  setProfiling?(enabled: boolean): Promise<void>;
+  /** Optional: may be absent on older native binaries. */
+  takeTimings?(): Promise<string>;
   close(): Promise<void>;
 }
 
@@ -190,8 +219,28 @@ function validateConfiguration(
 
 class NativeMidnightLocalProver implements MidnightLocalProver {
   private closed = false;
+  readonly proveBatch?: (
+    requests: readonly Uint8Array[],
+  ) => Promise<Uint8Array[]>;
+  readonly setProfiling?: (enabled: boolean) => Promise<void>;
+  readonly takeTimings?: () => Promise<string>;
 
-  constructor(private readonly native: NativeLocalProverModule) {}
+  constructor(private readonly native: NativeLocalProverModule) {
+    if (typeof native.proveBatch === "function") {
+      this.proveBatch = (requests) => this.executeBatchRequest(requests);
+    }
+    // Instrumentation, not proving: these stay callable on a closed prover and
+    // never take the registry handle, so a drain after the last proof of a
+    // session still reports that proof.
+    const setProfiling = native.setProfiling?.bind(native);
+    if (setProfiling !== undefined) {
+      this.setProfiling = (enabled) => nativeCall(() => setProfiling(enabled));
+    }
+    const takeTimings = native.takeTimings?.bind(native);
+    if (takeTimings !== undefined) {
+      this.takeTimings = () => nativeCall(() => takeTimings());
+    }
+  }
 
   async configure(
     configuration: MidnightLocalProverConfiguration,
@@ -237,6 +286,26 @@ class NativeMidnightLocalProver implements MidnightLocalProver {
       copy.fill(0);
     }
   }
+
+  private async executeBatchRequest(
+    requests: readonly Uint8Array[],
+  ): Promise<Uint8Array[]> {
+    for (const request of requests) {
+      this.requireOpen(request);
+    }
+    const copies = requests.map((request) => request.slice());
+    const native = this.native;
+    try {
+      return await nativeCall(() => {
+        if (native.proveBatch === undefined) {
+          throw new MidnightLocalProverError("NATIVE_INTERNAL");
+        }
+        return native.proveBatch(copies);
+      });
+    } finally {
+      for (const copy of copies) copy.fill(0);
+    }
+  }
 }
 
 export async function createMidnightLocalProver(
@@ -259,9 +328,11 @@ export function createLocalProverMidnightTransport(
   config: MidnightTransportConfiguration,
   prover: MidnightLocalProver,
 ): MidnightStandardTransport {
+  const proveBatch = prover.proveBatch?.bind(prover);
   return createMidnightTransportWithProofAdapter(config, {
     execute(effect, request) {
       return effect === "check" ? prover.check(request) : prover.prove(request);
     },
+    ...(proveBatch === undefined ? {} : { executeProveBatch: proveBatch }),
   });
 }

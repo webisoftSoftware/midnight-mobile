@@ -87,21 +87,20 @@ if let Some((
         return complete_json(finalized_transaction_result(&finalized)?);
     };
     let responses = transaction::RemoteProofResponses::default();
-    let request = match transaction::advance_dust_balance(
+    let requests = match transaction::advance_dust_balance(
         &original_raw,
         original_sealed,
         &balancing_raw,
         &state.config.network_id,
         &responses,
     )? {
-        transaction::BalanceProgress::Network(request) => request,
+        transaction::BalanceProgress::Network(requests) => requests,
         transaction::BalanceProgress::Complete(finalized) => {
             return complete_json(finalized_transaction_result(&finalized)?);
         }
     };
     drop(state);
-    let step_body = request.body.clone();
-    let step_effect = proof_effect(request.kind);
+    let bodies = proof_step_bodies(&requests);
     let (operation, effect_id) = register_operation(
         session_id,
         generation,
@@ -111,17 +110,9 @@ if let Some((
             original_sealed,
             balancing_raw,
             responses,
-            pending_request: request,
+            pending_requests: requests,
         },
     )?;
-    return to_json(&OperationStep {
-        kind: "network",
-        operation: Some(operation),
-        effect_id: Some(effect_id),
-        effect: Some(step_effect),
-        endpoint_role: Some("proof"),
-        body_base64: Some(encode_base64(&step_body)),
-        result_json: None,
-    });
+    return to_json(&proof_step_from_bodies(operation, &effect_id, bodies)?);
 }
 }

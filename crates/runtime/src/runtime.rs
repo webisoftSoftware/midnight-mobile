@@ -68,8 +68,12 @@ pub fn resume_operation(
         let result_json = network_result_json
             .as_deref()
             .ok_or(MidnightRuntimeError::InvalidArgument)?;
-        let result: NetworkResult =
-            serde_json::from_str(result_json).map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+        let results = serde_json::from_str::<NetworkResults>(result_json)
+            .map_err(|_| MidnightRuntimeError::InvalidArgument)?
+            .into_vec();
+        if results.is_empty() || results.len() > transaction::MAX_PROOF_BATCH {
+            return Err(MidnightRuntimeError::InvalidArgument);
+        }
         let mut runtime = lock_registry()?;
         let mut operation = match runtime.operations.remove(&operation_id) {
             Some(operation) => operation,
@@ -96,7 +100,23 @@ pub fn resume_operation(
         if state.active_operation != Some(operation_id) {
             return Err(MidnightRuntimeError::StaleSession);
         }
-        if result.effect_id != operation.effect_id {
+        // A single result keeps the pre-batching contract: its effect id must equal the
+        // operation's. A multi-result payload only makes sense for a batched proof round,
+        // and `decode_proof_batch` validates its ids against the outstanding requests.
+        let result = results
+            .first()
+            .ok_or(MidnightRuntimeError::InvalidArgument)?
+            .clone();
+        let outstanding = operation
+            .kind
+            .pending_requests()
+            .map_or(0, <[transaction::RemoteProofRequest]>::len);
+        let mismatched = if results.len() > 1 {
+            outstanding < 2
+        } else {
+            result.effect_id != operation.effect_id
+        };
+        if mismatched {
             drop(state);
             lock_registry()?.operations.insert(operation_id, operation);
             return Err(MidnightRuntimeError::InvalidArgument);

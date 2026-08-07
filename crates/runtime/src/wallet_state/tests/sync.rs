@@ -63,6 +63,33 @@ fn snapshot_requests_and_v2_imports_are_native_and_integrity_checked() {
 }
 
 #[test]
+fn v2_dust_import_reads_tagged_dust_parameters() {
+    let state = empty_state();
+
+    // The gateway sends `midnight:dust-parameters[v1]:` + payload. Reading that
+    // as an untagged struct does not fail — it parses the tag bytes as the ratio
+    // and decay rate, so the import succeeds with parameters that undervalue
+    // every coin by orders of magnitude.
+    let mut tagged = Vec::new();
+    tagged_serialize(&INITIAL_DUST_PARAMETERS, &mut tagged).unwrap();
+
+    let mut payload = Vec::new();
+    payload.extend_from_slice(&u32::try_from(tagged.len()).unwrap().to_le_bytes());
+    payload.extend_from_slice(&tagged);
+    payload.extend_from_slice(&1_700_000_000_u64.to_le_bytes()); // syncTime
+    payload.extend_from_slice(&0_u32.to_le_bytes()); // generation count
+    payload.extend_from_slice(&0_u32.to_le_bytes()); // generation tail
+    payload.extend_from_slice(&0_u32.to_le_bytes()); // commitment count
+    payload.extend_from_slice(&0_u32.to_le_bytes()); // commitment tail
+    payload.extend_from_slice(&23_u64.to_le_bytes()); // event trailer
+
+    let imported = state
+        .apply_batch("dust-v2", &[payload], &[2; 32], &[3; 32])
+        .unwrap();
+    assert_eq!(imported.dust.params, INITIAL_DUST_PARAMETERS);
+}
+
+#[test]
 fn wallet_sync_snapshot_restore_and_dust_requests_round_trip() {
     let (state, keys, _) = funded_state();
     let balances = state.balances().unwrap();

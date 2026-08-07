@@ -402,8 +402,6 @@ function hostValidate(dataContainer) {
         "--quiet",
         "--package",
         "midnight-mobile-runtime",
-        "--features",
-        "local-prover",
         "--example",
         example,
       ],

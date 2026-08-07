@@ -90,6 +90,7 @@ function validatePodspec(podspec) {
   for (const required of [
     "MidnightMobileRuntimeModule.swift",
     "MidnightMobileLocalProverModule.swift",
+    "MidnightMobileLocalProverArtifacts.swift",
     `generated/${FRAMEWORK_NAME}.swift`,
   ]) {
     if (!sources.includes(required))

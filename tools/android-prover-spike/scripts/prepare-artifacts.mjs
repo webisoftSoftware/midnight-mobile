@@ -41,6 +41,26 @@ const artifacts = Object.freeze([
     sha256: "7cb5bbcf67cb212a3336fb439a77e8f32f0aa8a56185c8e1247d6cbfc7300205",
     size: 1_294,
   },
+  {
+    path: "bls_midnight_2p14",
+    sha256: "fc253016885ec830e97808c9ec920bb5cab5c21af590380a6cb5eb0538e2b244",
+    size: 3_146_116,
+  },
+  {
+    path: "zswap/9/output.prover",
+    sha256: "d992b04f13c3fd432f55fb8bfe6466d87bc181f1a2acf233ec228030bbdd4ed8",
+    size: 5_730_182,
+  },
+  {
+    path: "zswap/9/output.verifier",
+    sha256: "72e8074856f2f5c504ade25a86a2b8902c64aeb9497c4c8e6b26dea842a0ab08",
+    size: 2_311,
+  },
+  {
+    path: "zswap/9/output.bzkir",
+    sha256: "91dc8b401dd8385e8d29eaac018c70b578505f48c7952452ef319bc397fa1f1b",
+    size: 494,
+  },
 ]);
 
 function run(command, arguments_, options = {}) {
@@ -92,9 +112,7 @@ async function prepareArtifact(artifact) {
   renameSync(temporary, destination);
 }
 
-async function main() {
-  mkdirSync(outputRoot, { recursive: true });
-  for (const artifact of artifacts) await prepareArtifact(artifact);
+function stageRequest(example, path) {
   const request = run(
     "cargo",
     [
@@ -104,10 +122,8 @@ async function main() {
       "--quiet",
       "--package",
       "midnight-mobile-runtime",
-      "--features",
-      "local-prover",
       "--example",
-      "generate_android_prover_request",
+      example,
     ],
     {
       encoding: null,
@@ -115,43 +131,37 @@ async function main() {
       stdio: ["ignore", "pipe", "inherit"],
     },
   ).stdout;
-  const checkRequest = run(
-    "cargo",
-    [
-      "run",
-      "--offline",
-      "--locked",
-      "--quiet",
-      "--package",
-      "midnight-mobile-runtime",
-      "--features",
-      "local-prover",
-      "--example",
-      "generate_android_prover_check_request",
-    ],
-    {
-      encoding: null,
-      maxBuffer: 64 * 1024 * 1024,
-      stdio: ["ignore", "pipe", "inherit"],
-    },
-  ).stdout;
-  writeFileSync(resolve(outputRoot, "request.bin"), request);
-  writeFileSync(resolve(outputRoot, "check-request.bin"), checkRequest);
+  writeFileSync(resolve(outputRoot, path), request);
+  return {
+    path,
+    sha256: createHash("sha256").update(request).digest("hex"),
+    size: request.length,
+  };
+}
+
+async function main() {
+  mkdirSync(outputRoot, { recursive: true });
+  for (const artifact of artifacts) await prepareArtifact(artifact);
+  const request = stageRequest(
+    "generate_android_prover_request",
+    "request.bin",
+  );
+  const checkRequest = stageRequest(
+    "generate_android_prover_check_request",
+    "check-request.bin",
+  );
+  const outputRequest = stageRequest(
+    "generate_android_prover_output_request",
+    "output-request.bin",
+  );
   const manifest = {
     schemaVersion: 1,
     source,
     ledgerRevision: "02716c2c95d50654aeb3cb63bfd8386046e4ca7d",
     artifacts,
-    request: {
-      path: "request.bin",
-      sha256: createHash("sha256").update(request).digest("hex"),
-      size: request.length,
-    },
-    checkRequest: {
-      path: "check-request.bin",
-      sha256: createHash("sha256").update(checkRequest).digest("hex"),
-      size: checkRequest.length,
-    },
+    request,
+    checkRequest,
+    outputRequest,
   };
   writeFileSync(
     resolve(outputRoot, "artifact-manifest.json"),

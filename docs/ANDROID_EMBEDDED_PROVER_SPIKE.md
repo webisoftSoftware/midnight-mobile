@@ -43,7 +43,7 @@ The deterministic 578-byte `/prove` request has SHA-256
 node tools/android-prover-spike/scripts/prepare-artifacts.mjs
 MIDNIGHT_ANDROID_PROVER_ARTIFACT_DIR="$PWD/target/android-prover-spike/artifacts" \
   cargo test --offline --locked --release \
-  --package midnight-mobile-runtime --features local-prover \
+  --package midnight-mobile-runtime \
   local_prover::tests::staged_artifacts_produce_and_check_official_responses \
   -- --ignored --exact --nocapture
 GRADLE=/path/to/gradle-9.0.0/bin/gradle \

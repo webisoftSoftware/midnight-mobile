@@ -24,7 +24,7 @@
     "generated-sanitized",
     "repository-authored"
   ],
-  "entryCount": 130,
+  "entryCount": 137,
   "entries": [
     {
       "targetPath": "Cargo.lock",
@@ -44,6 +44,10 @@
     },
     {
       "targetPath": "crates/runtime/examples/generate_android_prover_check_request.rs",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "crates/runtime/examples/generate_android_prover_output_request.rs",
       "originClass": "repository-authored"
     },
     {
@@ -76,6 +80,10 @@
     },
     {
       "targetPath": "crates/runtime/src/local_prover/tests.rs",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "crates/runtime/src/local_prover/timings.rs",
       "originClass": "repository-authored"
     },
     {
@@ -351,6 +359,10 @@
       "originClass": "assessed-sanitized"
     },
     {
+      "targetPath": "packages/react-native/android/consumer-rules.pro",
+      "originClass": "repository-authored"
+    },
+    {
       "targetPath": "packages/react-native/android/generated/README.md",
       "originClass": "repository-authored"
     },
@@ -373,6 +385,10 @@
     {
       "targetPath": "packages/react-native/expo-module.config.json",
       "originClass": "assessed-sanitized"
+    },
+    {
+      "targetPath": "packages/react-native/ios/MidnightMobileLocalProverArtifacts.swift",
+      "originClass": "repository-authored"
     },
     {
       "targetPath": "packages/react-native/ios/MidnightMobileLocalProverFFI.h",
@@ -459,6 +475,10 @@
       "originClass": "assessed-sanitized"
     },
     {
+      "targetPath": "packages/react-native/src/transport-batch.ts",
+      "originClass": "repository-authored"
+    },
+    {
       "targetPath": "packages/react-native/src/transport.ts",
       "originClass": "assessed-sanitized"
     },
@@ -483,6 +503,10 @@
       "originClass": "assessed-sanitized"
     },
     {
+      "targetPath": "packages/react-native/tests/decode-batch.test.ts",
+      "originClass": "repository-authored"
+    },
+    {
       "targetPath": "packages/react-native/tests/decode.test.ts",
       "originClass": "repository-authored"
     },
@@ -496,6 +520,10 @@
     },
     {
       "targetPath": "packages/react-native/tests/runtime-api.test.ts",
+      "originClass": "repository-authored"
+    },
+    {
+      "targetPath": "packages/react-native/tests/transport-batch.test.ts",
       "originClass": "repository-authored"
     },
     {

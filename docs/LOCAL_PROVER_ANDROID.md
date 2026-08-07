@@ -101,4 +101,6 @@ native-size budget.
 
 See [the device spike report](ANDROID_EMBEDDED_PROVER_SPIKE.md) and
 [`tools/android-prover-spike`](../tools/android-prover-spike/README.md) for the
-offline k=15 Zswap acceptance workflow.
+offline k=15 Zswap acceptance workflow, and
+[the circuit size ceiling](LOCAL_PROVER_CIRCUIT_SIZE.md) for how proving cost
+scales with a circuit's `k`.

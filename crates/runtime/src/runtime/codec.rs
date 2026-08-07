@@ -134,6 +134,7 @@ fn complete_json(result_json: String) -> Result<String, MidnightRuntimeError> {
         effect: None,
         endpoint_role: None,
         body_base64: None,
+        effects: None,
         result_json: Some(result_json),
     })
 }

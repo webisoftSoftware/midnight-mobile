@@ -461,3 +461,47 @@ fn funded_wallet_builds_real_transfer_and_dapp_transactions() {
             .is_err()
     );
 }
+
+#[test]
+fn a_real_shielded_transfer_pauses_with_its_whole_independent_proof_batch() {
+    let (state, _keys, shielded_target) = funded_state();
+    let mut rng = StdRng::seed_from_u64(21);
+    let (_next, raw) = state
+        .build_shielded_transfer_with_rng(
+            "preview",
+            &shielded_target,
+            100,
+            &"08".repeat(32),
+            &[2; 32],
+            &mut rng,
+        )
+        .unwrap();
+    let progress = crate::transaction::advance_unproven_transaction(
+        &raw,
+        "preview",
+        &crate::transaction::RemoteProofResponses::default(),
+    )
+    .unwrap();
+    let crate::transaction::BalanceProgress::Network(requests) = progress else {
+        unreachable!("a real shielded transfer must pause for proofs")
+    };
+    // The upstream prover fans out under join!/join_all and none of our leaf futures
+    // yield on real I/O, so a single paused poll must surface every request whose
+    // preimage does not depend on an earlier proof's result. This fixture captures
+    // three: the zswap input, the zswap output, and the dust spend. Before batching,
+    // two of the three were computed and thrown away, then re-derived a round later.
+    assert!(
+        requests.len() >= 2,
+        "expected an independent batch, captured {}",
+        requests.len()
+    );
+    // Keys are body hashes, so the capture map already deduplicates identical requests.
+    let mut keys = requests
+        .iter()
+        .map(|request| request.key.clone())
+        .collect::<Vec<_>>();
+    let captured = keys.len();
+    keys.sort_unstable();
+    keys.dedup();
+    assert_eq!(keys.len(), captured, "batch must not repeat a request");
+}

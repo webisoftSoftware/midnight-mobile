@@ -26,6 +26,10 @@ pub(crate) use remote_proof::{
 mod tests;
 
 const MAX_TRANSACTION_BYTES: usize = 64 * 1024 * 1024;
+/// Upper bound on the proof requests handed out in one round. Emitting a subset is
+/// always correct — the next replay re-derives whatever was left — so this caps peak
+/// live secret bodies and concurrent prover work without affecting the outcome.
+pub(crate) const MAX_PROOF_BATCH: usize = 64;
 
 struct ThreadWake(std::thread::Thread);
 
@@ -58,8 +62,30 @@ pub(crate) struct FinalizedTransaction {
 }
 
 pub(crate) enum BalanceProgress {
-    Network(RemoteProofRequest),
+    Network(Vec<RemoteProofRequest>),
     Complete(FinalizedTransaction),
+}
+
+/// Drains every request the paused prove tree captured in this poll.
+///
+/// The upstream prover fans out under `futures::join!`/`join_all` and none of our leaf
+/// futures yield on real I/O, so a single poll reaches every branch whose preimage does
+/// not depend on an earlier proof's result. Iteration follows the `BTreeMap`'s
+/// body-hash order, which makes the batch reproducible for a given transaction.
+fn captured_batch(
+    captured: &Mutex<BTreeMap<String, RemoteProofRequest>>,
+) -> Result<Vec<RemoteProofRequest>, MidnightRuntimeError> {
+    let requests = captured
+        .lock()
+        .map_err(|_| MidnightRuntimeError::NativeInternal)?
+        .values()
+        .take(MAX_PROOF_BATCH)
+        .cloned()
+        .collect::<Vec<_>>();
+    if requests.is_empty() {
+        return Err(MidnightRuntimeError::ProofFailed);
+    }
+    Ok(requests)
 }
 
 pub(crate) fn advance_unproven_transaction(
@@ -114,16 +140,7 @@ pub(crate) fn advance_unproven_transaction_with_materials(
                 expected_network_id,
             )?))
         }
-        Err(_) => {
-            let request = captured
-                .lock()
-                .map_err(|_| MidnightRuntimeError::NativeInternal)?
-                .values()
-                .next()
-                .cloned()
-                .ok_or(MidnightRuntimeError::ProofFailed)?;
-            Ok(BalanceProgress::Network(request))
-        }
+        Err(_) => Ok(BalanceProgress::Network(captured_batch(&captured)?)),
     }
 }
 
@@ -253,16 +270,7 @@ pub(crate) fn advance_dust_balance(
                 expected_network_id,
             )?))
         }
-        Err(_) => {
-            let request = captured
-                .lock()
-                .map_err(|_| MidnightRuntimeError::NativeInternal)?
-                .values()
-                .next()
-                .cloned()
-                .ok_or(MidnightRuntimeError::ProofFailed)?;
-            Ok(BalanceProgress::Network(request))
-        }
+        Err(_) => Ok(BalanceProgress::Network(captured_batch(&captured)?)),
     }
 }
 

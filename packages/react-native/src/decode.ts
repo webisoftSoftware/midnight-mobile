@@ -330,6 +330,36 @@ export function decodeCommandResult<K extends MidnightCommandKind>(
   return RESULT_DECODERS[kind](value);
 }
 
+/**
+ * Decodes the additive batched-effects list. Absent means a single-effect round, which
+ * stays wire-identical to the pre-batching protocol. Present but malformed is a hard
+ * failure rather than a silent downgrade to the first effect: under-filling a batch
+ * would strand the runtime waiting on requests nobody ran.
+ */
+function decodeBatchedEffects(value: unknown):
+  | readonly {
+      readonly effectId: string;
+      readonly effect: "check" | "prove";
+      readonly endpointRole: "proof";
+      readonly bodyBase64: string;
+    }[]
+  | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value) || value.length < 2) return invalid();
+  return value.map((entry) => {
+    const effect = record(entry);
+    const kind = decodeEffect(effect.effect);
+    if (kind !== "check" && kind !== "prove") return invalid();
+    if (decodeRole(effect.endpointRole) !== "proof") return invalid();
+    return {
+      effectId: text(effect.effectId),
+      effect: kind,
+      endpointRole: "proof" as const,
+      bodyBase64: base64(effect.bodyBase64),
+    };
+  });
+}
+
 function decodeRole(value: unknown): MidnightEndpointRole {
   return value === "indexer" || value === "proof" || value === "node"
     ? value
@@ -375,6 +405,7 @@ export function decodeOperationStep<K extends MidnightCommandKind>(
     };
   }
   if (source.kind === "network") {
+    const effects = decodeBatchedEffects(source.effects);
     return {
       kind: "network",
       operation,
@@ -382,6 +413,7 @@ export function decodeOperationStep<K extends MidnightCommandKind>(
       effect: decodeEffect(source.effect),
       endpointRole: decodeRole(source.endpointRole),
       bodyBase64: base64(source.bodyBase64),
+      ...(effects === undefined ? {} : { effects }),
     };
   }
   return invalid();

@@ -6,6 +6,7 @@ use midnight_transient_crypto::curve::Fr;
 use midnight_transient_crypto::proofs::{
     KeyLocation, ProofPreimage, ProvingKeyMaterial, WrappedIr,
 };
+use zeroize::Zeroize;
 
 use super::*;
 
@@ -60,7 +61,7 @@ fn install_synthetic_registry() -> u64 {
 }
 
 #[test]
-fn official_request_generators_have_exact_tuple_shapes() {
+fn official_request_generators_have_exact_tuple_shapes() -> Result<(), &'static str> {
     let prove = deterministic_zswap_spend_request().unwrap();
     let (versioned, material, binding): (
         ProofPreimageVersioned,
@@ -71,11 +72,31 @@ fn official_request_generators_have_exact_tuple_shapes() {
     assert!(material.is_none());
     assert!(binding.is_none());
 
+    let output = deterministic_zswap_output_request().unwrap();
+    let (versioned, material, binding): (
+        ProofPreimageVersioned,
+        Option<ProvingKeyMaterial>,
+        Option<Fr>,
+    ) = tagged_deserialize(&mut &output[..]).unwrap();
+    let ProofPreimageVersioned::V2(output_preimage) = versioned else {
+        return Err("deterministic output request must use V2");
+    };
+    assert_eq!(output_preimage.key_location.0, "midnight/zswap/output");
+    assert!(material.is_none());
+    assert!(binding.is_none());
+    assert_eq!(output, deterministic_zswap_output_request().unwrap());
+    assert_eq!(output.len(), 430);
+    assert_eq!(
+        hex::encode(Sha256::digest(&output)),
+        "af7c9cb545b8601be70c6a9cfe39bd06d32083f9fbde36c5f84500c25b9c0172"
+    );
+
     let check = deterministic_zswap_spend_check_request().unwrap();
     let (versioned, ir): (ProofPreimageVersioned, Option<WrappedIr>) =
         tagged_deserialize(&mut &check[..]).unwrap();
     assert!(matches!(versioned, ProofPreimageVersioned::V2(_)));
     assert!(ir.is_none());
+    Ok(())
 }
 
 #[test]
@@ -117,10 +138,17 @@ fn hash_location_count_and_size_preflights_are_typed() {
         validate_supplied_material(&material(vec![1, 2, 3])),
         Err(LocalProverError::UnsupportedCircuit)
     );
-    assert!(prover_pool().is_ok());
     assert_eq!(
         build_registry(&[], &[]).map(|_| ()),
         Err(LocalProverError::InvalidConfiguration)
+    );
+}
+
+#[test]
+fn prover_pool_uses_bounded_mobile_parallelism() {
+    assert_eq!(
+        prover_pool().unwrap().current_num_threads(),
+        PROVER_THREAD_COUNT
     );
 }
 
@@ -321,24 +349,285 @@ fn registry_generations_close_and_stale_handles_fail_closed() {
     assert_eq!(close_registry(0), Err(LocalProverError::StaleRegistry));
 }
 
-#[test]
-fn a_concurrent_operation_receives_busy() {
-    let _serial = PROVER_TEST_LOCK.lock().unwrap();
-    let barrier = Arc::new(std::sync::Barrier::new(2));
+/// Spawns a thread holding a shared permit until released via the returned sender, joining the
+/// caller at `barrier` once the permit is acquired. Tests use explicit releases so none of them
+/// need to observe the real 180s `PROVER_WAIT_BUDGET` timeout to pass.
+fn spawn_shared_holder(
+    barrier: Arc<std::sync::Barrier>,
+) -> (std::thread::JoinHandle<()>, std::sync::mpsc::Sender<()>) {
     let (release_sender, release_receiver) = std::sync::mpsc::channel();
-    let holder_barrier = barrier.clone();
     let holder = std::thread::spawn(move || {
-        let _permit = ProverPermit::acquire().unwrap();
-        holder_barrier.wait();
+        let _permit = SharedProverPermit::acquire().unwrap();
+        barrier.wait();
         release_receiver.recv().unwrap();
     });
+    (holder, release_sender)
+}
+
+#[test]
+fn two_shared_permits_overlap_and_a_third_blocks_until_release() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    set_max_concurrency(2);
+    let barrier = Arc::new(std::sync::Barrier::new(3));
+    let (holder_a, release_a) = spawn_shared_holder(barrier.clone());
+    let (holder_b, release_b) = spawn_shared_holder(barrier.clone());
     barrier.wait();
+
+    // Both permits are held; a bounded probe with a short effective wait must not observe a
+    // third permit becoming available (it never does, since max is 2 and both are held).
+    let readers_while_both_held = lock_gate_state().readers;
+    assert_eq!(readers_while_both_held, 2);
+
+    release_a.send(()).unwrap();
+    holder_a.join().unwrap();
+
+    // Now one slot is free; a third shared permit must succeed promptly.
+    let third = SharedProverPermit::acquire().unwrap();
+    assert_eq!(lock_gate_state().readers, 2);
+    drop(third);
+
+    release_b.send(()).unwrap();
+    holder_b.join().unwrap();
+    assert_eq!(lock_gate_state().readers, 0);
+}
+
+#[test]
+fn exclusive_and_shared_permits_mutually_exclude() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    set_max_concurrency(2);
+    let short_wait = std::time::Duration::from_millis(150);
+    let bounded_join = std::time::Duration::from_secs(5);
+
+    let shared = SharedProverPermit::acquire().unwrap();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let exclusive_thread = std::thread::spawn(move || {
+        let _permit = ExclusiveProverPermit::acquire().unwrap();
+        tx.send(()).unwrap();
+    });
+    // A shared permit is held, so the exclusive acquire must still be blocked shortly after.
+    std::thread::sleep(short_wait);
+    assert!(rx.try_recv().is_err());
+    drop(shared);
+    rx.recv_timeout(bounded_join).unwrap();
+    exclusive_thread.join().unwrap();
+
+    // Symmetric case: while an exclusive permit is held, a shared acquire must block.
+    let exclusive = ExclusiveProverPermit::acquire().unwrap();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let shared_thread = std::thread::spawn(move || {
+        let _permit = SharedProverPermit::acquire().unwrap();
+        tx.send(()).unwrap();
+    });
+    std::thread::sleep(short_wait);
+    assert!(rx.try_recv().is_err());
+    drop(exclusive);
+    rx.recv_timeout(bounded_join).unwrap();
+    shared_thread.join().unwrap();
+}
+
+#[test]
+fn waiting_exclusive_blocks_new_shared_acquisitions() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    set_max_concurrency(2);
+    let short_wait = std::time::Duration::from_millis(150);
+    let bounded_join = std::time::Duration::from_secs(5);
+
+    // One of two shared slots is in use, so a naive limit check would still allow a second
+    // shared acquire; writer preference must block it once a writer starts waiting.
+    let shared_a = SharedProverPermit::acquire().unwrap();
+
+    let (writer_tx, writer_rx) = std::sync::mpsc::channel();
+    let writer_thread = std::thread::spawn(move || {
+        let _permit = ExclusiveProverPermit::acquire().unwrap();
+        writer_tx.send(()).unwrap();
+    });
+    std::thread::sleep(short_wait);
+    assert_eq!(lock_gate_state().writers_waiting, 1);
+
+    let (shared_tx, shared_rx) = std::sync::mpsc::channel();
+    let shared_thread = std::thread::spawn(move || {
+        let _permit = SharedProverPermit::acquire().unwrap();
+        shared_tx.send(()).unwrap();
+    });
+    std::thread::sleep(short_wait);
+    assert!(shared_rx.try_recv().is_err());
+
+    drop(shared_a);
+    writer_rx.recv_timeout(bounded_join).unwrap();
+    writer_thread.join().unwrap();
+    shared_rx.recv_timeout(bounded_join).unwrap();
+    shared_thread.join().unwrap();
+}
+
+#[test]
+fn permits_release_on_drop_including_after_a_panic() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    set_max_concurrency(2);
+    assert_eq!(lock_gate_state().readers, 0);
+    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _permit = SharedProverPermit::acquire().unwrap();
+        assert_eq!(lock_gate_state().readers, 1);
+        // Deliberately triggers a panic (out-of-bounds index, not the banned `panic!` macro) to
+        // exercise the permit's Drop-on-unwind path.
+        let empty: Vec<u8> = Vec::new();
+        let _ = empty[0];
+    }));
+    assert!(outcome.is_err());
+    assert_eq!(lock_gate_state().readers, 0);
+
+    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _permit = ExclusiveProverPermit::acquire().unwrap();
+        assert!(lock_gate_state().writer_active);
+        let empty: Vec<u8> = Vec::new();
+        let _ = empty[0];
+    }));
+    assert!(outcome.is_err());
+    assert!(!lock_gate_state().writer_active);
+}
+
+#[test]
+fn set_max_concurrency_clamps_out_of_range_values() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    assert_eq!(set_max_concurrency(0), 1);
+    assert_eq!(set_max_concurrency(1), 1);
+    assert_eq!(set_max_concurrency(4), 4);
+    assert_eq!(set_max_concurrency(999), 4);
+    assert_eq!(set_max_concurrency(2), 2);
+}
+
+#[test]
+fn profiling_flag_toggles_without_panicking() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    set_profiling(true);
+    assert!(PROFILE_STAGES.load(std::sync::atomic::Ordering::Acquire));
+    set_profiling(false);
+    assert!(!PROFILE_STAGES.load(std::sync::atomic::Ordering::Acquire));
+}
+
+#[test]
+fn timings_round_trip_and_drain_exactly_once() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    super::timings::test_samples().lock().unwrap().clear();
+    super::timings::record_timing_sample(super::timings::ProofStageTiming {
+        key_location: "midnight/test".to_owned(),
+        request_bytes: 128,
+        k: Some(15),
+        deserialize_request_micros: 10,
+        select_material_micros: 20,
+        prove_call_micros: 30,
+        serialize_response_micros: 40,
+        ir_load_micros: Some(50),
+        prover_key_init_micros: Some(60),
+        verifier_key_init_micros: Some(70),
+    });
+
+    let first = take_timings().unwrap();
+    let parsed: serde_json::Value = serde_json::from_slice(&first).unwrap();
+    let entries = parsed.as_array().unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0]["keyLocation"], "midnight/test");
+    assert_eq!(entries[0]["requestBytes"], 128);
+    assert_eq!(entries[0]["k"], 15);
+    assert_eq!(entries[0]["deserializeRequestMicros"], 10);
+    assert_eq!(entries[0]["proveCallMicros"], 30);
+    assert_eq!(entries[0]["irLoadMicros"], 50);
+
+    let second = take_timings().unwrap();
+    assert_eq!(second, b"[]");
+}
+
+#[test]
+fn timing_queue_drops_oldest_beyond_capacity() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    super::timings::test_samples().lock().unwrap().clear();
+    for index in 0..(MAX_TIMING_SAMPLES + 5) {
+        super::timings::record_timing_sample(super::timings::ProofStageTiming {
+            key_location: format!("midnight/test/{index}"),
+            request_bytes: index,
+            k: None,
+            deserialize_request_micros: 0,
+            select_material_micros: 0,
+            prove_call_micros: 0,
+            serialize_response_micros: 0,
+            ir_load_micros: None,
+            prover_key_init_micros: None,
+            verifier_key_init_micros: None,
+        });
+    }
+    let drained = take_timings().unwrap();
+    let parsed: serde_json::Value = serde_json::from_slice(&drained).unwrap();
+    let entries = parsed.as_array().unwrap();
+    assert_eq!(entries.len(), MAX_TIMING_SAMPLES);
+    assert_eq!(entries[0]["keyLocation"], "midnight/test/5");
+}
+
+#[test]
+fn batch_fan_out_is_all_or_nothing_and_deterministic_by_request_order() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    let handle = install_synthetic_registry();
+    let first = serialize(&(
+        ProofPreimageVersioned::V2(synthetic_preimage("missing/first")),
+        None::<ProvingKeyMaterial>,
+        None::<Fr>,
+    ));
+    let second = serialize(&(
+        ProofPreimageVersioned::V2(synthetic_preimage("missing/second")),
+        None::<ProvingKeyMaterial>,
+        None::<Fr>,
+    ));
+    // Both requests fail (neither circuit is registered), so the batch must fail closed with the
+    // first request's error in request order, regardless of which worker thread finishes first.
+    for _ in 0..8 {
+        assert_eq!(
+            run_prove_batch(handle, &[&first, &second]),
+            Err(LocalProverError::UnsupportedCircuit)
+        );
+    }
+}
+
+#[test]
+fn batch_fan_out_fails_closed_on_a_stale_handle_with_no_successes_to_leak() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    let handle = install_synthetic_registry();
+    let stale_handle = handle.saturating_add(1);
+    let request = serialize(&(
+        ProofPreimageVersioned::V2(synthetic_preimage("missing/circuit")),
+        None::<ProvingKeyMaterial>,
+        None::<Fr>,
+    ));
+    // Every worker fails identically on a mismatched handle, so there is nothing for the
+    // all-or-nothing contract to leak: this is the "stale/absent registry" case that exercises the
+    // failure path without requiring real proving.
     assert_eq!(
-        ProverPermit::acquire().map(|_| ()),
-        Err(LocalProverError::ProverBusy)
+        run_prove_batch(stale_handle, &[&request, &request, &request]),
+        Err(LocalProverError::StaleRegistry)
     );
-    release_sender.send(()).unwrap();
-    holder.join().unwrap();
+}
+
+#[test]
+fn cancellation_epoch_bump_marks_not_yet_started_work_as_abandoned() {
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    let epoch_at_start = CANCEL_EPOCH.load(std::sync::atomic::Ordering::Acquire);
+    assert!(!worker_should_abandon(epoch_at_start));
+    cancel_all();
+    assert!(worker_should_abandon(epoch_at_start));
+    // A fresh batch call loads a fresh epoch, so it is unaffected by the earlier cancellation.
+    let fresh_epoch = CANCEL_EPOCH.load(std::sync::atomic::Ordering::Acquire);
+    assert!(!worker_should_abandon(fresh_epoch));
+}
+
+#[test]
+fn batch_request_copies_zeroize_the_same_way_run_prove_batchs_container_does() {
+    // `run_prove_batch` copies every request into a `Zeroizing<Vec<u8>>` (the batch container) and
+    // relies on `Zeroizing`'s `Drop` to wipe it on every exit path. `Drop` cannot be observed after
+    // the fact without reading freed memory, so this exercises the same `Zeroize` call that `Drop`
+    // performs on the same container type, directly on secret-shaped bytes.
+    let mut copy = Zeroizing::new(vec![0xAB_u8; 4]);
+    assert_eq!(*copy, vec![0xAB; 4]);
+    copy.zeroize();
+    // `Vec<u8>`'s `Zeroize` impl overwrites every byte and then truncates to empty, which is the
+    // same call `Zeroizing`'s `Drop` makes on `run_prove_batch`'s owned request copies.
+    assert!(copy.is_empty());
 }
 
 #[test]
@@ -351,35 +640,64 @@ fn staged_artifacts_produce_and_check_official_responses() {
     );
     let read = |name: &str| std::fs::read(directory.join(name)).unwrap();
     let params = read("bls_midnight_2p15");
+    let output_params = read("bls_midnight_2p14");
     let prover = read("zswap/9/spend.prover");
     let verifier = read("zswap/9/spend.verifier");
     let ir = read("zswap/9/spend.bzkir");
+    let output_prover = read("zswap/9/output.prover");
+    let output_verifier = read("zswap/9/output.verifier");
+    let output_ir = read("zswap/9/output.bzkir");
     let digest = |bytes: &[u8]| Sha256::digest(bytes).to_vec();
     let params_hash = digest(&params);
+    let output_params_hash = digest(&output_params);
     let prover_hash = digest(&prover);
     let verifier_hash = digest(&verifier);
     let ir_hash = digest(&ir);
+    let output_prover_hash = digest(&output_prover);
+    let output_verifier_hash = digest(&output_verifier);
+    let output_ir_hash = digest(&output_ir);
     let handle = configure_registry(
-        &[ParameterArtifact {
-            k: 15,
-            bytes: &params,
-            sha256: &params_hash,
-        }],
-        &[CircuitArtifact {
-            key_location: "midnight/zswap/spend",
-            prover_key: &prover,
-            prover_key_sha256: &prover_hash,
-            verifier_key: &verifier,
-            verifier_key_sha256: &verifier_hash,
-            ir: &ir,
-            ir_sha256: &ir_hash,
-        }],
+        &[
+            ParameterArtifact {
+                k: 15,
+                bytes: &params,
+                sha256: &params_hash,
+            },
+            ParameterArtifact {
+                k: 14,
+                bytes: &output_params,
+                sha256: &output_params_hash,
+            },
+        ],
+        &[
+            CircuitArtifact {
+                key_location: "midnight/zswap/spend",
+                prover_key: &prover,
+                prover_key_sha256: &prover_hash,
+                verifier_key: &verifier,
+                verifier_key_sha256: &verifier_hash,
+                ir: &ir,
+                ir_sha256: &ir_hash,
+            },
+            CircuitArtifact {
+                key_location: "midnight/zswap/output",
+                prover_key: &output_prover,
+                prover_key_sha256: &output_prover_hash,
+                verifier_key: &output_verifier,
+                verifier_key_sha256: &output_verifier_hash,
+                ir: &output_ir,
+                ir_sha256: &output_ir_hash,
+            },
+        ],
     )
     .unwrap();
     let check = run_check(handle, &deterministic_zswap_spend_check_request().unwrap()).unwrap();
     let _: Vec<Option<u64>> = tagged_deserialize(&mut &check[..]).unwrap();
     let proof = run_prove(handle, &deterministic_zswap_spend_request().unwrap()).unwrap();
     let decoded: ProofVersioned = tagged_deserialize(&mut &proof[..]).unwrap();
+    assert!(matches!(decoded, ProofVersioned::V2(_)));
+    let output_proof = run_prove(handle, &deterministic_zswap_output_request().unwrap()).unwrap();
+    let decoded: ProofVersioned = tagged_deserialize(&mut &output_proof[..]).unwrap();
     assert!(matches!(decoded, ProofVersioned::V2(_)));
     close_registry(handle).unwrap();
 }

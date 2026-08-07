@@ -20,6 +20,7 @@ Pod::Spec.new do |s|
   s.source_files = [
     'MidnightMobileRuntimeModule.swift',
     'MidnightMobileLocalProverModule.swift',
+    'MidnightMobileLocalProverArtifacts.swift',
     'generated/MidnightMobileRuntime.swift'
   ]
   s.vendored_frameworks = 'build/MidnightMobileRuntime.xcframework'
