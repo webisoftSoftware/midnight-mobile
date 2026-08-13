@@ -62,7 +62,9 @@ and recovered from.**
 
 ## Parameters are not the constraint
 
-`srs.midnight.network` publishes `bls_midnight_2p10` through `bls_midnight_2p25`.
+`srs.midnight.network` publishes `bls_midnight_2p0` through `bls_midnight_2p25`.
+The bottom of that range exists and was missed here originally; the sizes below
+k=10 are published, decode, and are now packaged by the application.
 Every file through k=18 decodes through `ParamsProver::read` and satisfies the
 registry's `max_k` assertion. Decoding costs about 1.5x the file size resident
 and about 2 ms/MB: the full k=10 through k=18 set is 96 MB of files, 146 MB
@@ -73,8 +75,13 @@ set only lets a proof that cannot fit in memory begin.
 ## Every shipped circuit is at or below k=15
 
 Read from the `.bzkir` sources: Zswap spend 15, Zswap output 14, Zswap sign 13,
-Dust spend 13. The k=10 through k=15 parameter set packaged by the application is
+Dust spend 13. The k=0 through k=15 parameter set packaged by the application is
 already complete for them.
+
+The wallet's own circuits would be served by k=13 through k=15 alone. The range
+runs to 0 because `dappTransfer` and `dappIntent` route to the local prover as
+well, and a dApp contract circuit can be below k=10 as easily as above k=15.
+Only the ceiling is a budget decision: k=0 through k=9 are 196 KB in total.
 
 ## Consequence for larger circuits
 

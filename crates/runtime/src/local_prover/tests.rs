@@ -632,6 +632,44 @@ fn batch_request_copies_zeroize_the_same_way_run_prove_batchs_container_does() {
 
 #[test]
 #[ignore = "requires staged public artifacts"]
+fn every_packaged_parameter_size_decodes() {
+    // `build_registry` asserts `ParamsProver::read(bytes).max_k() == k` for every entry, and one
+    // failure rejects the whole configuration — including the wallet's own circuits. The small
+    // sizes are new to the package and had never been through that assertion, so this decodes the
+    // full staged range in one registry exactly as `configure` does.
+    let _serial = PROVER_TEST_LOCK.lock().unwrap();
+    let directory = std::path::PathBuf::from(
+        std::env::var_os("MIDNIGHT_ANDROID_PROVER_ARTIFACT_DIR")
+            .expect("MIDNIGHT_ANDROID_PROVER_ARTIFACT_DIR must be set"),
+    );
+    let blobs: Vec<(u8, Vec<u8>)> = (0..=15_u8)
+        .map(|k| {
+            let bytes = std::fs::read(directory.join(format!("bls_midnight_2p{k}")))
+                .unwrap_or_else(|error| panic!("bls_midnight_2p{k}: {error}"));
+            (k, bytes)
+        })
+        .collect();
+    let hashes: Vec<Vec<u8>> = blobs
+        .iter()
+        .map(|(_, bytes)| Sha256::digest(bytes).to_vec())
+        .collect();
+    let params: Vec<ParameterArtifact<'_>> = blobs
+        .iter()
+        .zip(&hashes)
+        .map(|((k, bytes), sha256)| ParameterArtifact {
+            k: *k,
+            bytes,
+            sha256,
+        })
+        .collect();
+
+    let handle = configure_registry(&params, &[]).expect("every packaged size must decode");
+
+    close_registry(handle).unwrap();
+}
+
+#[test]
+#[ignore = "requires staged public artifacts"]
 fn staged_artifacts_produce_and_check_official_responses() {
     let _serial = PROVER_TEST_LOCK.lock().unwrap();
     let directory = std::path::PathBuf::from(
