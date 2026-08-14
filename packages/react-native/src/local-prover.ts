@@ -19,7 +19,8 @@ export type MidnightLocalProverErrorCode =
   | "INVALID_CONFIGURATION"
   | "STALE_REGISTRY"
   | "CHECK_FAILED"
-  | "NATIVE_INTERNAL";
+  | "NATIVE_INTERNAL"
+  | "CIRCUIT_TOO_LARGE";
 
 const ERROR_CODES = new Set<MidnightLocalProverErrorCode>([
   "INVALID_REQUEST",
@@ -32,15 +33,33 @@ const ERROR_CODES = new Set<MidnightLocalProverErrorCode>([
   "STALE_REGISTRY",
   "CHECK_FAILED",
   "NATIVE_INTERNAL",
+  "CIRCUIT_TOO_LARGE",
 ]);
+
+/**
+ * How the native bridges report the circuit size behind a `CIRCUIT_TOO_LARGE`.
+ *
+ * The C ABI returns a single `i32`, so the size rides in the status' high bits and
+ * the Kotlin/Swift bridges append it to the error code string — `Exception` has no
+ * other field that survives the trip into JS. Parsed back into a number here so
+ * callers never have to read a message.
+ */
+const CIRCUIT_TOO_LARGE_PATTERN = /^CIRCUIT_TOO_LARGE k=(\d{1,3})$/u;
 
 export class MidnightLocalProverError extends Error {
   readonly code: MidnightLocalProverErrorCode;
+  /** Circuit size the refused job needed. Only set for `CIRCUIT_TOO_LARGE`. */
+  readonly requiredK?: number;
 
-  constructor(code: MidnightLocalProverErrorCode, cause?: unknown) {
+  constructor(
+    code: MidnightLocalProverErrorCode,
+    cause?: unknown,
+    requiredK?: number,
+  ) {
     super(code, { cause });
     this.name = "MidnightLocalProverError";
     this.code = code;
+    if (requiredK !== undefined) this.requiredK = requiredK;
   }
 }
 
@@ -136,25 +155,38 @@ function nativeModule(
   return candidate as NativeLocalProverModule;
 }
 
-function errorCode(error: unknown): MidnightLocalProverErrorCode {
-  if (error instanceof MidnightLocalProverError) return error.code;
+interface DecodedNativeError {
+  code: MidnightLocalProverErrorCode;
+  requiredK?: number;
+}
+
+function decodeNativeError(error: unknown): DecodedNativeError {
+  if (error instanceof MidnightLocalProverError) {
+    return error.requiredK === undefined
+      ? { code: error.code }
+      : { code: error.code, requiredK: error.requiredK };
+  }
   if (typeof error === "object" && error !== null && "code" in error) {
     const code = Reflect.get(error, "code");
-    if (
-      typeof code === "string" &&
-      ERROR_CODES.has(code as MidnightLocalProverErrorCode)
-    ) {
-      return code as MidnightLocalProverErrorCode;
+    if (typeof code === "string") {
+      if (ERROR_CODES.has(code as MidnightLocalProverErrorCode)) {
+        return { code: code as MidnightLocalProverErrorCode };
+      }
+      const sized = CIRCUIT_TOO_LARGE_PATTERN.exec(code);
+      if (sized) {
+        return { code: "CIRCUIT_TOO_LARGE", requiredK: Number(sized[1]) };
+      }
     }
   }
-  return "NATIVE_INTERNAL";
+  return { code: "NATIVE_INTERNAL" };
 }
 
 async function nativeCall<T>(operation: () => Promise<T>): Promise<T> {
   try {
     return await operation();
   } catch (error) {
-    throw new MidnightLocalProverError(errorCode(error), error);
+    const { code, requiredK } = decodeNativeError(error);
+    throw new MidnightLocalProverError(code, error, requiredK);
   }
 }
 

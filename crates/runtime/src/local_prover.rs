@@ -83,6 +83,17 @@ pub enum LocalProverError {
     CheckFailed,
     #[error("NATIVE_INTERNAL")]
     NativeInternal,
+    /// The circuit needs a larger SRS than this build packages.
+    ///
+    /// Distinct from `ProofFailed`, which is what a missing parameter used to look
+    /// like once `get_params` failed inside `prove`: the same generic code as a
+    /// genuine proving fault, with the required `k` discarded. It is refused before
+    /// proving starts, both because the work is certain to fail and because the
+    /// larger sizes are what take the device down (see
+    /// docs/LOCAL_PROVER_CIRCUIT_SIZE.md) — recovering after the attempt is not an
+    /// option when the attempt is the hazard.
+    #[error("CIRCUIT_TOO_LARGE")]
+    CircuitTooLarge { k: u8 },
 }
 
 pub(crate) struct ParameterArtifact<'a> {
@@ -499,15 +510,52 @@ pub(crate) fn run_check(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalPro
     serialize_response(&result)
 }
 
-fn validate_supplied_material(material: &ProvingKeyMaterial) -> Result<(), LocalProverError> {
+/// Why a circuit of size `k` cannot be proved against the packaged parameters, or
+/// `None` when it can.
+///
+/// Only "above the ceiling" is worth naming as a size problem. A gap below it is a
+/// broken configuration, and calling that "too large" would send the caller off to a
+/// remote prover for something a remote prover does not fix.
+fn refuse_for_size(k: u8, available_ks: &[u8]) -> Option<LocalProverError> {
+    if available_ks.contains(&k) {
+        return None;
+    }
+    // No parameters at all means nothing is provable at any size, which is a
+    // configuration fault rather than a statement about this circuit. `build_registry`
+    // already rejects an empty set, so this is reachable only from a synthetic registry.
+    let Some(ceiling) = available_ks.iter().copied().max() else {
+        return Some(LocalProverError::InvalidConfiguration);
+    };
+    Some(if k > ceiling {
+        LocalProverError::CircuitTooLarge { k }
+    } else {
+        LocalProverError::InvalidConfiguration
+    })
+}
+
+/// Checks the material a request will prove against, and the registry's ability to
+/// prove it.
+///
+/// The size check belongs here because this is the first point the circuit's `k` is
+/// known for a *supplied* circuit — a dApp's own, which `build_registry` never saw
+/// and so never size-checked. Statically configured circuits are already rejected at
+/// configure time.
+fn validate_supplied_material(
+    material: &ProvingKeyMaterial,
+    registry: &MemoryRegistry,
+) -> Result<(), LocalProverError> {
     checked_total([
         material.prover_key.len(),
         material.verifier_key.len(),
         material.ir_source.len(),
     ])?;
-    IrSource::load_from_tagged(Cursor::new(&material.ir_source))
+    let ir = IrSource::load_from_tagged(Cursor::new(&material.ir_source))
         .map_err(|_| LocalProverError::UnsupportedCircuit)?;
-    Ok(())
+    let available_ks: Vec<u8> = registry.params.keys().copied().collect();
+    match refuse_for_size(ir.k(), &available_ks) {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
 }
 
 pub(crate) fn run_prove(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalProverError> {
@@ -540,7 +588,7 @@ pub(crate) fn run_prove(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalPro
         .as_ref()
         .or_else(|| registry.circuits.get(preimage.key_location.0.as_ref()));
     let selected_material = selected.ok_or(LocalProverError::UnsupportedCircuit)?;
-    validate_supplied_material(selected_material)?;
+    validate_supplied_material(selected_material, &registry)?;
     let select_material_micros = stage_micros(select_start);
     let key_location = preimage.key_location.0.to_string();
     let cached_material = profiling.then(|| selected_material.clone());

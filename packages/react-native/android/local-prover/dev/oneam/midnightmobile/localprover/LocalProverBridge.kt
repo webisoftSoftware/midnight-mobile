@@ -25,6 +25,12 @@ private const val MAX_KEY_LOCATION_BYTES = 1_024
 // midnight_mobile_local_prover_prove_batch entrypoint enforces on request_count.
 private const val MAX_PROOF_BATCH = 64
 
+/** Low byte of a native status holds the error identity; see `ffi.rs`. */
+private const val STATUS_CODE_MASK = 0xFF
+
+/** Bit offset of the `k` payload in a CIRCUIT_TOO_LARGE status. */
+private const val STATUS_PAYLOAD_SHIFT = 8
+
 data class LocalProverFile(val uri: String, val size: Long, val sha256: String)
 
 data class LocalProverParameter(val k: Int, val file: LocalProverFile)
@@ -431,6 +437,9 @@ class LocalProverBridge(
 
   private fun requireSuccess(code: Int) {
     if (code == 0) return
+    // The native status packs the error in its low byte; only CIRCUIT_TOO_LARGE uses
+    // the bits above, where it carries the circuit size it needed.
+    val identity = code and STATUS_CODE_MASK
     val stable = listOf(
       "INVALID_REQUEST",
       "UNSUPPORTED_CIRCUIT",
@@ -442,7 +451,12 @@ class LocalProverBridge(
       "STALE_REGISTRY",
       "CHECK_FAILED",
       "NATIVE_INTERNAL",
-    ).getOrNull(code - 1) ?: "NATIVE_INTERNAL"
+      "CIRCUIT_TOO_LARGE",
+    ).getOrNull(identity - 1) ?: "NATIVE_INTERNAL"
+    if (stable == "CIRCUIT_TOO_LARGE") {
+      val requiredK = (code shr STATUS_PAYLOAD_SHIFT) and STATUS_CODE_MASK
+      throw LocalProverBridgeException("$stable k=$requiredK")
+    }
     throw LocalProverBridgeException(stable)
   }
 

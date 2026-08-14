@@ -55,6 +55,21 @@ impl Default for LocalProverResponse {
     }
 }
 
+/// Bits of an FFI status carrying the error identity. Everything above is payload.
+///
+/// The ABI returns one `i32` and has no other channel, so the single error that has
+/// something to report — `CircuitTooLarge`, whose whole purpose is to name a `k` —
+/// packs it into the high bits rather than growing every bridge signature. Callers
+/// mask with this before comparing against a code.
+// Dead to Rust by design: the callers that mask are the Kotlin and Swift bridges,
+// which cannot read a Rust constant and keep their own copies. It lives here so the
+// encoding has one authoritative definition, and the encoding test below checks the
+// two halves against each other.
+#[allow(dead_code)]
+pub const LOCAL_PROVER_CODE_MASK: i32 = 0xFF;
+/// Bit offset of the `k` payload in a `CIRCUIT_TOO_LARGE` status.
+pub const LOCAL_PROVER_PAYLOAD_SHIFT: u32 = 8;
+
 impl LocalProverError {
     fn ffi_code(self) -> i32 {
         match self {
@@ -68,6 +83,7 @@ impl LocalProverError {
             Self::StaleRegistry => 8,
             Self::CheckFailed => 9,
             Self::NativeInternal => 10,
+            Self::CircuitTooLarge { k } => 11 | (i32::from(k) << LOCAL_PROVER_PAYLOAD_SHIFT),
         }
     }
 }
@@ -420,6 +436,22 @@ mod tests {
             errors.map(LocalProverError::ffi_code),
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
+    }
+
+    #[test]
+    fn circuit_too_large_carries_k_in_the_status_payload() {
+        // The bridges mask the low byte to get the code and shift out the k. The
+        // masked code must not collide with any unit variant, or a bridge would
+        // report the wrong error for a size refusal.
+        for k in [0_u8, 15, 16, 18, 255] {
+            let status = LocalProverError::CircuitTooLarge { k }.ffi_code();
+            assert_eq!(status & LOCAL_PROVER_CODE_MASK, 11, "k={k}");
+            assert_eq!(
+                u8::try_from((status >> LOCAL_PROVER_PAYLOAD_SHIFT) & LOCAL_PROVER_CODE_MASK)
+                    .unwrap(),
+                k
+            );
+        }
     }
 
     #[test]

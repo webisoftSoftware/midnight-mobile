@@ -135,12 +135,47 @@ fn hash_location_count_and_size_preflights_are_typed() {
     );
     assert!(request_preflight(&[1]).is_ok());
     assert_eq!(
-        validate_supplied_material(&material(vec![1, 2, 3])),
+        validate_supplied_material(
+            &material(vec![1, 2, 3]),
+            &MemoryRegistry {
+                params: HashMap::new(),
+                circuits: HashMap::new(),
+            }
+        ),
         Err(LocalProverError::UnsupportedCircuit)
     );
     assert_eq!(
         build_registry(&[], &[]).map(|_| ()),
         Err(LocalProverError::InvalidConfiguration)
+    );
+}
+
+#[test]
+fn refuses_circuits_above_the_packaged_ceiling_and_only_those() {
+    let packaged: Vec<u8> = (0..=15).collect();
+
+    // Every packaged size proves locally.
+    for k in &packaged {
+        assert_eq!(refuse_for_size(*k, &packaged), None, "k={k}");
+    }
+
+    // Above the ceiling is a size refusal that names the size, so the wallet can
+    // say which k the dApp wanted rather than "proof generation failed".
+    assert_eq!(
+        refuse_for_size(16, &packaged),
+        Some(LocalProverError::CircuitTooLarge { k: 16 })
+    );
+    assert_eq!(
+        refuse_for_size(18, &packaged),
+        Some(LocalProverError::CircuitTooLarge { k: 18 })
+    );
+
+    // A hole below the ceiling is a packaging bug, not an oversized circuit; a
+    // remote prover would not fix it, so it must not be reported as one.
+    let holed = [0_u8, 1, 2, 15];
+    assert_eq!(
+        refuse_for_size(9, &holed),
+        Some(LocalProverError::InvalidConfiguration)
     );
 }
 
@@ -324,14 +359,20 @@ fn supplied_material_and_binding_cover_prove_failure_path() {
         Err(LocalProverError::UnsupportedCircuit)
     );
 
-    let invalid_key = serialize(&(
+    // A decodable IR the registry has no parameters for is refused before proving.
+    // This used to reach `preimage.prove`, miss in `get_params`, and come back as a
+    // generic `ProofFailed` — indistinguishable from a real proving fault. The
+    // synthetic registry packages no parameters at all, so the refusal here is the
+    // configuration one; a size refusal needs a registry with a ceiling to exceed,
+    // which `refuses_circuits_above_the_packaged_ceiling_and_only_those` covers.
+    let unservable_size = serialize(&(
         ProofPreimageVersioned::V2(synthetic_preimage("supplied/circuit")),
         Some(material(minimal_ir_bytes(1))),
         Some(Fr::from(11_u64)),
     ));
     assert_eq!(
-        run_prove(handle, &invalid_key),
-        Err(LocalProverError::ProofFailed)
+        run_prove(handle, &unservable_size),
+        Err(LocalProverError::InvalidConfiguration)
     );
 }
 

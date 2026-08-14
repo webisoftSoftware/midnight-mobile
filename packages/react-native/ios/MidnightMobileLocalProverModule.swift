@@ -285,13 +285,25 @@ private final class LocalProverBridge {
       "INVALID_REQUEST", "UNSUPPORTED_CIRCUIT", "INTEGRITY_CHECK_FAILED",
       "PROVER_BUSY", "RESOURCE_PREFLIGHT_FAILED", "PROOF_FAILED",
       "INVALID_CONFIGURATION", "STALE_REGISTRY", "CHECK_FAILED",
-      "NATIVE_INTERNAL",
+      "NATIVE_INTERNAL", "CIRCUIT_TOO_LARGE",
     ]
-    let index = Int(code) - 1
-    throw LocalProverBridgeFailure(
-      code: codes.indices.contains(index) ? codes[index] : "NATIVE_INTERNAL"
-    )
+    // The native status packs the error in its low byte; only CIRCUIT_TOO_LARGE uses
+    // the bits above, where it carries the circuit size it needed.
+    let index = Int(code & Self.statusCodeMask) - 1
+    guard codes.indices.contains(index) else {
+      throw LocalProverBridgeFailure(code: "NATIVE_INTERNAL")
+    }
+    if codes[index] == "CIRCUIT_TOO_LARGE" {
+      let requiredK = (Int(code) >> Self.statusPayloadShift) & Int(Self.statusCodeMask)
+      throw LocalProverBridgeFailure(code: "CIRCUIT_TOO_LARGE k=\(requiredK)")
+    }
+    throw LocalProverBridgeFailure(code: codes[index])
   }
+
+  /// Low byte of a native status holds the error identity; see `ffi.rs`.
+  private static let statusCodeMask: Int32 = 0xFF
+  /// Bit offset of the `k` payload in a CIRCUIT_TOO_LARGE status.
+  private static let statusPayloadShift = 8
 }
 
 private func localProverException(_ error: Error, fallback: String) -> Exception {

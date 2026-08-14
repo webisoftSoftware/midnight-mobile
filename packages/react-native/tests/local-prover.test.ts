@@ -127,6 +127,44 @@ await test("local prover rejects malformed configuration and maps native errors"
   );
 });
 
+await test("local prover surfaces the circuit size behind a CIRCUIT_TOO_LARGE refusal", async () => {
+  const fixture = nativeFixture();
+  // The bridges append the size to the code string because the C ABI has one i32
+  // and Expo's Exception has no other field that reaches JS.
+  fixture.module.prove = () =>
+    Promise.reject(
+      Object.assign(new Error("refused"), { code: "CIRCUIT_TOO_LARGE k=18" }),
+    );
+  const prover = await createMidnightLocalProver(configuration, {
+    nativeModuleLoader: () => fixture.module,
+  });
+
+  await assert.rejects(prover.prove(new Uint8Array([1])), {
+    code: "CIRCUIT_TOO_LARGE",
+    requiredK: 18,
+  });
+});
+
+await test("local prover does not invent a circuit size it was not given", async () => {
+  const fixture = nativeFixture();
+  // A bare code from an older native binary must still map, just without a size —
+  // the wallet's prompt falls back to generic wording rather than showing "k=NaN".
+  fixture.module.prove = () =>
+    Promise.reject(
+      Object.assign(new Error("refused"), { code: "CIRCUIT_TOO_LARGE" }),
+    );
+  const prover = await createMidnightLocalProver(configuration, {
+    nativeModuleLoader: () => fixture.module,
+  });
+
+  const error = await prover
+    .prove(new Uint8Array([1]))
+    .then(() => undefined)
+    .catch((thrown: unknown) => thrown);
+  assert.equal((error as MidnightLocalProverError).code, "CIRCUIT_TOO_LARGE");
+  assert.equal((error as MidnightLocalProverError).requiredK, undefined);
+});
+
 function socket(): MidnightWebSocket {
   return {
     readyState: 0,
