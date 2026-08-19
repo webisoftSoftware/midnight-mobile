@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "contracts": {
+    "typescript": "packages/react-native/src/commands.ts",
+    "rust": "crates/runtime/src/runtime/types.rs"
+  },
+  "commandKinds": [
+    "signData",
+    "createCheckPayload",
+    "parseCheckResult",
+    "createProvingPayload",
+    "canonicalizeTransaction",
+    "createSyncRequest",
+    "deriveShieldedMintContext",
+    "watchShieldedMint",
+    "createShieldedSpentRequest",
+    "applyShieldedSpentResponse",
+    "setShieldedProtocolVersion",
+    "createDustSpendRequest",
+    "createDustCommitmentRequest",
+    "applyDustSpendResolution",
+    "transfer",
+    "dappTransfer",
+    "dappIntent",
+    "generateDust",
+    "balanceUnsealed",
+    "balanceSealed",
+    "finalizeUnprovenTransaction",
+    "submitFinalized"
+  ],
+  "sourceInputs": [
+    "crates/runtime/src",
+    "packages/react-native/src",
+    "packages/react-native/android/local-prover",
+    "packages/react-native/android/src/main/java",
+    "packages/react-native/ios/MidnightMobileLocalProverArtifacts.swift",
+    "packages/react-native/ios/MidnightMobileLocalProverFFI.h",
+    "packages/react-native/ios/MidnightMobileLocalProverModule.swift",
+    "packages/react-native/ios/MidnightMobileRuntimeModule.swift"
+  ]
+}

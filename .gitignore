@@ -45,7 +45,7 @@ artifacts/
 *.key
 *.pem
 
-# Prover instrumentation rig (scripts/mobile-prover-instrumentation)
+# Prover instrumentation rig (tools/mobile-prover-instrumentation)
 /.prover-fork/
 /.cargo/config.toml
 

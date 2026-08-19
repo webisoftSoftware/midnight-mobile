@@ -39,7 +39,9 @@ jobs:
         run: npm run check:release -- --tag "$GITHUB_REF_NAME"
 
       - name: Package exact source and tag metadata
-        run: node scripts/prepare-release-source.mjs --tag "$GITHUB_REF_NAME"
+        run:
+          node scripts/release/prepare-release-source.mjs --tag
+          "$GITHUB_REF_NAME"
 
       - name: Use Go 1.26.2
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.0.0
@@ -68,7 +70,7 @@ jobs:
           if [[ "${osv_status:-0}" -gt 1 ]]; then
             exit "$osv_status"
           fi
-          node scripts/check-osv-findings.mjs artifacts/security/osv-results.json
+          node scripts/security/check-osv-findings.mjs artifacts/security/osv-results.json
           shasum -a 256 \
             "$OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY/osv-scanner/npm/all.zip" \
             > artifacts/security/osv-npm-database-sha256.txt
@@ -136,7 +138,7 @@ jobs:
           path: artifacts
 
       - name: Verify checksums and evidence
-        run: node scripts/verify-release-evidence.mjs
+        run: node scripts/release/verify-release-evidence.mjs
 
       - name: Publish npm prerelease
         run: |
