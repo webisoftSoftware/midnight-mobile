@@ -2,7 +2,7 @@
   "name": "@1am/midnight-mobile-example",
   "version": "0.1.0",
   "private": true,
-  "description": "Mock-first Expo SDK 55 integration example for Midnight Mobile",
+  "description": "Minimal Expo SDK 55 integration example for Midnight Mobile",
   "license": "MIT",
   "type": "module",
   "main": "index.ts",
@@ -11,7 +11,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --import ./test-support/register-test-loader.mjs --test .staging-build/tests/*.test.js",
+    "prepare:local-prover": "node ../../tools/android-prover-spike/scripts/prepare-artifacts.mjs && node ./scripts/prepare-local-prover.mjs",
+    "test": "node ./scripts/clean-staging.mjs && tsc -p tsconfig.test.json && node --import ./test-support/register-test-loader.mjs --test .staging-build/tests/*.test.js",
     "validate:platforms": "node ./scripts/validate-platforms.mjs",
     "quality": "npm run typecheck && npm test && npm run validate:platforms"
   },

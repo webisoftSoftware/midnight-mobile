@@ -4,14 +4,8 @@ import {
   InMemoryMidnightCheckpointStore,
   MidnightRuntimeController,
   type MidnightCheckpointStore,
-  type MidnightFetch,
-  type MidnightLogger,
   type MidnightRuntimeApi,
-  type MidnightSessionHandle,
   type MidnightStandardTransport,
-  type MidnightWalletSessionConfig,
-  type MidnightWalletSessionSecrets,
-  type MidnightWebSocketFactory,
 } from "@1am/midnight-mobile";
 
 import { MockNativeRuntimeModule } from "./mock-native";
@@ -26,7 +20,6 @@ export interface MockExampleRuntime {
   readonly api: MidnightRuntimeApi;
   readonly transport: MidnightStandardTransport;
   readonly checkpointStore: InMemoryMidnightCheckpointStore;
-  readonly services: MockMidnightServices;
   createController(): MidnightRuntimeController;
   createRestoredController(): MidnightRuntimeController;
 }
@@ -62,81 +55,8 @@ export function createMockExampleRuntime(
     api,
     transport,
     checkpointStore,
-    services,
     createController: () => controller(api, transport, checkpointStore),
     createRestoredController: () =>
       controller(createMockApi(), transport, checkpointStore),
-  };
-}
-
-export interface LivePreviewRuntimeConfiguration {
-  readonly mode: "live";
-  readonly wallet: MidnightWalletSessionConfig & {
-    readonly networkId: "preview";
-  };
-  readonly secrets: MidnightWalletSessionSecrets;
-  readonly indexerHttpUrl: string;
-  readonly indexerWebSocketUrl: string;
-  readonly proofServerUrl: string;
-  readonly nodeUrl: string;
-  readonly fetch: MidnightFetch;
-  readonly createWebSocket: MidnightWebSocketFactory;
-  readonly endpointHeaders: (
-    role: "indexer" | "proof" | "node",
-  ) => Promise<Readonly<Record<string, string>>>;
-  readonly checkpointStore?: MidnightCheckpointStore;
-  readonly logger?: MidnightLogger;
-}
-
-export interface LivePreviewRuntime {
-  readonly controller: MidnightRuntimeController;
-  openWalletSession(): Promise<MidnightSessionHandle>;
-}
-
-function wipeSecrets(secrets: MidnightWalletSessionSecrets): void {
-  secrets.nightExternalKey.fill(0);
-  secrets.zswapSeed.fill(0);
-  secrets.dustSeed.fill(0);
-}
-
-export function createLivePreviewRuntime(
-  configuration: LivePreviewRuntimeConfiguration,
-): LivePreviewRuntime {
-  const transport = createStandardMidnightTransport({
-    network: {
-      indexerHttpUrl: configuration.indexerHttpUrl,
-      indexerWebSocketUrl: configuration.indexerWebSocketUrl,
-      proofServerUrl: configuration.proofServerUrl,
-      nodeUrl: configuration.nodeUrl,
-    },
-    fetch: configuration.fetch,
-    createWebSocket: configuration.createWebSocket,
-    headers: configuration.endpointHeaders,
-    ...(configuration.logger === undefined
-      ? {}
-      : { logger: configuration.logger }),
-  });
-  const runtimeController = new MidnightRuntimeController({
-    api: createMidnightRuntimeApi(),
-    transport,
-    ...(configuration.checkpointStore === undefined
-      ? {}
-      : { checkpointStore: configuration.checkpointStore }),
-    ...(configuration.logger === undefined
-      ? {}
-      : { logger: configuration.logger }),
-  });
-  return {
-    controller: runtimeController,
-    async openWalletSession() {
-      try {
-        return await runtimeController.openWalletSession(
-          configuration.wallet,
-          configuration.secrets,
-        );
-      } finally {
-        wipeSecrets(configuration.secrets);
-      }
-    },
   };
 }

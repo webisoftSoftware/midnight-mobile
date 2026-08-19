@@ -14,8 +14,6 @@ export const MOCK_NETWORK = {
   nodeUrl: "https://node.mock.invalid/request",
 } as const;
 
-type ProofBehavior = "accept" | "fail";
-
 function response(bytes: readonly number[]): MidnightFetchResponse {
   return {
     status: 200,
@@ -28,8 +26,6 @@ function response(bytes: readonly number[]): MidnightFetchResponse {
 }
 
 export class MockMidnightServices {
-  #nextProofBehavior: ProofBehavior = "accept";
-
   readonly fetch: MidnightFetch = (url, request) => {
     if (request.signal.aborted) {
       return Promise.reject(new MidnightRuntimeError("CANCELLED"));
@@ -38,7 +34,7 @@ export class MockMidnightServices {
       url === `${MOCK_NETWORK.proofServerUrl}/prove` ||
       url === `${MOCK_NETWORK.proofServerUrl}/balance-only`
     ) {
-      return this.#proofResponse();
+      return Promise.resolve(response([4, 5, 6]));
     }
     if (url !== MOCK_NETWORK.indexerHttpUrl && url !== MOCK_NETWORK.nodeUrl) {
       return Promise.reject(new MidnightRuntimeError("TRANSPORT_ERROR"));
@@ -46,20 +42,8 @@ export class MockMidnightServices {
     return Promise.resolve(response([7, 8, 9]));
   };
 
-  failNextProofRequest(): void {
-    this.#nextProofBehavior = "fail";
-  }
-
   createWebSocket(): MidnightWebSocket {
     return new MockMidnightWebSocket();
-  }
-
-  #proofResponse(): Promise<MidnightFetchResponse> {
-    if (this.#nextProofBehavior === "fail") {
-      this.#nextProofBehavior = "accept";
-      return Promise.reject(new Error("synthetic proof service failure"));
-    }
-    return Promise.resolve(response([4, 5, 6]));
   }
 }
 
