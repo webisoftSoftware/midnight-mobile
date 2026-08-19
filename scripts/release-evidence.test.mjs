@@ -54,7 +54,7 @@ await test("release evidence is deterministic and inventories both graphs", () =
   assert.equal(sbom.bomFormat, "CycloneDX");
   assert.equal(sbom.components.length, 2);
   const licenses = JSON.parse(first["licenses.json"]);
-  assert.equal(licenses.distributionDecision.publicDistributionAllowed, false);
+  assert.equal(licenses.projectLicense, "MIT");
   assert.equal(licenses.componentCount, 2);
   const checksums = JSON.parse(first["SHA256SUMS.json"]);
   assert.equal(checksums.entries.length, 4);

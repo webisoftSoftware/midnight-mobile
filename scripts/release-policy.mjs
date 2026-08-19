@@ -110,39 +110,18 @@ function validateConfigShape(config, errors) {
   return { pkg, toolchains, compatibility };
 }
 
-// The distribution decision stays exact: its status is the M6 publication gate,
-// not a version number that moves with a routine upgrade.
-function validateDeferredDecision(config, errors) {
-  const decision = requireFields(
-    config.distributionDecision,
-    ["status", "trackingIssue", "requiredApprovalFile"],
-    "distributionDecision",
-    errors,
-  );
-  exact(
-    decision.status,
-    "deferred-to-m6-destination-migration",
-    "distributionDecision.status",
-    errors,
-  );
-  exact(
-    decision.requiredApprovalFile,
-    "docs/DISTRIBUTION_DECISION.json",
-    "distributionDecision.requiredApprovalFile",
-    errors,
-  );
-}
-
 // Every pinned value is checked against the config rather than a duplicated
 // constant, so a toolchain bump is a one-line config edit.
 function validateRepositoryAgreement(sections, inputs, errors) {
   const { pkg, toolchains, compatibility } = sections;
+  exact(inputs.rootMetadata?.license, "MIT", "root license", errors);
   exact(
     {
       name: inputs.packageMetadata?.name,
       version: inputs.packageMetadata?.version,
+      license: inputs.packageMetadata?.license,
     },
-    { name: pkg.name, version: pkg.version },
+    { name: pkg.name, version: pkg.version, license: "MIT" },
     "npm package identity",
     errors,
   );
@@ -186,7 +165,6 @@ export function validateReleaseConfig(config, inputs) {
   const errors = [];
   if (!isObject(config)) return ["release config must be an object"];
   const sections = validateConfigShape(config, errors);
-  validateDeferredDecision(config, errors);
   validateRepositoryAgreement(sections, inputs, errors);
   return errors;
 }
@@ -197,31 +175,6 @@ export function validateReleaseTag(tag, tagsAtHead, config) {
   exact(tag, config.package.gitTag, "release tag", errors);
   if (!tagsAtHead.includes(tag)) {
     errors.push("release tag must point at the checked-out commit");
-  }
-  return errors;
-}
-
-export function validateDistributionDecision(value, config) {
-  const errors = [];
-  if (!isObject(value)) return ["distribution decision must be an object"];
-  exact(value.schemaVersion, 1, "distribution schemaVersion", errors);
-  exact(value.status, "approved", "distribution status", errors);
-  exact(
-    value.packageVersion,
-    config.package.version,
-    "distribution packageVersion",
-    errors,
-  );
-  for (const field of [
-    "copyrightOwner",
-    "sourceLicenseExpression",
-    "packageLicenseExpression",
-    "reviewedBy",
-    "reviewedAt",
-  ]) {
-    if (typeof value[field] !== "string" || value[field].trim().length < 3) {
-      errors.push(`distribution ${field} must be recorded`);
-    }
   }
   return errors;
 }

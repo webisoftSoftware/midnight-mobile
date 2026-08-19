@@ -1,8 +1,8 @@
 {
   "name": "@1am/midnight-mobile",
   "version": "0.1.0-alpha.1",
-  "description": "Community-maintained Midnight wallet runtime for React Native and Expo",
-  "license": "MIT OR Apache-2.0",
+  "description": "Experimental Midnight wallet runtime for React Native and Expo",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

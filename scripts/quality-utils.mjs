@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { rmSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 
 // Removes a build-output tree. Cargo target directories, Xcode build folders,
 // and staged consumer node_modules are large enough that a plain recursive
@@ -24,7 +24,9 @@ export function listRepositoryFiles() {
       { encoding: "utf8" },
     );
 
-    return output.split("\0").filter(Boolean);
+    return output
+      .split("\0")
+      .filter((path) => path.length > 0 && existsSync(path));
   } catch {
     throw new Error("unable to enumerate repository files with git");
   }

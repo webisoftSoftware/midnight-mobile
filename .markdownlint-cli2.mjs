@@ -10,6 +10,7 @@ const config = {
   // `expo run:*` write .expo/ and native project directories with their own
   // README files, which are not maintained documentation.
   ignores: [
+    "AGENTS.md",
     "node_modules/**",
     "**/node_modules/**",
     "target/**",

@@ -1,9 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Report a security vulnerability privately
-    url: https://github.com/ADGLx/midnight-mobile/security/advisories/new
-    about:
-      Follow SECURITY.md and do not disclose vulnerabilities in a public issue.
-  - name: Review the accepted project scope
-    url: https://github.com/ADGLx/midnight-mobile/blob/main/docs/LONG_TERM_PROJECT_PLAN.md
-    about: Check milestone gates and deferred work before opening a request.

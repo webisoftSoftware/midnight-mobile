@@ -1,7 +1,11 @@
-name: Alpha release
+name: Release candidate
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - "v*-alpha.*"
+      - "v*-beta.*"
+      - "v*-rc.*"
 
 permissions:
   contents: read
@@ -11,9 +15,9 @@ env:
 
 jobs:
   build:
-    name: Build and verify release
+    name: Build and verify release candidate
     runs-on: macos-15
-    timeout-minutes: 150
+    timeout-minutes: 180
     permissions:
       contents: read
       id-token: write
@@ -28,22 +32,61 @@ jobs:
       - name: Install and verify pinned toolchains
         uses: ./.github/actions/setup-native
 
-      - name: Run the complete repository gate
-        run: npm run quality
+      - name: Run release-candidate qualification
+        run: npm run quality:rc
 
-      - name: Verify tag and release contract
-        run: node scripts/check-release-inputs.mjs --tag "$GITHUB_REF_NAME"
+      - name: Verify tag and release inputs
+        run: npm run check:release -- --tag "$GITHUB_REF_NAME"
 
       - name: Package exact source and tag metadata
         run: node scripts/prepare-release-source.mjs --tag "$GITHUB_REF_NAME"
 
-      - name:
-          Generate and verify checksums, SBOM, licenses, and local provenance
+      - name: Use Go 1.26.2
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.0.0
+        with:
+          go-version: 1.26.2
+          cache: false
+
+      - name: Scan npm dependencies with pinned OSV data
+        shell: bash
+        env:
+          OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: ${{ runner.temp }}/osv-db
+        run: |
+          go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.3.8
+          mkdir -p artifacts/security
+          set +e
+          osv-scanner scan source --offline --download-offline-databases \
+            --no-resolve --format=json -L package-lock.json \
+            > artifacts/security/osv-download-results.json
+          download_status=$?
+          set -e
+          if [[ "$download_status" -gt 1 ]]; then
+            exit "$download_status"
+          fi
+          osv-scanner scan source --offline --no-resolve --format=json \
+            -L package-lock.json > artifacts/security/osv-results.json || osv_status=$?
+          if [[ "${osv_status:-0}" -gt 1 ]]; then
+            exit "$osv_status"
+          fi
+          node scripts/check-osv-findings.mjs artifacts/security/osv-results.json
+          shasum -a 256 \
+            "$OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY/osv-scanner/npm/all.zip" \
+            > artifacts/security/osv-npm-database-sha256.txt
+
+      - name: Audit Rust dependencies
+        run: |
+          cargo install cargo-audit --version 0.22.2 --locked
+          cargo audit --json --deny warnings \
+            --ignore RUSTSEC-2024-0436 \
+            --ignore RUSTSEC-2025-0141 \
+            > artifacts/security/cargo-audit.json
+
+      - name: Generate release evidence
         run: |
           npm run release:evidence
           npm run release:verify
 
-      - name: Create signed GitHub artifact attestations
+      - name: Create signed artifact attestations
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: |
@@ -53,22 +96,22 @@ jobs:
             artifacts/release-inputs/*
             artifacts/release/*
 
-      - name: Create signed GitHub SBOM attestation
+      - name: Create signed SBOM attestation
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: artifacts/native/npm/*.tgz
           sbom-path: artifacts/release/sbom.cdx.json
 
-      - name: Upload immutable release bundle
+      - name: Upload release-candidate bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: alpha-release-bundle
+          name: release-candidate-bundle
           path: artifacts
           if-no-files-found: error
           retention-days: 30
 
   publish:
-    name: Approve and publish alpha
+    name: Approve and publish prerelease
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -77,10 +120,8 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - name: Check out exact tag and approval policy
+      - name: Check out exact tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
 
       - name: Use Node.js 22
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -88,21 +129,23 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
-      - name: Download verified release bundle
+      - name: Download verified release-candidate bundle
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: alpha-release-bundle
+          name: release-candidate-bundle
           path: artifacts
 
-      - name: Enforce M6 distribution approval and artifact checksums
+      - name: Verify checksums and evidence
+        run: node scripts/verify-release-evidence.mjs
+
+      - name: Publish npm prerelease
         run: |
-          node scripts/check-release-inputs.mjs --tag "$GITHUB_REF_NAME" --require-distribution-decision
-          node scripts/verify-release-evidence.mjs
+          npm publish artifacts/native/npm/*.tgz \
+            --access public \
+            --tag next \
+            --provenance
 
-      - name: Publish package with trusted npm provenance
-        run: npm publish artifacts/native/npm/*.tgz --access public --provenance
-
-      - name: Publish matching GitHub release
+      - name: Publish GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -112,6 +155,8 @@ jobs:
             artifacts/native/npm/*.tgz \
             artifacts/release-inputs/* \
             artifacts/release/* \
+            artifacts/security/* \
             --verify-tag \
             --generate-notes \
+            --prerelease \
             --title "$GITHUB_REF_NAME"

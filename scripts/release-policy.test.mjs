@@ -5,7 +5,6 @@ import test from "node:test";
 import {
   cargoComponents,
   npmComponents,
-  validateDistributionDecision,
   validateReleaseConfig,
   validateReleaseTag,
 } from "./release-policy.mjs";
@@ -16,10 +15,11 @@ const config = JSON.parse(
 
 function inputs() {
   return {
-    rootMetadata: { packageManager: "npm@11.12.1" },
+    rootMetadata: { license: "MIT", packageManager: "npm@11.12.1" },
     packageMetadata: {
       name: "@1am/midnight-mobile",
       version: "0.1.0-alpha.1",
+      license: "MIT",
     },
     nativeConfig: {
       rust: { toolchain: "1.97.1" },
@@ -86,62 +86,12 @@ await test("package git tag must follow the package version", () => {
   );
 });
 
-await test("the M6 publication gate stays exact", () => {
-  assert.match(
-    validateReleaseConfig(
-      {
-        ...config,
-        distributionDecision: {
-          ...config.distributionDecision,
-          status: "approved",
-        },
-      },
-      inputs(),
-    ).join("\n"),
-    /distributionDecision\.status/u,
-  );
-  assert.match(
-    validateReleaseConfig(
-      {
-        ...config,
-        distributionDecision: {
-          ...config.distributionDecision,
-          requiredApprovalFile: "docs/OTHER.json",
-        },
-      },
-      inputs(),
-    ).join("\n"),
-    /distributionDecision\.requiredApprovalFile/u,
-  );
-});
-
 await test("release tag must match and point at the commit", () => {
   assert.deepEqual(
     validateReleaseTag(config.package.gitTag, [config.package.gitTag], config),
     [],
   );
   assert.equal(validateReleaseTag("v0.1.0", [], config).length, 2);
-});
-
-await test("public distribution requires a reviewed M6 decision", () => {
-  const decision = {
-    schemaVersion: 1,
-    status: "approved",
-    packageVersion: config.package.version,
-    copyrightOwner: "Reviewed owner",
-    sourceLicenseExpression: "Reviewed expression",
-    packageLicenseExpression: "Reviewed expression",
-    reviewedBy: "Maintainer",
-    reviewedAt: "2026-08-01",
-  };
-  assert.deepEqual(validateDistributionDecision(decision, config), []);
-  assert.match(
-    validateDistributionDecision(
-      { ...decision, status: "deferred" },
-      config,
-    ).join("\n"),
-    /distribution status/u,
-  );
 });
 
 await test("SBOM component builders are sorted and path-neutral", () => {

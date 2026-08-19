@@ -1,7 +1,8 @@
-name: Quality
+name: Pull request quality
 
 on:
-  workflow_dispatch: # Temporary pre-release local-integration pause; restore PR/main triggers before milestone/release acceptance.
+  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,32 +13,29 @@ concurrency:
 
 jobs:
   quality:
-    name: Repository quality
+    name: Lint, typecheck, unit tests, and package source
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
-      - name: Check out repository and history
+      - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
 
       - name: Use Node.js 22
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
 
       - name: Install exact Node dependencies
         run: |
-          corepack enable
-          corepack prepare npm@11.12.1 --activate
+          npm install --global npm@11.12.1
           npm ci
 
-      - name: Install pinned Rust quality tools
+      - name: Install Rust lint and test tools
         run: |
-          rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt,llvm-tools-preview
+          rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt
           rustup default 1.97.1
-          cargo install cargo-llvm-cov --version 0.8.6 --locked
           cargo fetch --locked
 
-      - name: Run lightweight pull-request gate
+      - name: Run pull request checks
         run: npm run quality:pr

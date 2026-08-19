@@ -1,7 +1,5 @@
 name: Set up pinned native toolchains
-description:
-  Install and verify the exact M5 Node, Java, Rust, Apple, and Android
-  toolchains.
+description: Install and verify the release-candidate native toolchains.
 
 runs:
   using: composite

@@ -1,16 +1,18 @@
+# NOTICE
+
 Midnight Mobile
 Copyright 2026 Midnight Mobile contributors
 
-Midnight Mobile is community-maintained software and is not an official
-Midnight SDK. "Midnight" and related names may be trademarks of their
-respective owners. No trademark license is granted.
+Midnight Mobile is not an official Midnight SDK. Trademark owners retain all
+trademark rights. This project grants no trademark license.
 
-This project is offered under either the MIT License or the Apache License,
-Version 2.0, at the recipient's option. See LICENSE-MIT and LICENSE-APACHE.
+The MIT License in LICENSE applies only to material that this project creates.
+It does not change the license for third-party software.
 
-This private implementation repository defers the final copyright, attribution,
-and distribution decision for extracted source to its future destination
-repository. Before any public distribution, that destination must complete and
-record the source-ownership decision, license compatibility, attribution
-notices, and third-party redistribution obligations. This NOTICE does not modify
-either license.
+Native builds use Midnight Ledger software under Apache-2.0. Native builds also
+use UniFFI software under MPL-2.0. Android applications can use JNA under its
+Apache-2.0 option.
+
+Each prerelease bundle contains an SBOM and a dependency license report. If you
+distribute an artifact, include every required third-party copyright notice,
+license text, attribution, and information about source availability.
