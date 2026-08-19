@@ -45,6 +45,10 @@ artifacts/
 *.key
 *.pem
 
+# Prover instrumentation rig (scripts/mobile-prover-instrumentation)
+/.prover-fork/
+/.cargo/config.toml
+
 # Editors and operating systems
 .DS_Store
 .idea/
