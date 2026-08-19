@@ -39,10 +39,26 @@ node scripts/mobile-prover-instrumentation/stage.mjs stage
 git apply scripts/mobile-prover-instrumentation/runtime-snapshot.patch
 ```
 
-Then build and run against the device probe in `tools/android-prover-spike`,
-which drives the native prover directly. `setProfiling(true)` turns the counters
-on and `takeTimings()` drains them; each sample carries `phaseCounters` as a
-JSON object of nanosecond totals.
+`stage` refreshes `Cargo.lock` offline after writing the override, because
+`runtime-snapshot.patch` adds a direct `midnight-curves` edge and every
+`--locked` build -- including the device probe's -- refuses to start otherwise.
+
+Then build and run against the device probe in `tools/android-prover-spike`:
+
+```sh
+node tools/android-prover-spike/scripts/prepare-artifacts.mjs
+GRADLE=/path/to/gradle-9.0.0/bin/gradle \
+  node tools/android-prover-spike/scripts/build.mjs
+node tools/android-prover-spike/scripts/run-device.mjs \
+  profiling=true maxConcurrency=1
+```
+
+The probe takes measurement extras as `key=value` arguments: `profiling=true`
+turns the native stage instrumentation on and logs a `PROBE_TIMINGS` line per
+drain, `maxConcurrency=N` pins the admission limit, and `batch=true` proves a
+spend plus two outputs through one `proveBatch` call, which is the shape a real
+send emits. Each drained sample carries `phaseCounters` as a JSON object of
+nanosecond totals.
 
 Revert before building anything shipped:
 
@@ -73,6 +89,24 @@ node scripts/mobile-prover-instrumentation/stage.mjs capture > \
 For the runtime side, apply the patch, edit `crates/runtime`, and regenerate
 with `git diff -- crates/runtime > .../runtime-snapshot.patch`.
 
+## Measuring on the device
+
+Two things will silently ruin a run.
+
+**Wake the phone first.** A dozing S10 parks its performance cores, and proving
+measured while it dozes is about **2.4x slower** than the same build measured
+awake -- 31 s versus 13 s for the k=15 spend. Nothing in the output says the
+device was throttled, and the inflated numbers look perfectly self-consistent.
+Send `input keyevent KEYCODE_WAKEUP` before each run; the probe activity holds
+`FLAG_KEEP_SCREEN_ON` once it starts, so only the install window is exposed.
+Doze also wedges `adb install` of the 42 MB APK indefinitely.
+
+**Pin admission to 1 for any per-proof number.** At the default limit of 2 the
+same k=15 spend reports between 11.4 s and 20.5 s depending only on whether a
+neighbour is crowding it, while the batch's wall clock _drops_ by about 20%. Use
+`maxConcurrency=1` for attribution and batch wall clock for throughput; never
+mix them.
+
 ## Verified so far
 
 - Both patches apply to the pinned sources, and the instrumented workspace
@@ -80,6 +114,14 @@ with `git diff -- crates/runtime > .../runtime-snapshot.patch`.
 - The counters record: one k=12 FFT through `best_fft` reports a non-zero
   `fft_ns` with `fft_calls` of 1, and stops accumulating after `finish`.
 - `revert` restores the tree, the lockfile, and a clean pinned build.
+- **Measured on the S10** (SM-G973W, Android 12, 2026-08-19). The rig reproduces
+  the standing baseline to within about 1%: MSM 51.0% against a recorded 51.8%,
+  FFT 18.6% against 18.1%, and a non-MSM/FFT remainder of 30.4% against 30.1%.
+  The phase counters account for 99.1% of the prove call. See
+  `docs/performance/mobile/remainder-decomposition-2026-08-19.md` in the wallet
+  repository.
 
-Not yet verified: the on-device numbers. Reproducing the S10 baseline and
-recording the remainder split needs the phone.
+Instrumentation costs about 15% of the prove call (13.19 s against 11.46 s
+uninstrumented, with three uninstrumented controls agreeing to within 3.6%), so
+compare shares between staged runs rather than absolute times against an
+unstaged one.

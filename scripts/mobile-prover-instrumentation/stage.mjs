@@ -130,6 +130,14 @@ function stage() {
   }
 
   writeOverride(crates);
+  // Refresh the lockfile against the override while the network is not needed:
+  // staging drops the registry source and checksum lines for the patched crates,
+  // and `runtime-snapshot.patch` adds a direct `midnight-curves` edge. Without
+  // this, any `--locked` build -- which is what the device probe runs -- refuses
+  // to start. `revert` restores the pinned lockfile from the copy above.
+  run("cargo", ["metadata", "--offline", "--format-version", "1"], {
+    stdio: ["ignore", "ignore", "inherit"],
+  });
   const versions = crates
     .map((crate) => `${crate.name} ${crate.version}`)
     .join(", ");

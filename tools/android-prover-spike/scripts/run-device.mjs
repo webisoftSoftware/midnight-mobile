@@ -166,6 +166,27 @@ function validateSuccessfulProof(resultLine, alive) {
   }
 }
 
+/**
+ * Measurement extras forwarded to the activity, from CLI arguments of the form
+ * `profiling=true`, `maxConcurrency=1`, `batch=true`. One APK then covers a whole
+ * measurement matrix: pinning admission is the only way to attribute a stage
+ * total to the circuit rather than to the proof crowding it.
+ */
+function probeExtras() {
+  return process.argv
+    .slice(2)
+    .map((argument) => {
+      const [key, value] = argument.split("=");
+      if (key === undefined || value === undefined) {
+        throw new Error(`Expected key=value, got ${argument}`);
+      }
+      if (value === "true" || value === "false") return `--ez ${key} ${value}`;
+      if (/^\d+$/u.test(value)) return `--ei ${key} ${value}`;
+      throw new Error(`Unsupported extra value ${value}`);
+    })
+    .join(" ");
+}
+
 async function main() {
   if (!existsSync(apk)) throw new Error(`APK is missing: ${apk}`);
   adb("wait-for-device");
@@ -173,7 +194,7 @@ async function main() {
   adb("install", "-r", apk);
   shell(`am force-stop ${packageName}`);
   adb("logcat", "-c");
-  shell(`am start -n ${activity} --ez runProbe true`);
+  shell(`am start -n ${activity} --ez runProbe true ${probeExtras()}`);
   const started = Date.now();
   const { resultLine, samples } = await monitorProbe(started);
   const elapsedMillis = Date.now() - started;

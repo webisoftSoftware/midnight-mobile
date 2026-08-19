@@ -1,6 +1,6 @@
 diff -ruN --exclude=.cargo-ok a/midnight-curves-0.2.1/src/fft.rs b/midnight-curves-0.2.1/src/fft.rs
 --- a/midnight-curves-0.2.1/src/fft.rs	2006-07-23 21:21:28
-+++ b/midnight-curves-0.2.1/src/fft.rs	2026-08-19 10:54:05
++++ b/midnight-curves-0.2.1/src/fft.rs	2026-08-19 11:26:45
 @@ -38,6 +38,7 @@
          r
      }
@@ -19,7 +19,7 @@ diff -ruN --exclude=.cargo-ok a/midnight-curves-0.2.1/src/fft.rs b/midnight-curv
  /// This perform recursive butterfly arithmetic
 diff -ruN --exclude=.cargo-ok a/midnight-curves-0.2.1/src/lib.rs b/midnight-curves-0.2.1/src/lib.rs
 --- a/midnight-curves-0.2.1/src/lib.rs	2006-07-23 21:21:28
-+++ b/midnight-curves-0.2.1/src/lib.rs	2026-08-19 10:54:05
++++ b/midnight-curves-0.2.1/src/lib.rs	2026-08-19 11:26:45
 @@ -21,6 +21,8 @@
  pub mod fft;
  pub mod hash_to_curve;
@@ -31,8 +31,8 @@ diff -ruN --exclude=.cargo-ok a/midnight-curves-0.2.1/src/lib.rs b/midnight-curv
  
 diff -ruN --exclude=.cargo-ok a/midnight-curves-0.2.1/src/oneam_profile.rs b/midnight-curves-0.2.1/src/oneam_profile.rs
 --- a/midnight-curves-0.2.1/src/oneam_profile.rs	1969-12-31 19:00:00
-+++ b/midnight-curves-0.2.1/src/oneam_profile.rs	2026-08-19 10:54:05
-@@ -0,0 +1,146 @@
++++ b/midnight-curves-0.2.1/src/oneam_profile.rs	2026-08-19 11:36:35
+@@ -0,0 +1,154 @@
 +//! Opt-in timing counters for the One AM mobile prover.
 +//!
 +//! Measurement rig only -- staged by
@@ -109,6 +109,11 @@ diff -ruN --exclude=.cargo-ok a/midnight-curves-0.2.1/src/oneam_profile.rs b/mid
 +    (trace_polys_ns, TRACE_POLYS_NS),
 +    // Then the finalising half.
 +    (h_poly_ns, H_POLY_NS),
++    // `h_poly` is the largest phase, so it carries its own split: the two
++    // extended-domain coset transforms and `evaluate_h` itself.
++    (h_advice_cosets_ns, H_ADVICE_COSETS_NS),
++    (h_instance_cosets_ns, H_INSTANCE_COSETS_NS),
++    (h_evaluate_ns, H_EVALUATE_NS),
 +    (vanishing_construct_ns, VANISHING_CONSTRUCT_NS),
 +    (evaluations_ns, EVALUATIONS_NS),
 +    (queries_ns, QUERIES_NS),
@@ -160,6 +165,9 @@ diff -ruN --exclude=.cargo-ok a/midnight-curves-0.2.1/src/oneam_profile.rs b/mid
 +    (record_vanishing_commit, VANISHING_COMMIT_NS),
 +    (record_trace_polys, TRACE_POLYS_NS),
 +    (record_h_poly, H_POLY_NS),
++    (record_h_advice_cosets, H_ADVICE_COSETS_NS),
++    (record_h_instance_cosets, H_INSTANCE_COSETS_NS),
++    (record_h_evaluate, H_EVALUATE_NS),
 +    (record_vanishing_construct, VANISHING_CONSTRUCT_NS),
 +    (record_evaluations, EVALUATIONS_NS),
 +    (record_queries, QUERIES_NS),
@@ -181,7 +189,7 @@ diff -ruN --exclude=.cargo-ok a/midnight-curves-0.2.1/src/oneam_profile.rs b/mid
 +}
 diff -ruN --exclude=.cargo-ok a/midnight-proofs-0.7.3/src/plonk/prover.rs b/midnight-proofs-0.7.3/src/plonk/prover.rs
 --- a/midnight-proofs-0.7.3/src/plonk/prover.rs	2006-07-23 21:21:28
-+++ b/midnight-proofs-0.7.3/src/plonk/prover.rs	2026-08-19 10:54:05
++++ b/midnight-proofs-0.7.3/src/plonk/prover.rs	2026-08-19 11:36:45
 @@ -100,13 +100,18 @@
  
      let domain = &pk.vk.domain;
@@ -315,9 +323,50 @@ diff -ruN --exclude=.cargo-ok a/midnight-proofs-0.7.3/src/plonk/prover.rs b/midn
  }
  
  /// This creates a proof for the provided `circuit` when given the public
+@@ -612,6 +640,7 @@
+         ..
+     } = &trace;
+     // Calculate the advice and instance cosets
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let advice_cosets: Vec<Vec<Polynomial<F, ExtendedLagrangeCoeff>>> = advice_polys
+         .iter()
+         .map(|advice_polys| {
+@@ -621,6 +650,8 @@
+                 .collect()
+         })
+         .collect();
++    midnight_curves::oneam_profile::record_h_advice_cosets(oneam_started);
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let instance_cosets: Vec<Vec<Polynomial<F, ExtendedLagrangeCoeff>>> = instance_polys
+         .iter()
+         .map(|instance_polys| {
+@@ -630,9 +661,11 @@
+                 .collect()
+         })
+         .collect();
++    midnight_curves::oneam_profile::record_h_instance_cosets(oneam_started);
+ 
+     // Evaluate the h(X) polynomial
+-    pk.ev.evaluate_h::<ExtendedLagrangeCoeff>(
++    let oneam_started = midnight_curves::oneam_profile::start();
++    let oneam_h = pk.ev.evaluate_h::<ExtendedLagrangeCoeff>(
+         &pk.vk.domain,
+         &pk.vk.cs,
+         &advice_cosets.iter().map(|a| a.as_slice()).collect::<Vec<_>>(),
+@@ -651,7 +684,9 @@
+         &pk.l_last,
+         &pk.l_active_row,
+         &pk.permutation.cosets,
+-    )
++    );
++    midnight_curves::oneam_profile::record_h_evaluate(oneam_started);
++    oneam_h
+ }
+ 
+ pub(super) fn write_evals_to_transcript<F, CS, T>(
 diff -ruN --exclude=.cargo-ok a/midnight-proofs-0.7.3/src/poly/kzg/msm.rs b/midnight-proofs-0.7.3/src/poly/kzg/msm.rs
 --- a/midnight-proofs-0.7.3/src/poly/kzg/msm.rs	2006-07-23 21:21:28
-+++ b/midnight-proofs-0.7.3/src/poly/kzg/msm.rs	2026-08-19 10:54:05
++++ b/midnight-proofs-0.7.3/src/poly/kzg/msm.rs	2026-08-19 11:26:45
 @@ -109,6 +109,16 @@
  #[allow(unsafe_code)]
  /// Wrapper over the MSM function to use the blstrs underlying function
