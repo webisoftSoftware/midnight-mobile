@@ -1,7 +1,6 @@
 # Security Policy
 
-This software is experimental. Do not use it with production wallets or real
-funds.
+This software is experimental.
 
 Report a security problem with
 [GitHub private vulnerability reporting](https://github.com/ADGLx/midnight-mobile/security/advisories/new).
