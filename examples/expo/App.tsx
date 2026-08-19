@@ -20,6 +20,7 @@ import {
 } from "./src/lifecycle";
 import { cleartextEndpoints, readLiveConfig } from "./src/live-config";
 import { runLiveProbe } from "./src/live-probe";
+import { runLocalProverSmokeTest } from "./src/local-prover-demo";
 import { runNativeSmokeTest, type NativeSmokeReport } from "./src/native-smoke";
 
 function StepList({ report }: { readonly report: NativeSmokeReport }) {
@@ -64,7 +65,8 @@ function LiveProbeSection() {
           <Text style={styles.body}>
             Checks endpoint reachability, asks the node to identify itself over
             JSON-RPC, then syncs the shielded and dust streams through
-            applySyncBatch. Use a disposable wallet only; these seeds are
+            applySyncBatch. Check and prove are exercised by the native local
+            prover section above. Use a disposable wallet only; these seeds are
             synthetic.
           </Text>
           {cleartext.length === 0 ? null : (
@@ -114,7 +116,7 @@ function NativeSmokeSection() {
       <Text style={styles.heading}>Prebuilt native runtime</Text>
       <Text style={styles.body}>
         Runs pure Rust operations against the packaged native library. No
-        indexer, proof server, or node is contacted. Requires a development
+        indexer, proof service, or node is contacted. Requires a development
         build; this fails in Expo Go.
       </Text>
       <Button
@@ -124,6 +126,47 @@ function NativeSmokeSection() {
       />
       {report === null ? null : (
         <View testID="native-smoke-report">
+          <StepList report={report} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+function LocalProverSection({
+  platform,
+}: {
+  readonly platform: "ios" | "android";
+}) {
+  const [report, setReport] = useState<NativeSmokeReport | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const runSmoke = () => {
+    setRunning(true);
+    setReport(null);
+    void runLocalProverSmokeTest(platform)
+      .then(setReport)
+      .finally(() => {
+        setRunning(false);
+      });
+  };
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.heading}>Native local prover</Text>
+      <Text style={styles.body}>
+        Runs the SDK&apos;s real local check and prove operations against the
+        verified spend circuit. Prepare artifacts before the development build;
+        no proof server is contacted. This fails when the artifacts or native
+        module are unavailable.
+      </Text>
+      <Button
+        title={running ? "Running…" : "Run local prover"}
+        disabled={running}
+        onPress={runSmoke}
+      />
+      {report === null ? null : (
+        <View testID="local-prover-report">
           <StepList report={report} />
         </View>
       )}
@@ -188,6 +231,7 @@ function WalletLifecycleDemo({
           </Text>
         )}
         <NativeSmokeSection />
+        <LocalProverSection platform={environment.platform} />
         <LiveProbeSection />
       </ScrollView>
     </View>
@@ -229,7 +273,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   error: { color: "#a12718", fontWeight: "600" },
-  // An advisory, not a failure: cleartext is expected for a local proof server.
+  // An advisory, not a failure: cleartext may be expected for local indexers.
   note: { color: "#7a6a2f", fontSize: 14, lineHeight: 20 },
   heading: { color: "#161615", fontSize: 20, fontWeight: "700" },
   pass: { color: "#1d6a3f", fontWeight: "700" },

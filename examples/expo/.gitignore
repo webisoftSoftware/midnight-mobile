@@ -1,3 +1,4 @@
 .expo/
 .platform-build/
 .staging-build/
+/assets/local-prover/

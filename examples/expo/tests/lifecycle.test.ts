@@ -5,11 +5,19 @@ import {
   createLivePreviewRuntime,
   createMockExampleRuntime,
 } from "../src/example-runtime";
+import type { MidnightLocalProver } from "@1am/midnight-mobile/local-prover";
 import { runMockedWalletLifecycle } from "../src/lifecycle";
 import {
   MockMidnightServices,
   type ExamplePlatform,
 } from "../src/mock-services";
+
+const unavailableLocalProver: MidnightLocalProver = {
+  configure: () => Promise.resolve(),
+  check: () => Promise.reject(new Error("unused")),
+  prove: () => Promise.reject(new Error("unused")),
+  close: () => Promise.resolve(),
+};
 
 for (const platform of [
   "ios",
@@ -65,8 +73,8 @@ await test("explicit live open consumes and wipes caller key buffers", async () 
     secrets,
     indexerHttpUrl: "https://indexer.caller.invalid/request",
     indexerWebSocketUrl: "wss://indexer.caller.invalid/stream",
-    proofServerUrl: "https://proof.caller.invalid/request",
     nodeUrl: "https://node.caller.invalid/request",
+    localProver: unavailableLocalProver,
     fetch: services.fetch,
     createWebSocket: () => services.createWebSocket(),
     endpointHeaders: () => Promise.resolve({}),

@@ -13,6 +13,10 @@ import {
   type MidnightWalletSessionSecrets,
   type MidnightWebSocketFactory,
 } from "@1am/midnight-mobile";
+import {
+  createLocalProverMidnightTransport,
+  type MidnightLocalProver,
+} from "@1am/midnight-mobile/local-prover";
 
 import { MockNativeRuntimeModule } from "./mock-native";
 import {
@@ -77,7 +81,7 @@ export interface LivePreviewRuntimeConfiguration {
   readonly secrets: MidnightWalletSessionSecrets;
   readonly indexerHttpUrl: string;
   readonly indexerWebSocketUrl: string;
-  readonly proofServerUrl: string;
+  readonly localProver: MidnightLocalProver;
   readonly nodeUrl: string;
   readonly fetch: MidnightFetch;
   readonly createWebSocket: MidnightWebSocketFactory;
@@ -102,20 +106,26 @@ function wipeSecrets(secrets: MidnightWalletSessionSecrets): void {
 export function createLivePreviewRuntime(
   configuration: LivePreviewRuntimeConfiguration,
 ): LivePreviewRuntime {
-  const transport = createStandardMidnightTransport({
-    network: {
-      indexerHttpUrl: configuration.indexerHttpUrl,
-      indexerWebSocketUrl: configuration.indexerWebSocketUrl,
-      proofServerUrl: configuration.proofServerUrl,
-      nodeUrl: configuration.nodeUrl,
+  const transport = createLocalProverMidnightTransport(
+    {
+      network: {
+        indexerHttpUrl: configuration.indexerHttpUrl,
+        indexerWebSocketUrl: configuration.indexerWebSocketUrl,
+        // Check and prove are handled by the native local prover. Balance-service
+        // effects still use this placeholder and are intentionally out of scope
+        // for this example's live session helper.
+        proofServerUrl: "https://local-prover.invalid",
+        nodeUrl: configuration.nodeUrl,
+      },
+      fetch: configuration.fetch,
+      createWebSocket: configuration.createWebSocket,
+      headers: configuration.endpointHeaders,
+      ...(configuration.logger === undefined
+        ? {}
+        : { logger: configuration.logger }),
     },
-    fetch: configuration.fetch,
-    createWebSocket: configuration.createWebSocket,
-    headers: configuration.endpointHeaders,
-    ...(configuration.logger === undefined
-      ? {}
-      : { logger: configuration.logger }),
-  });
+    configuration.localProver,
+  );
   const runtimeController = new MidnightRuntimeController({
     api: createMidnightRuntimeApi(),
     transport,

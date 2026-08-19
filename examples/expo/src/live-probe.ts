@@ -17,7 +17,6 @@ import {
 } from "./live-services";
 import type { NativeSmokeStep } from "./native-smoke";
 import { callNodeMethod, createNodeAwareFetch } from "./node-submission";
-import { createProofAwareFetch, PROVE_TAG } from "./proof-routing";
 import { syncStream } from "./sync-driver";
 
 /**
@@ -163,54 +162,6 @@ async function probeNodeRpc(
   }
 }
 
-/**
- * Checks that the proof server expects the payload shape this runtime builds.
- *
- * An empty POST to /prove is refused with the tag header the server wants, which
- * makes this a real compatibility check rather than a ping: a proof server built
- * against a different ledger would name a different tag, and we find that out
- * here instead of part way through building a transaction.
- */
-async function probeProofServer(
-  network: MidnightNetworkConfiguration,
-  steps: NativeSmokeStep[],
-): Promise<void> {
-  const aborter = new AbortController();
-  const timer = setTimeout(() => {
-    aborter.abort();
-  }, PROBE_TIMEOUT_MS);
-  try {
-    const response = await reactNativeMidnightFetch(
-      new URL("/prove", network.proofServerUrl).toString(),
-      {
-        method: "POST",
-        headers: { "content-type": "application/octet-stream" },
-        body: new Uint8Array(0),
-        signal: aborter.signal,
-      },
-    );
-    const reported = new TextDecoder().decode(
-      new Uint8Array(await response.arrayBuffer()),
-    );
-    const matches = reported.includes(PROVE_TAG);
-    steps.push({
-      name: "proof server payload shape",
-      ok: matches,
-      detail: matches
-        ? "expects the tag this runtime builds"
-        : `server expects a different shape: ${reported.slice(0, 120)}`,
-    });
-  } catch (failure: unknown) {
-    steps.push({
-      name: "proof server payload shape",
-      ok: false,
-      detail: describe(failure),
-    });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 async function probeReachability(
   network: MidnightNetworkConfiguration,
   steps: NativeSmokeStep[],
@@ -219,12 +170,6 @@ async function probeReachability(
     "indexer",
     network.indexerHttpUrl,
     { 400: "an empty POST is not a GraphQL query" },
-    steps,
-  );
-  await probeEndpoint(
-    "proof server",
-    network.proofServerUrl,
-    { 404: "payloads go to /check and /prove, not the base path" },
     steps,
   );
   await probeEndpoint(
@@ -237,7 +182,6 @@ async function probeReachability(
     steps,
   );
   await probeNodeRpc(network, steps);
-  await probeProofServer(network, steps);
 }
 
 // Small on purpose. This probe is establishing that the mapping is correct, not
@@ -307,13 +251,9 @@ export async function runLiveProbe(
     api: createMidnightRuntimeApi(),
     transport: createStandardMidnightTransport({
       network,
-      // Two host-layer adapters the transport cannot supply itself: submission
-      // effects become author_submitExtrinsic JSON-RPC, and proof effects are
-      // routed to /check or /prove by the tag their payload carries.
-      fetch: createNodeAwareFetch(
-        createProofAwareFetch(reactNativeMidnightFetch, network.proofServerUrl),
-        network.nodeUrl,
-      ),
+      // Submission effects become author_submitExtrinsic JSON-RPC. Check and
+      // prove are exercised separately by the native local-prover button.
+      fetch: createNodeAwareFetch(reactNativeMidnightFetch, network.nodeUrl),
       createWebSocket: createSyncSocketFactory(),
       timeoutMs: PROBE_TIMEOUT_MS,
     }),

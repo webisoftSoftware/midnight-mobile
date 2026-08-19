@@ -246,7 +246,9 @@ or an absolute path in the application sandbox.
 ## Run the example
 
 The `examples/expo` application runs a wallet flow with local test services. It
-does not contain a real service URL, credential, or wallet key.
+does not contain a real service URL, credential, or wallet key. See the
+[example guide](./examples/expo/README.md) for the demonstrated SDK flows,
+device controls, and optional live-preview configuration.
 
 ```sh
 npm ci

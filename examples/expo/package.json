@@ -11,7 +11,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --import ./test-support/register-test-loader.mjs --test .staging-build/tests/*.test.js",
+    "prepare:local-prover": "node ../../tools/android-prover-spike/scripts/prepare-artifacts.mjs && node ./scripts/prepare-local-prover.mjs",
+    "test": "node ./scripts/clean-staging.mjs && tsc -p tsconfig.test.json && node --import ./test-support/register-test-loader.mjs --test .staging-build/tests/*.test.js",
     "validate:platforms": "node ./scripts/validate-platforms.mjs",
     "quality": "npm run typecheck && npm test && npm run validate:platforms"
   },

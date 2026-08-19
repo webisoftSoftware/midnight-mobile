@@ -12,13 +12,7 @@ import type { MidnightNetworkConfiguration } from "@1am/midnight-mobile";
  *
  *   EXPO_PUBLIC_MIDNIGHT_INDEXER_HTTP=https://…
  *   EXPO_PUBLIC_MIDNIGHT_INDEXER_WS=wss://…
- *   EXPO_PUBLIC_MIDNIGHT_PROOF_SERVER=http://localhost:6300
  *   EXPO_PUBLIC_MIDNIGHT_NODE=https://…
- *
- * A local proof server is not reachable from a device by default. Forward it
- * with `adb reverse tcp:6300 tcp:6300`. Cleartext `http` is already permitted in
- * debug builds by `android/app/src/debug/AndroidManifest.xml`, so no manifest
- * change is needed for local testing; release builds do block it.
  */
 
 interface FieldSpec {
@@ -37,11 +31,6 @@ const FIELDS: readonly FieldSpec[] = [
     field: "indexerWebSocketUrl",
     variable: "EXPO_PUBLIC_MIDNIGHT_INDEXER_WS",
     schemes: ["ws:", "wss:"],
-  },
-  {
-    field: "proofServerUrl",
-    variable: "EXPO_PUBLIC_MIDNIGHT_PROOF_SERVER",
-    schemes: ["http:", "https:"],
   },
   {
     field: "nodeUrl",
@@ -69,8 +58,6 @@ function readVariable(name: string): string | undefined {
       return envValue(process.env.EXPO_PUBLIC_MIDNIGHT_INDEXER_HTTP);
     case "EXPO_PUBLIC_MIDNIGHT_INDEXER_WS":
       return envValue(process.env.EXPO_PUBLIC_MIDNIGHT_INDEXER_WS);
-    case "EXPO_PUBLIC_MIDNIGHT_PROOF_SERVER":
-      return envValue(process.env.EXPO_PUBLIC_MIDNIGHT_PROOF_SERVER);
     case "EXPO_PUBLIC_MIDNIGHT_NODE":
       return envValue(process.env.EXPO_PUBLIC_MIDNIGHT_NODE);
     default:
@@ -117,7 +104,9 @@ export function readLiveConfig(): LiveConfigResult {
     network: {
       indexerHttpUrl: resolved.indexerHttpUrl ?? "",
       indexerWebSocketUrl: resolved.indexerWebSocketUrl ?? "",
-      proofServerUrl: resolved.proofServerUrl ?? "",
+      // The live probe localizes check/prove. Balance-service effects still
+      // require a configured proof service and are intentionally out of scope.
+      proofServerUrl: "https://local-prover.invalid",
       nodeUrl: resolved.nodeUrl ?? "",
     },
   };
@@ -126,9 +115,8 @@ export function readLiveConfig(): LiveConfigResult {
 /**
  * Reports which endpoints use cleartext.
  *
- * This is advisory, not a failure: a local proof server over `http` is the
- * expected setup for device testing. It matters because release builds block
- * cleartext, so anything listed here would stop working outside a debug build.
+ * This is advisory, not a failure: release builds block cleartext, so anything
+ * listed here would stop working outside a debug build.
  */
 export function cleartextEndpoints(
   network: MidnightNetworkConfiguration,
