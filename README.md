@@ -1,10 +1,8 @@
 # Midnight Mobile
 
-Midnight Mobile is an experimental wallet runtime for React Native and Expo.
-
-> [!WARNING] Do not use this SDK with production wallets or real funds. The SDK
-> is not an official Midnight SDK. The API and data formats can change in every
-> release.
+Midnight Mobile is an experimental wallet runtime for React Native and Expo. It
+is not an official Midnight SDK. The API and data formats can change in every
+release.
 
 ## Functions
 
