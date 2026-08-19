@@ -115,6 +115,13 @@ private final class LocalProverBridge {
     try requireSuccess(midnight_mobile_local_prover_set_profiling(enabled))
   }
 
+  /// Shared admission limit. Native clamps to 1...4; the JS layer rejects anything outside that
+  /// range first, so the limit a caller asks for is the limit that takes effect. Only applies to
+  /// admissions after this call.
+  func setMaxConcurrency(_ limit: Int) throws {
+    try requireSuccess(midnight_mobile_local_prover_set_max_concurrency(limit))
+  }
+
   /// Drains recorded samples as the JSON the platform layer forwards verbatim. Empties the native
   /// queue, so a second call with no proofs in between yields `[]`.
   func takeTimings() throws -> String {
@@ -357,6 +364,14 @@ public final class MidnightMobileLocalProverModule: Module {
     AsyncFunction("setProfiling") { (enabled: Bool) in
       do {
         try bridge.setProfiling(enabled)
+      } catch {
+        throw localProverException(error, fallback: "NATIVE_INTERNAL")
+      }
+    }.runOnQueue(localProverQueue)
+
+    AsyncFunction("setMaxConcurrency") { (limit: Int) in
+      do {
+        try bridge.setMaxConcurrency(limit)
       } catch {
         throw localProverException(error, fallback: "NATIVE_INTERNAL")
       }

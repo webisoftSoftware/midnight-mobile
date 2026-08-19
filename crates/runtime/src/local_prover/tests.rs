@@ -179,6 +179,25 @@ fn refuses_circuits_above_the_packaged_ceiling_and_only_those() {
     );
 }
 
+/// k=19 reboots the device (see `MAX_LOCAL_PROOF_K`), so packaging parameters for it
+/// must not be enough to let a request through. The cap has to outrank the packaged
+/// set, not defer to it.
+#[test]
+fn refuses_above_the_device_cap_even_when_parameters_are_packaged() {
+    let overpackaged: Vec<u8> = (0..=20).collect();
+
+    for k in 0..=MAX_LOCAL_PROOF_K {
+        assert_eq!(refuse_for_size(k, &overpackaged), None, "k={k}");
+    }
+    for k in (MAX_LOCAL_PROOF_K + 1)..=20 {
+        assert_eq!(
+            refuse_for_size(k, &overpackaged),
+            Some(LocalProverError::CircuitTooLarge { k }),
+            "k={k}"
+        );
+    }
+}
+
 #[test]
 fn prover_pool_uses_bounded_mobile_parallelism() {
     assert_eq!(

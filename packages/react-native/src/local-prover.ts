@@ -46,6 +46,15 @@ const ERROR_CODES = new Set<MidnightLocalProverErrorCode>([
  */
 const CIRCUIT_TOO_LARGE_PATTERN = /^CIRCUIT_TOO_LARGE k=(\d{1,3})$/u;
 
+/**
+ * Admission limits the native prover accepts, mirroring `MIN_CONCURRENT_PROOFS`
+ * and `MAX_CONCURRENT_PROOFS_CEILING` in `local_prover.rs`. Native silently clamps
+ * to this range; validating here instead means a rejected limit is visible rather
+ * than a pinned run quietly measuring a different limit than it asked for.
+ */
+export const MIN_PROOF_CONCURRENCY = 1;
+export const MAX_PROOF_CONCURRENCY = 4;
+
 export class MidnightLocalProverError extends Error {
   readonly code: MidnightLocalProverErrorCode;
   /** Circuit size the refused job needed. Only set for `CIRCUIT_TOO_LARGE`. */
@@ -114,6 +123,21 @@ export interface MidnightLocalProver {
    * which is what a caller should expect whenever profiling is off.
    */
   takeTimings?(): Promise<string>;
+  /**
+   * Optional: caps how many proofs the native prover admits into its shared
+   * thread pool at once, within `MIN_PROOF_CONCURRENCY..MAX_PROOF_CONCURRENCY`.
+   *
+   * Every proving figure measured at the default limit is contended -- a batched
+   * proof shares one four-thread pool with its neighbour, so a slow sample cannot
+   * be attributed to the circuit rather than the crowding without pinning this to
+   * 1 and re-running. Process-wide and registry-independent, like the other
+   * instrumentation, and it only affects admissions after the call: proofs already
+   * running are untouched.
+   *
+   * Out-of-range or non-integer limits are rejected rather than clamped, so the
+   * limit a caller passes is always the limit that took effect.
+   */
+  setMaxConcurrency?(limit: number): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -127,6 +151,8 @@ export interface NativeLocalProverModule {
   setProfiling?(enabled: boolean): Promise<void>;
   /** Optional: may be absent on older native binaries. */
   takeTimings?(): Promise<string>;
+  /** Optional: may be absent on older native binaries. */
+  setMaxConcurrency?(limit: number): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -256,6 +282,7 @@ class NativeMidnightLocalProver implements MidnightLocalProver {
   ) => Promise<Uint8Array[]>;
   readonly setProfiling?: (enabled: boolean) => Promise<void>;
   readonly takeTimings?: () => Promise<string>;
+  readonly setMaxConcurrency?: (limit: number) => Promise<void>;
 
   constructor(private readonly native: NativeLocalProverModule) {
     if (typeof native.proveBatch === "function") {
@@ -271,6 +298,21 @@ class NativeMidnightLocalProver implements MidnightLocalProver {
     const takeTimings = native.takeTimings?.bind(native);
     if (takeTimings !== undefined) {
       this.takeTimings = () => nativeCall(() => takeTimings());
+    }
+    const setMaxConcurrency = native.setMaxConcurrency?.bind(native);
+    if (setMaxConcurrency !== undefined) {
+      this.setMaxConcurrency = (limit) => {
+        if (
+          !Number.isInteger(limit) ||
+          limit < MIN_PROOF_CONCURRENCY ||
+          limit > MAX_PROOF_CONCURRENCY
+        ) {
+          return Promise.reject(
+            new MidnightLocalProverError("INVALID_REQUEST"),
+          );
+        }
+        return nativeCall(() => setMaxConcurrency(limit));
+      };
     }
   }
 

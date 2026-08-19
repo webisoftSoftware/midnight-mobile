@@ -129,6 +129,18 @@ class MidnightMobileLocalProverModule : Module() {
       }
     }.runOnQueue(localProverQueue)
 
+    // Pinning the admission limit is what makes a proving measurement attributable: at the
+    // default limit a batched proof shares one four-thread pool with its neighbour, so its
+    // duration cannot be split between the circuit and the crowding. The JS layer rejects limits
+    // outside 1..4 before they reach here, so the requested limit is the applied one.
+    AsyncFunction("setMaxConcurrency") { limit: Int ->
+      try {
+        proverBridge().setMaxConcurrency(limit)
+      } catch (error: Throwable) {
+        throw localProverException(error, "NATIVE_INTERNAL")
+      }
+    }.runOnQueue(localProverQueue)
+
     AsyncFunction("close") {
       try {
         bridge?.close()
