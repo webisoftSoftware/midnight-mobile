@@ -1,5 +1,4 @@
 import {
-  MidnightRuntimeError,
   type MidnightCommandKind,
   type MidnightOperationStep,
   type MidnightRuntimeController,
@@ -8,6 +7,7 @@ import {
 } from "@1am/midnight-mobile";
 
 import type { MockExampleRuntime } from "./example-runtime";
+import { createDemoWalletFixture, DEMO_RECIPIENT_ADDRESS } from "./demo-wallet";
 import type { ExamplePlatform } from "./mock-services";
 
 export interface MockLifecycleReport {
@@ -21,22 +21,6 @@ export interface MockLifecycleReport {
   readonly submissionStatus: "accepted";
   readonly runtimeStatuses: readonly MidnightRuntimeStatus[];
   readonly operationSteps: readonly string[];
-  readonly cancellationError: "CANCELLED";
-  readonly recoverableError: "TRANSPORT_ERROR";
-}
-
-const wallet = {
-  networkId: "preview",
-  walletFingerprint: "synthetic-mock-wallet",
-  unshieldedAddress: "mn_addr_preview1synthetic",
-} as const;
-
-function syntheticMockKeyMaterial(): MidnightWalletSessionSecrets {
-  return {
-    nightExternalKey: new Uint8Array(32),
-    zswapSeed: new Uint8Array(32),
-    dustSeed: new Uint8Array(32),
-  };
 }
 
 function wipe(values: MidnightWalletSessionSecrets): void {
@@ -45,23 +29,8 @@ function wipe(values: MidnightWalletSessionSecrets): void {
   values.dustSeed.fill(0);
 }
 
-async function captureError<T extends "CANCELLED" | "TRANSPORT_ERROR">(
-  operation: Promise<unknown>,
-  expected: T,
-): Promise<T> {
-  try {
-    await operation;
-  } catch (error) {
-    if (error instanceof MidnightRuntimeError && error.code === expected) {
-      return expected;
-    }
-    throw error;
-  }
-  throw new Error(`expected ${expected}`);
-}
-
-async function openWithSyntheticSecrets(controller: MidnightRuntimeController) {
-  const secrets = syntheticMockKeyMaterial();
+async function openDemoWallet(controller: MidnightRuntimeController) {
+  const { wallet, secrets } = createDemoWalletFixture();
   try {
     return await controller.openWalletSession(wallet, secrets);
   } finally {
@@ -72,7 +41,7 @@ async function openWithSyntheticSecrets(controller: MidnightRuntimeController) {
 async function synchronize(
   controller: MidnightRuntimeController,
 ): Promise<void> {
-  const session = await openWithSyntheticSecrets(controller);
+  const session = await openDemoWallet(controller);
   for (const stream of ["shielded", "unshielded", "dust"] as const) {
     await controller.applySyncBatch(session, {
       stream,
@@ -103,22 +72,19 @@ function recordStep<K extends MidnightCommandKind>(
 
 async function exerciseCommands(
   controller: MidnightRuntimeController,
-  environment: MockExampleRuntime,
 ): Promise<{
   readonly transactionHash: string;
   readonly submissionStatus: "accepted";
   readonly operationSteps: readonly string[];
-  readonly cancellationError: "CANCELLED";
-  readonly recoverableError: "TRANSPORT_ERROR";
 }> {
   try {
-    const session = await openWithSyntheticSecrets(controller);
+    const session = await openDemoWallet(controller);
     const operationSteps: string[] = [];
     const transfer = await controller.runCommand(
       session,
       {
         kind: "transfer",
-        to: "mn_shield-addr_preview1synthetic",
+        to: DEMO_RECIPIENT_ADDRESS,
         amount: "5",
         tokenType: "66".repeat(32),
         walletType: "shielded",
@@ -138,22 +104,6 @@ async function exerciseCommands(
         },
       },
     );
-    const aborter = new AbortController();
-    const cancellation = controller.runCommand(
-      session,
-      { kind: "createProvingPayload", preimageBase64: "AA==" },
-      { signal: aborter.signal },
-    );
-    aborter.abort();
-    const cancellationError = await captureError(cancellation, "CANCELLED");
-    environment.services.failNextProofRequest();
-    const recoverableError = await captureError(
-      controller.runCommand(session, {
-        kind: "createProvingPayload",
-        preimageBase64: "AA==",
-      }),
-      "TRANSPORT_ERROR",
-    );
     await controller.closeWalletSession(session);
     if (submission.status !== "accepted") {
       throw new Error("mock submission was rejected");
@@ -162,8 +112,6 @@ async function exerciseCommands(
       transactionHash: transfer.transactionHash,
       submissionStatus: submission.status,
       operationSteps,
-      cancellationError,
-      recoverableError,
     };
   } finally {
     await controller.dispose();
@@ -182,18 +130,17 @@ export async function runMockedWalletLifecycle(
   try {
     await synchronize(controller);
     const checkpoint = await environment.checkpointStore.load(
-      "preview:synthetic-mock-wallet",
+      "preview:public-example-wallet-v1",
     );
     if (checkpoint?.bytes.length !== 6) {
       throw new Error("mock checkpoint was not persisted");
     }
     restored = environment.createRestoredController();
-    const restoredSession = await openWithSyntheticSecrets(restored);
+    const restoredSession = await openDemoWallet(restored);
     const snapshot = await restored.getWalletSnapshot(restoredSession);
     await restored.closeWalletSession(restoredSession);
     const commandResults = await exerciseCommands(
       environment.createRestoredController(),
-      environment,
     );
     return {
       platform: environment.platform,

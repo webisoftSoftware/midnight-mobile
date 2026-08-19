@@ -1,23 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  createLivePreviewRuntime,
-  createMockExampleRuntime,
-} from "../src/example-runtime";
-import type { MidnightLocalProver } from "@1am/midnight-mobile/local-prover";
+import { createMockExampleRuntime } from "../src/example-runtime";
 import { runMockedWalletLifecycle } from "../src/lifecycle";
-import {
-  MockMidnightServices,
-  type ExamplePlatform,
-} from "../src/mock-services";
-
-const unavailableLocalProver: MidnightLocalProver = {
-  configure: () => Promise.resolve(),
-  check: () => Promise.reject(new Error("unused")),
-  prove: () => Promise.reject(new Error("unused")),
-  close: () => Promise.resolve(),
-};
+import type { ExamplePlatform } from "../src/mock-services";
 
 for (const platform of [
   "ios",
@@ -51,38 +37,5 @@ for (const platform of [
       "network:node:submit",
       "complete",
     ]);
-    assert.equal(report.cancellationError, "CANCELLED");
-    assert.equal(report.recoverableError, "TRANSPORT_ERROR");
   });
 }
-
-await test("explicit live open consumes and wipes caller key buffers", async () => {
-  const services = new MockMidnightServices();
-  const secrets = {
-    nightExternalKey: new Uint8Array(32).fill(7),
-    zswapSeed: new Uint8Array(32).fill(8),
-    dustSeed: new Uint8Array(32).fill(9),
-  };
-  const live = createLivePreviewRuntime({
-    mode: "live",
-    wallet: {
-      networkId: "preview",
-      walletFingerprint: "synthetic-live-contract-test",
-      unshieldedAddress: "mn_addr_preview1synthetic",
-    },
-    secrets,
-    indexerHttpUrl: "https://indexer.caller.invalid/request",
-    indexerWebSocketUrl: "wss://indexer.caller.invalid/stream",
-    nodeUrl: "https://node.caller.invalid/request",
-    localProver: unavailableLocalProver,
-    fetch: services.fetch,
-    createWebSocket: () => services.createWebSocket(),
-    endpointHeaders: () => Promise.resolve({}),
-  });
-
-  await assert.rejects(live.openWalletSession(), { code: "UNAVAILABLE" });
-  assert.deepEqual(secrets.nightExternalKey, new Uint8Array(32));
-  assert.deepEqual(secrets.zswapSeed, new Uint8Array(32));
-  assert.deepEqual(secrets.dustSeed, new Uint8Array(32));
-  await live.controller.dispose();
-});

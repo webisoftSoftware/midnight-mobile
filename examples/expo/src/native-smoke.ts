@@ -4,9 +4,10 @@ import {
   type MidnightCheckpoint,
   type MidnightRuntimeApi,
   type MidnightSessionHandle,
-  type MidnightWalletSessionConfig,
   type MidnightWalletSessionSecrets,
 } from "@1am/midnight-mobile";
+
+import { createDemoWalletFixture } from "./demo-wallet";
 
 /**
  * On-device smoke test for the prebuilt native runtime.
@@ -22,12 +23,6 @@ import {
  * funds, and must never be replaced with real key material.
  */
 
-const SYNTHETIC_NETWORK: MidnightWalletSessionConfig = {
-  networkId: "preview",
-  walletFingerprint: "device-smoke-synthetic",
-  unshieldedAddress: "mn_shield-addr_undeployed1synthetic0device0smoke",
-};
-
 export interface NativeSmokeStep {
   readonly name: string;
   readonly ok: boolean;
@@ -41,14 +36,6 @@ export interface NativeSmokeReport {
 
 type Outcome<T> =
   { readonly ok: true; readonly value: T } | { readonly ok: false };
-
-function syntheticSecrets(fill: number): MidnightWalletSessionSecrets {
-  return {
-    nightExternalKey: new Uint8Array(32).fill(fill),
-    zswapSeed: new Uint8Array(32).fill(fill + 1),
-    dustSeed: new Uint8Array(32).fill(fill + 2),
-  };
-}
 
 function wipe(secrets: MidnightWalletSessionSecrets): void {
   secrets.nightExternalKey.fill(0);
@@ -126,9 +113,9 @@ async function exerciseSession(
   api: MidnightRuntimeApi,
   steps: NativeSmokeStep[],
 ): Promise<MidnightCheckpoint | null> {
-  const secrets = syntheticSecrets(7);
+  const { wallet, secrets } = createDemoWalletFixture();
   const opened = await attempt(steps, "open wallet session", async () => {
-    const session = await api.openWalletSession(SYNTHETIC_NETWORK, secrets);
+    const session = await api.openWalletSession(wallet, secrets);
     const detail = `session ${String(session.id)} generation ${String(session.generation)}`;
     return [session, detail] as const;
   });
@@ -173,13 +160,9 @@ async function restoreCheckpoint(
   steps: NativeSmokeStep[],
   checkpoint: MidnightCheckpoint,
 ): Promise<void> {
-  const secrets = syntheticSecrets(7);
+  const { wallet, secrets } = createDemoWalletFixture();
   await attempt(steps, "restore from checkpoint", async () => {
-    const restored = await api.openWalletSession(
-      SYNTHETIC_NETWORK,
-      secrets,
-      checkpoint,
-    );
+    const restored = await api.openWalletSession(wallet, secrets, checkpoint);
     try {
       const snapshot = await api.getWalletSnapshot(restored);
       return [null, `restored on ${snapshot.networkId}`] as const;

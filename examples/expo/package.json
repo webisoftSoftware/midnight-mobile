@@ -2,7 +2,7 @@
   "name": "@1am/midnight-mobile-example",
   "version": "0.1.0",
   "private": true,
-  "description": "Mock-first Expo SDK 55 integration example for Midnight Mobile",
+  "description": "Minimal Expo SDK 55 integration example for Midnight Mobile",
   "license": "MIT",
   "type": "module",
   "main": "index.ts",

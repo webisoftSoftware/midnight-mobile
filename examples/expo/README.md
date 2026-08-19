@@ -1,25 +1,25 @@
 # Midnight Mobile Expo example
 
-This Expo SDK 55 application demonstrates the public `@1am/midnight-mobile` API
-with deterministic, non-routable mock services. It is useful for learning the
-integration shape and for exercising the runtime in unit tests without
-contacting an indexer or node.
+This small Expo 55 application is a guided SDK tour. Press **Run SDK example**
+once to see three compact phases:
 
-The app demonstrates:
+- **Mock host flow** opens the public test wallet, applies all three sync
+  streams, reads balances, creates and submits a transaction, and restores a
+  checkpoint.
+- **Native runtime** loads the packaged Rust runtime and runs session,
+  checkpoint, and signing operations on the device or simulator.
+- **Native prover** runs the real local `check` and `prove` operations against
+  the staged spend circuit. No proof server is contacted for these operations.
 
-- creating a runtime provider and controller;
-- opening a wallet session and clearing caller key buffers;
-- applying ordered sync batches and reading wallet state;
-- saving and restoring an in-memory checkpoint;
-- creating, proving, and submitting a transaction through mock services;
-- handling cancellation and a recoverable transport failure;
-- loading the packaged native module in a development build; and
-- running the SDK local prover's real `check` and `prove` operations.
+The host flow is deterministic and never contacts an indexer, proof service, or
+node. It uses the SDK's mock-native module to make the controller flow easy to
+read and repeat. The native phases are the device-facing checks that require a
+development build.
 
-The mock flow uses synthetic keys and addresses. It does not contain service
-URLs, credentials, or a real wallet. The in-memory checkpoint store is for this
-example only; production applications must provide authenticated encrypted
-storage.
+The displayed wallet address is a deterministic public preview fixture derived
+from the synthetic key bytes in `src/demo-wallet.ts`. It is not generated from
+or accompanied by a mnemonic. Never fund or reuse it. A real application owns
+key management and must clear its original key arrays after opening a session.
 
 ## Run it
 
@@ -30,7 +30,7 @@ npm ci
 npm run build:native
 npm run build:package
 
-# Optional: download, verify, and stage the local-prover artifacts.
+# Download, verify, and stage the public local-prover artifacts.
 npm run prepare:local-prover --workspace @1am/midnight-mobile-example
 
 cd examples/expo
@@ -39,53 +39,33 @@ npx expo run:ios
 # or: npx expo run:android
 ```
 
-The SDK includes a custom native module, so Expo Go is not supported. A
-development build is required. After installing one, `npm run ios` or
-`npm run android` starts Metro and opens the app.
+The SDK includes a custom native module, so Expo Go is not supported. Use a
+development build. The prover artifacts are downloaded from the pinned public
+ledger release, checked by size and SHA-256, and copied into an ignored
+directory. They are intentionally not committed to the example.
 
-Press **Run mocked lifecycle** to run the complete flow. Press **Run native
-smoke test** to verify that the native runtime is present on the device or
-simulator. Press **Run local prover** to perform a real native check and prove
-using the staged spend circuit. The button reports a preflight failure if the
-artifacts were not staged; it never substitutes a fake proof.
+If the artifacts are not staged, the host and native-runtime phases still show
+their results and the native-prover phase reports the missing-artifact error.
+The example never substitutes a fake proof response.
 
-The app bundles only the four spend-circuit artifacts needed by this demo. The
-artifact preparation command downloads the pinned public release files, checks
-their size and SHA-256 values, and writes them to an ignored directory. Do not
-commit those generated files. The deterministic check and prove requests are
-small synthetic fixtures embedded in the example source.
+## Test it
 
-## Test and validate
-
-Run the deterministic mock tests and platform bundle check from this folder:
+From this folder:
 
 ```sh
+npm run typecheck
 npm test
 npm run validate:platforms
 ```
 
-`npm test` compiles the current example sources and tests. It clears the ignored
-TypeScript output first, so stale generated test files cannot be picked up by
-the test glob. The unit tests verify platform-specific local-prover paths and
-that a missing native module is reported as a failure.
-
-`npm run validate:platforms` exports iOS and Android JavaScript bundles twice
-and checks that each platform's output is reproducible. It does not contact a
+The tests use deterministic synthetic fixtures only. `validate:platforms`
+exports reproducible iOS and Android JavaScript bundles; it does not contact a
 live service.
 
-## Optional live preview probe
+## Scope boundary
 
-The live preview sync probe is separate from local proving. Set these values in
-a local, uncommitted `.env.local` file before starting the bundler:
-
-```sh
-EXPO_PUBLIC_MIDNIGHT_INDEXER_HTTP=https://your-indexer.example
-EXPO_PUBLIC_MIDNIGHT_INDEXER_WS=wss://your-indexer.example/graphql
-EXPO_PUBLIC_MIDNIGHT_NODE=https://your-node.example
-```
-
-The example does not validate that a service is safe or compatible merely
-because its URL is accepted. Use disposable wallet material and credentials. The
-live probe syncs indexer streams and checks node JSON-RPC. It does not run a
-funded transfer: balance-service effects still require a separately configured
-remote service, while `check` and `prove` use the local prover above.
+The controller transaction is a deterministic host-boundary simulation. Its
+network effects use mock services; the separate native-prover phase runs the
+real `check` and `prove` operations. In production, balance and submission still
+use application-supplied host services. This example is safe to run without
+credentials or a funded wallet.
