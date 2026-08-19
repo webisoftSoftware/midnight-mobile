@@ -248,7 +248,7 @@ class MainActivity : Activity() {
 
   /**
    * Drains the native per-proof stage samples. With the instrumentation rig staged
-   * (see `scripts/mobile-prover-instrumentation`) each sample also carries
+   * (see `tools/mobile-prover-instrumentation`) each sample also carries
    * `phaseCounters`, which is what decomposes the proof's uncounted remainder.
    * Logged as one line per drain so `adb logcat` is the whole transport.
    */

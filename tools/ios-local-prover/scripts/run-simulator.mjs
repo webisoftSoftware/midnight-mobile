@@ -11,7 +11,7 @@ import {
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { removeTree } from "../../../scripts/quality-utils.mjs";
+import { removeTree } from "../../../scripts/quality/quality-utils.mjs";
 import { findPath, run, sha256, treeBytes } from "./harness-utils.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
@@ -424,7 +424,7 @@ async function main() {
     run(
       "node",
       [
-        resolve(repositoryRoot, "scripts/build-apple-xcframework.mjs"),
+        resolve(repositoryRoot, "scripts/native/build-apple-xcframework.mjs"),
         "--single-pass",
       ],
       { inherit: true },

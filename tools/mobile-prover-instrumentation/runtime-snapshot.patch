@@ -1,0 +1,97 @@
+diff --git a/crates/runtime/Cargo.toml b/crates/runtime/Cargo.toml
+index 62aba19..02b3bd6 100644
+--- a/crates/runtime/Cargo.toml
++++ b/crates/runtime/Cargo.toml
+@@ -35,6 +35,7 @@ midnight-storage = { git = "https://github.com/midnightntwrk/midnight-ledger.git
+ midnight-transient-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger.git", rev = "02716c2c95d50654aeb3cb63bfd8386046e4ca7d", default-features = false }
+ midnight-zswap = { git = "https://github.com/midnightntwrk/midnight-ledger.git", rev = "02716c2c95d50654aeb3cb63bfd8386046e4ca7d", default-features = false }
+ midnight-zkir = { git = "https://github.com/midnightntwrk/midnight-ledger.git", rev = "02716c2c95d50654aeb3cb63bfd8386046e4ca7d", default-features = false }
++midnight-curves = "=0.2.1"
+ midnight-proofs = "=0.7.3"
+ rayon = "=1.12.0"
+ 
+diff --git a/crates/runtime/src/local_prover.rs b/crates/runtime/src/local_prover.rs
+index e32fd12..c8eeb4d 100644
+--- a/crates/runtime/src/local_prover.rs
++++ b/crates/runtime/src/local_prover.rs
+@@ -611,6 +611,11 @@ pub(crate) fn run_prove(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalPro
+         supplied,
+     };
+     let prove_start = Instant::now();
++    // Measurement rig (tools/mobile-prover-instrumentation): the counters are
++    // process-wide, so they are only meaningful with admission pinned to 1.
++    if profiling {
++        midnight_curves::oneam_profile::reset();
++    }
+     // `block_on` here must be the re-entrant one from `crate::executor`, never
+     // `futures_executor::block_on`: a pool worker driving another admitted proof can
+     // steal this job and land a second `block_on` on its own stack. See issue #136.
+@@ -618,6 +623,8 @@ pub(crate) fn run_prove(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalPro
+         .install(|| block_on(preimage.prove::<IrSource>(OsRng, &*registry, &resolver)))
+         .map_err(|_| LocalProverError::ProofFailed)?;
+     let prove_call_micros = stage_micros(prove_start);
++    let phase_counters =
++        profiling.then(|| midnight_curves::oneam_profile::finish().to_json());
+ 
+     let serialize_start = Instant::now();
+     let response = serialize_response(&ProofVersioned::V2(proof))?;
+@@ -632,6 +639,7 @@ pub(crate) fn run_prove(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalPro
+             select_material_micros,
+             prove_call_micros,
+             serialize_response_micros,
++            phase_counters,
+         },
+     );
+ 
+diff --git a/crates/runtime/src/local_prover/tests.rs b/crates/runtime/src/local_prover/tests.rs
+index 919da30..ac889c5 100644
+--- a/crates/runtime/src/local_prover/tests.rs
++++ b/crates/runtime/src/local_prover/tests.rs
+@@ -573,6 +573,7 @@ fn timings_round_trip_and_drain_exactly_once() {
+         ir_load_micros: Some(50),
+         prover_key_init_micros: Some(60),
+         verifier_key_init_micros: Some(70),
++        phase_counters: Some("{\"fft_ns\":1}".to_owned()),
+     });
+ 
+     let first = take_timings().unwrap();
+@@ -606,6 +607,7 @@ fn timing_queue_drops_oldest_beyond_capacity() {
+             ir_load_micros: None,
+             prover_key_init_micros: None,
+             verifier_key_init_micros: None,
++            phase_counters: None,
+         });
+     }
+     let drained = take_timings().unwrap();
+diff --git a/crates/runtime/src/local_prover/timings.rs b/crates/runtime/src/local_prover/timings.rs
+index 566ca77..1640582 100644
+--- a/crates/runtime/src/local_prover/timings.rs
++++ b/crates/runtime/src/local_prover/timings.rs
+@@ -35,6 +35,11 @@ pub(super) struct ProofStageTiming {
+     pub(super) ir_load_micros: Option<u64>,
+     pub(super) prover_key_init_micros: Option<u64>,
+     pub(super) verifier_key_init_micros: Option<u64>,
++    /// Measurement rig only (tools/mobile-prover-instrumentation): the staged
++    /// prover's intra-proof phase counters, forwarded verbatim as a JSON object so
++    /// adding a counter upstream needs no change here. `None` in a shipped build,
++    /// where the counters do not exist.
++    pub(super) phase_counters: Option<String>,
+ }
+ 
+ pub(super) struct ProveStageDurations {
+@@ -42,6 +47,7 @@ pub(super) struct ProveStageDurations {
+     pub(super) select_material_micros: u64,
+     pub(super) prove_call_micros: u64,
+     pub(super) serialize_response_micros: u64,
++    pub(super) phase_counters: Option<String>,
+ }
+ 
+ struct CacheCandidateTiming {
+@@ -119,6 +125,7 @@ pub(super) fn maybe_record_prove_timing(
+         verifier_key_init_micros: cache_candidate
+             .as_ref()
+             .map(|timing| timing.verifier_key_init_micros),
++        phase_counters: stages.phase_counters,
+     });
+ }
+ 
