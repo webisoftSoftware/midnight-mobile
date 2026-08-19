@@ -7,6 +7,7 @@ use num_bigint::BigUint;
 use zeroize::Zeroize;
 
 mod codec;
+mod executor;
 mod local_prover;
 mod runtime;
 mod transaction;

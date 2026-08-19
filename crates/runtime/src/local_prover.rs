@@ -26,6 +26,7 @@ use zeroize::Zeroizing;
 mod ffi;
 mod timings;
 
+use crate::executor::block_on;
 use timings::{ProveStageDurations, maybe_record_prove_timing, stage_micros};
 pub(crate) use timings::{set_profiling, take_timings};
 
@@ -38,6 +39,13 @@ const MAX_KEY_LOCATION_BYTES: usize = 1_024;
 // Four threads match the measured Android device's performance-core cluster
 // while keeping mobile proof parallelism bounded for memory and thermals.
 const PROVER_THREAD_COUNT: usize = 4;
+// Largest circuit the embedded prover will attempt, whatever parameters happen to
+// be packaged. Measured on a Galaxy S10: k=18 completes in about 81s using 3.4GB,
+// and k=19 reproducibly trips the kernel watchdog and reboots the device -- which
+// the app cannot catch, report, or recover from. The packaged set stops at k=17
+// today, so this refuses nothing that was not already refused; it is here so that
+// packaging a larger parameter set cannot silently re-open the reboot path.
+const MAX_LOCAL_PROOF_K: u8 = 17;
 // Bounded admission (Phase 2): shared permits (check/prove) are capped by
 // MAX_CONCURRENT_PROOFS, exclusive permits (configure/close) always exclude all
 // others. Waiters queue on PROVER_GATE up to this total wait budget before a
@@ -517,6 +525,11 @@ pub(crate) fn run_check(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalPro
 /// broken configuration, and calling that "too large" would send the caller off to a
 /// remote prover for something a remote prover does not fix.
 fn refuse_for_size(k: u8, available_ks: &[u8]) -> Option<LocalProverError> {
+    // The device cap is checked before the packaged set, not after: a parameter file
+    // being present is not evidence the device survives proving against it.
+    if k > MAX_LOCAL_PROOF_K {
+        return Some(LocalProverError::CircuitTooLarge { k });
+    }
     if available_ks.contains(&k) {
         return None;
     }
@@ -598,10 +611,11 @@ pub(crate) fn run_prove(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalPro
         supplied,
     };
     let prove_start = Instant::now();
+    // `block_on` here must be the re-entrant one from `crate::executor`, never
+    // `futures_executor::block_on`: a pool worker driving another admitted proof can
+    // steal this job and land a second `block_on` on its own stack. See issue #136.
     let (proof, _) = prover_pool()?
-        .install(|| {
-            futures_executor::block_on(preimage.prove::<IrSource>(OsRng, &*registry, &resolver))
-        })
+        .install(|| block_on(preimage.prove::<IrSource>(OsRng, &*registry, &resolver)))
         .map_err(|_| LocalProverError::ProofFailed)?;
     let prove_call_micros = stage_micros(prove_start);
 

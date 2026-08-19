@@ -1,0 +1,386 @@
+diff -ruN --exclude=.cargo-ok a/midnight-curves-0.2.1/src/fft.rs b/midnight-curves-0.2.1/src/fft.rs
+--- a/midnight-curves-0.2.1/src/fft.rs	2006-07-23 21:21:28
++++ b/midnight-curves-0.2.1/src/fft.rs	2026-08-19 11:26:45
+@@ -38,6 +38,7 @@
+         r
+     }
+ 
++    let oneam_started = crate::oneam_profile::start();
+     let threads = rayon::current_num_threads();
+     let log_threads = threads.ilog2();
+     let n = a.len();
+@@ -88,6 +89,7 @@
+     } else {
+         recursive_butterfly_arithmetic(a, n, 1, &twiddles)
+     }
++    crate::oneam_profile::record_fft(oneam_started);
+ }
+ 
+ /// This perform recursive butterfly arithmetic
+diff -ruN --exclude=.cargo-ok a/midnight-curves-0.2.1/src/lib.rs b/midnight-curves-0.2.1/src/lib.rs
+--- a/midnight-curves-0.2.1/src/lib.rs	2006-07-23 21:21:28
++++ b/midnight-curves-0.2.1/src/lib.rs	2026-08-19 11:26:45
+@@ -21,6 +21,8 @@
+ pub mod fft;
+ pub mod hash_to_curve;
+ pub mod msm;
++// One AM measurement rig, staged by scripts/mobile-prover-instrumentation.
++pub mod oneam_profile;
+ pub mod serde;
+ pub mod serde_traits;
+ 
+diff -ruN --exclude=.cargo-ok a/midnight-curves-0.2.1/src/oneam_profile.rs b/midnight-curves-0.2.1/src/oneam_profile.rs
+--- a/midnight-curves-0.2.1/src/oneam_profile.rs	1969-12-31 19:00:00
++++ b/midnight-curves-0.2.1/src/oneam_profile.rs	2026-08-19 11:36:35
+@@ -0,0 +1,154 @@
++//! Opt-in timing counters for the One AM mobile prover.
++//!
++//! Measurement rig only -- staged by
++//! `scripts/mobile-prover-instrumentation/stage.mjs` and never present in a
++//! shipped build. The counters live in `midnight-curves` because it is the
++//! lowest crate shared by the FFT, the MSM, and the PLONK prover that sits above
++//! both, so one snapshot can account for all three without threading a context
++//! through upstream signatures.
++//!
++//! Everything is off until `reset` is called, so an uninstrumented proof pays one
++//! relaxed atomic load per stage.
++
++use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
++use std::time::Instant;
++
++static ACTIVE: AtomicBool = AtomicBool::new(false);
++
++macro_rules! counters {
++    ($(($field:ident, $static:ident)),+ $(,)?) => {
++        $(static $static: AtomicU64 = AtomicU64::new(0);)+
++
++        /// One proof's accumulated counters, in nanoseconds unless named otherwise.
++        #[derive(Clone, Copy, Debug, Default)]
++        pub struct Snapshot {
++            $(pub $field: u64,)+
++        }
++
++        impl Snapshot {
++            /// Renders the snapshot as JSON, which is how the runtime forwards it to
++            /// the device probe without needing a serde dependency here.
++            pub fn to_json(&self) -> String {
++                let fields: &[(&str, u64)] = &[$((stringify!($field), self.$field),)+];
++                let body = fields
++                    .iter()
++                    .map(|(name, value)| format!("\"{}\":{}", name, value))
++                    .collect::<Vec<_>>()
++                    .join(",");
++                format!("{{{}}}", body)
++            }
++        }
++
++        /// Zeroes every counter and starts recording.
++        pub fn reset() {
++            ACTIVE.store(false, Ordering::SeqCst);
++            $($static.store(0, Ordering::Relaxed);)+
++            ACTIVE.store(true, Ordering::Release);
++        }
++
++        /// Stops recording and returns what was accumulated since `reset`.
++        pub fn finish() -> Snapshot {
++            ACTIVE.store(false, Ordering::Release);
++            Snapshot {
++                $($field: $static.load(Ordering::Relaxed),)+
++            }
++        }
++    };
++}
++
++counters!(
++    // The two stages that already had counters, kept so a staged run reproduces the
++    // standing S10 baseline before it decomposes anything new.
++    (msm_ns, MSM_NS),
++    (msm_calls, MSM_CALLS),
++    (fft_ns, FFT_NS),
++    (fft_calls, FFT_CALLS),
++    // The remainder, split. `create_proof_trace` first, in call order.
++    (instances_ns, INSTANCES_NS),
++    (advices_ns, ADVICES_NS),
++    (lookups_permuted_ns, LOOKUPS_PERMUTED_NS),
++    (permutation_commit_ns, PERMUTATION_COMMIT_NS),
++    (lookups_product_ns, LOOKUPS_PRODUCT_NS),
++    (trashcans_ns, TRASHCANS_NS),
++    (vanishing_commit_ns, VANISHING_COMMIT_NS),
++    (trace_polys_ns, TRACE_POLYS_NS),
++    // Then the finalising half.
++    (h_poly_ns, H_POLY_NS),
++    // `h_poly` is the largest phase, so it carries its own split: the two
++    // extended-domain coset transforms and `evaluate_h` itself.
++    (h_advice_cosets_ns, H_ADVICE_COSETS_NS),
++    (h_instance_cosets_ns, H_INSTANCE_COSETS_NS),
++    (h_evaluate_ns, H_EVALUATE_NS),
++    (vanishing_construct_ns, VANISHING_CONSTRUCT_NS),
++    (evaluations_ns, EVALUATIONS_NS),
++    (queries_ns, QUERIES_NS),
++    (multi_open_ns, MULTI_OPEN_NS),
++);
++
++/// Stage start marker. Cheap enough to take unconditionally; the read side is what
++/// checks whether recording is on.
++#[inline]
++pub fn start() -> Instant {
++    Instant::now()
++}
++
++#[inline]
++fn record(counter: &AtomicU64, started: Instant) {
++    if ACTIVE.load(Ordering::Relaxed) {
++        // Saturating rather than `try_from`: `midnight-curves` is edition 2018, so
++        // `TryFrom` is not in the prelude, and no stage outlasts 584 years.
++        let nanos = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
++        counter.fetch_add(nanos, Ordering::Relaxed);
++    }
++}
++
++#[inline]
++fn increment(counter: &AtomicU64) {
++    if ACTIVE.load(Ordering::Relaxed) {
++        counter.fetch_add(1, Ordering::Relaxed);
++    }
++}
++
++macro_rules! recorders {
++    ($(($name:ident, $counter:ident)),+ $(,)?) => {
++        $(
++            #[inline]
++            pub fn $name(started: Instant) {
++                record(&$counter, started);
++            }
++        )+
++    };
++}
++
++recorders!(
++    (record_instances, INSTANCES_NS),
++    (record_advices, ADVICES_NS),
++    (record_lookups_permuted, LOOKUPS_PERMUTED_NS),
++    (record_permutation_commit, PERMUTATION_COMMIT_NS),
++    (record_lookups_product, LOOKUPS_PRODUCT_NS),
++    (record_trashcans, TRASHCANS_NS),
++    (record_vanishing_commit, VANISHING_COMMIT_NS),
++    (record_trace_polys, TRACE_POLYS_NS),
++    (record_h_poly, H_POLY_NS),
++    (record_h_advice_cosets, H_ADVICE_COSETS_NS),
++    (record_h_instance_cosets, H_INSTANCE_COSETS_NS),
++    (record_h_evaluate, H_EVALUATE_NS),
++    (record_vanishing_construct, VANISHING_CONSTRUCT_NS),
++    (record_evaluations, EVALUATIONS_NS),
++    (record_queries, QUERIES_NS),
++    (record_multi_open, MULTI_OPEN_NS),
++);
++
++/// MSM and FFT also count calls, because a stage total is only interpretable
++/// alongside how many calls produced it.
++#[inline]
++pub fn record_msm(started: Instant) {
++    record(&MSM_NS, started);
++    increment(&MSM_CALLS);
++}
++
++#[inline]
++pub fn record_fft(started: Instant) {
++    record(&FFT_NS, started);
++    increment(&FFT_CALLS);
++}
+diff -ruN --exclude=.cargo-ok a/midnight-proofs-0.7.3/src/plonk/prover.rs b/midnight-proofs-0.7.3/src/plonk/prover.rs
+--- a/midnight-proofs-0.7.3/src/plonk/prover.rs	2006-07-23 21:21:28
++++ b/midnight-proofs-0.7.3/src/plonk/prover.rs	2026-08-19 11:36:45
+@@ -100,13 +100,18 @@
+ 
+     let domain = &pk.vk.domain;
+ 
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let instance = compute_instances(params, pk, instances, nb_committed_instances, transcript)?;
++    midnight_curves::oneam_profile::record_instances(oneam_started);
+ 
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let (advice, challenges) = parse_advices(params, pk, circuits, instances, transcript, rng)?;
++    midnight_curves::oneam_profile::record_advices(oneam_started);
+ 
+     // Sample theta challenge for keeping lookup columns linearly independent
+     let theta: F = transcript.squeeze_challenge();
+ 
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let lookups: Vec<Vec<lookup::prover::Permuted<F>>> = instance
+         .iter()
+         .zip(advice.iter())
+@@ -133,6 +138,7 @@
+                 .collect()
+         })
+         .collect::<Result<Vec<_>, _>>()?;
++    midnight_curves::oneam_profile::record_lookups_permuted(oneam_started);
+ 
+     // Sample beta challenge
+     let beta: F = transcript.squeeze_challenge();
+@@ -141,6 +147,7 @@
+     let gamma: F = transcript.squeeze_challenge();
+ 
+     // Commit to permutations.
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let permutations: Vec<permutation::prover::Committed<F>> = instance
+         .iter()
+         .zip(advice.iter())
+@@ -159,7 +166,9 @@
+             )
+         })
+         .collect::<Result<Vec<_>, _>>()?;
++    midnight_curves::oneam_profile::record_permutation_commit(oneam_started);
+ 
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let lookups: Vec<Vec<lookup::prover::Committed<F>>> = lookups
+         .into_iter()
+         .map(|lookups| -> Result<Vec<_>, _> {
+@@ -170,10 +179,12 @@
+                 .collect::<Result<Vec<_>, _>>()
+         })
+         .collect::<Result<Vec<_>, _>>()?;
++    midnight_curves::oneam_profile::record_lookups_product(oneam_started);
+ 
+     // Trash argument
+     let trash_challenge: F = transcript.squeeze_challenge();
+ 
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let trashcans: Vec<Vec<trash::prover::Committed<F>>> = instance
+         .iter()
+         .zip(advice.iter())
+@@ -197,13 +208,17 @@
+                 .collect()
+         })
+         .collect::<Result<Vec<_>, _>>()?;
++    midnight_curves::oneam_profile::record_trashcans(oneam_started);
+ 
+     // Commit to the vanishing argument's random polynomial for blinding h(x_3)
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let vanishing = vanishing::Argument::<F, CS>::commit(params, domain, rng, transcript)?;
++    midnight_curves::oneam_profile::record_vanishing_commit(oneam_started);
+ 
+     // Obtain challenge for keeping all separate gates linearly independent
+     let y: F = transcript.squeeze_challenge();
+ 
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let (instance_polys, instance_values) =
+         instance.into_iter().map(|i| (i.instance_polys, i.instance_values)).unzip();
+ 
+@@ -216,6 +231,7 @@
+                 .collect::<Vec<_>>()
+         })
+         .collect::<Vec<_>>();
++    midnight_curves::oneam_profile::record_trace_polys(oneam_started);
+ 
+     Ok(ProverTrace {
+         advice_polys,
+@@ -264,7 +280,9 @@
+ 
+     let domain = pk.get_vk().get_domain();
+ 
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let h_poly = compute_h_poly(pk, &trace);
++    midnight_curves::oneam_profile::record_h_poly(oneam_started);
+ 
+     let ProverTrace {
+         advice_polys,
+@@ -277,10 +295,13 @@
+     } = trace;
+ 
+     // Construct the vanishing argument's h(X) commitments
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let vanishing = vanishing.construct::<CS, T>(params, domain, h_poly, rng, transcript)?;
++    midnight_curves::oneam_profile::record_vanishing_construct(oneam_started);
+ 
+     let x: F = transcript.squeeze_challenge();
+ 
++    let oneam_started = midnight_curves::oneam_profile::start();
+     write_evals_to_transcript(
+         pk,
+         nb_committed_instances,
+@@ -322,7 +343,9 @@
+                 .collect::<Result<Vec<_>, _>>()
+         })
+         .collect::<Result<Vec<_>, _>>()?;
++    midnight_curves::oneam_profile::record_evaluations(oneam_started);
+ 
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let queries = compute_queries(
+         pk,
+         nb_committed_instances,
+@@ -334,8 +357,13 @@
+         &vanishing,
+         x,
+     );
++    midnight_curves::oneam_profile::record_queries(oneam_started);
+ 
+-    CS::multi_open(params, &queries, transcript).map_err(|_| Error::ConstraintSystemFailure)
++    let oneam_started = midnight_curves::oneam_profile::start();
++    let oneam_result =
++        CS::multi_open(params, &queries, transcript).map_err(|_| Error::ConstraintSystemFailure);
++    midnight_curves::oneam_profile::record_multi_open(oneam_started);
++    oneam_result
+ }
+ 
+ /// This creates a proof for the provided `circuit` when given the public
+@@ -612,6 +640,7 @@
+         ..
+     } = &trace;
+     // Calculate the advice and instance cosets
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let advice_cosets: Vec<Vec<Polynomial<F, ExtendedLagrangeCoeff>>> = advice_polys
+         .iter()
+         .map(|advice_polys| {
+@@ -621,6 +650,8 @@
+                 .collect()
+         })
+         .collect();
++    midnight_curves::oneam_profile::record_h_advice_cosets(oneam_started);
++    let oneam_started = midnight_curves::oneam_profile::start();
+     let instance_cosets: Vec<Vec<Polynomial<F, ExtendedLagrangeCoeff>>> = instance_polys
+         .iter()
+         .map(|instance_polys| {
+@@ -630,9 +661,11 @@
+                 .collect()
+         })
+         .collect();
++    midnight_curves::oneam_profile::record_h_instance_cosets(oneam_started);
+ 
+     // Evaluate the h(X) polynomial
+-    pk.ev.evaluate_h::<ExtendedLagrangeCoeff>(
++    let oneam_started = midnight_curves::oneam_profile::start();
++    let oneam_h = pk.ev.evaluate_h::<ExtendedLagrangeCoeff>(
+         &pk.vk.domain,
+         &pk.vk.cs,
+         &advice_cosets.iter().map(|a| a.as_slice()).collect::<Vec<_>>(),
+@@ -651,7 +684,9 @@
+         &pk.l_last,
+         &pk.l_active_row,
+         &pk.permutation.cosets,
+-    )
++    );
++    midnight_curves::oneam_profile::record_h_evaluate(oneam_started);
++    oneam_h
+ }
+ 
+ pub(super) fn write_evals_to_transcript<F, CS, T>(
+diff -ruN --exclude=.cargo-ok a/midnight-proofs-0.7.3/src/poly/kzg/msm.rs b/midnight-proofs-0.7.3/src/poly/kzg/msm.rs
+--- a/midnight-proofs-0.7.3/src/poly/kzg/msm.rs	2006-07-23 21:21:28
++++ b/midnight-proofs-0.7.3/src/poly/kzg/msm.rs	2026-08-19 11:26:45
+@@ -109,6 +109,16 @@
+ #[allow(unsafe_code)]
+ /// Wrapper over the MSM function to use the blstrs underlying function
+ pub fn msm_specific<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C::Curve]) -> C::Curve {
++    // One AM measurement rig: both arms below are counted, since aarch64 takes the
++    // blstrs fast path and only the fallback reaches `msm_best`.
++    let oneam_started = midnight_curves::oneam_profile::start();
++    let oneam_result = msm_specific_inner::<C>(coeffs, bases);
++    midnight_curves::oneam_profile::record_msm(oneam_started);
++    oneam_result
++}
++
++#[allow(unsafe_code)]
++fn msm_specific_inner<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C::Curve]) -> C::Curve {
+     // We empirically checked that for MSMs larger than 2**18, the blstrs
+     // implementation regresses.
+     if coeffs.len() <= (2 << 18) && TypeId::of::<C>() == TypeId::of::<midnight_curves::G1Affine>() {

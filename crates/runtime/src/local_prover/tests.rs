@@ -179,6 +179,25 @@ fn refuses_circuits_above_the_packaged_ceiling_and_only_those() {
     );
 }
 
+/// k=19 reboots the device (see `MAX_LOCAL_PROOF_K`), so packaging parameters for it
+/// must not be enough to let a request through. The cap has to outrank the packaged
+/// set, not defer to it.
+#[test]
+fn refuses_above_the_device_cap_even_when_parameters_are_packaged() {
+    let overpackaged: Vec<u8> = (0..=20).collect();
+
+    for k in 0..=MAX_LOCAL_PROOF_K {
+        assert_eq!(refuse_for_size(k, &overpackaged), None, "k={k}");
+    }
+    for k in (MAX_LOCAL_PROOF_K + 1)..=20 {
+        assert_eq!(
+            refuse_for_size(k, &overpackaged),
+            Some(LocalProverError::CircuitTooLarge { k }),
+            "k={k}"
+        );
+    }
+}
+
 #[test]
 fn prover_pool_uses_bounded_mobile_parallelism() {
     assert_eq!(
@@ -196,22 +215,17 @@ fn providers_resolvers_and_registry_validation_cover_generic_inputs() {
         params: HashMap::new(),
         circuits,
     };
-    let missing = futures_executor::block_on(registry.get_params(9))
-        .err()
-        .unwrap();
+    let missing = block_on(registry.get_params(9)).err().unwrap();
     assert_eq!(missing.kind(), io::ErrorKind::NotFound);
     assert!(
-        futures_executor::block_on(
-            registry.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("missing")))
-        )
-        .unwrap()
-        .is_none()
+        block_on(registry.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("missing"))))
+            .unwrap()
+            .is_none()
     );
-    let resolved = futures_executor::block_on(
-        registry.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered"))),
-    )
-    .unwrap()
-    .unwrap();
+    let resolved =
+        block_on(registry.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered"))))
+            .unwrap()
+            .unwrap();
     assert_eq!(resolved.ir_source, fallback.ir_source);
 
     let supplied = material(vec![4]);
@@ -219,18 +233,17 @@ fn providers_resolvers_and_registry_validation_cover_generic_inputs() {
         registry: &registry,
         supplied: Some(supplied.clone()),
     };
-    let resolved = futures_executor::block_on(
-        resolver.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered"))),
-    )
-    .unwrap()
-    .unwrap();
+    let resolved =
+        block_on(resolver.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered"))))
+            .unwrap()
+            .unwrap();
     assert_eq!(resolved.ir_source, supplied.ir_source);
     let fallback_resolver = RequestResolver {
         registry: &registry,
         supplied: None,
     };
     assert!(
-        futures_executor::block_on(
+        block_on(
             fallback_resolver.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered")))
         )
         .unwrap()

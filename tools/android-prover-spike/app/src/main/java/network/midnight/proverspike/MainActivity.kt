@@ -143,6 +143,23 @@ class MainActivity : Activity() {
 
   private fun executeProbe(): String {
     val bridge = LocalProverBridge(assets)
+    // Measurement controls, driven by intent extras so one APK covers every run in
+    // a measurement matrix. `maxConcurrency` is the admission limit: at the default
+    // a batched proof shares one four-thread pool with its neighbour, so a stage
+    // total cannot be attributed to the circuit until it is pinned to 1.
+    val maxConcurrency = intent.getIntExtra("maxConcurrency", 0)
+    if (maxConcurrency > 0) {
+      bridge.setMaxConcurrency(maxConcurrency)
+      Log.i(LOG_TAG, "PROBE_CONFIG maxConcurrency=$maxConcurrency")
+    }
+    val profiling = intent.getBooleanExtra("profiling", false)
+    if (profiling) {
+      bridge.setProfiling(true)
+      // Drain anything a previous run left queued so the samples below belong to
+      // this sequence only.
+      bridge.takeTimings()
+    }
+    val batch = intent.getBooleanExtra("batch", false)
     val configuredAt = System.nanoTime()
     bridge.configure(PROVER_CONFIGURATION)
     val configurationMillis = elapsedMillis(configuredAt)
@@ -156,6 +173,42 @@ class MainActivity : Activity() {
       }
       val checkMillis = elapsedMillis(checkStarted)
       writeResult("check-response.bin", check)
+
+      if (batch) {
+        // The shape behind the batch panic: several proofs admitted concurrently
+        // into one pool. A spend plus two outputs is what a real send emits.
+        val batchStarted = System.nanoTime()
+        val batchRequests = listOf("request.bin", "output-request.bin", "output-request.bin")
+          .map { name -> assets.open(name).use { it.readBytes() } }
+        val batchProofs = try {
+          bridge.proveBatch(batchRequests)
+        } finally {
+          for (request in batchRequests) request.fill(0)
+        }
+        val batchMillis = elapsedMillis(batchStarted)
+        val batchSizes = batchProofs.map { it.size }
+        // Write the first two proofs under the names the host runner validates, and
+        // emit PROBE_RESULT as well as PROBE_BATCH: PROBE_RESULT is the runner's
+        // terminal-line contract, and without it a batch run is indistinguishable
+        // from a hang and burns the full 15-minute timeout.
+        writeResult("proof-v2.bin", batchProofs[0])
+        writeResult("output-proof-v2.bin", batchProofs[1])
+        Log.i(
+          LOG_TAG,
+          "PROBE_BATCH status=SUCCESS proofs=${batchProofs.size} " +
+            "sizes=${batchSizes.joinToString(",")} ms=$batchMillis",
+        )
+        if (profiling) logTimings(bridge)
+        Log.i(
+          LOG_TAG,
+          "PROBE_RESULT status=SUCCESS proofSize=${batchSizes[0]} checkSize=${check.size} " +
+            "configurationMs=$configurationMillis checkMs=$checkMillis provingMs=$batchMillis " +
+            "outputProofSize=${batchSizes[1]} outputProvingMs=$batchMillis " +
+            "proofPath=${File(filesDir, "proof-v2.bin").absolutePath} " +
+            "outputProofPath=${File(filesDir, "output-proof-v2.bin").absolutePath}",
+        )
+        return "Batch success: ${batchProofs.size} proofs in $batchMillis ms"
+      }
 
       val proveStarted = System.nanoTime()
       val proveRequest = assets.open("request.bin").use { it.readBytes() }
@@ -184,12 +237,25 @@ class MainActivity : Activity() {
           "proofPath=${File(filesDir, "proof-v2.bin").absolutePath} " +
           "outputProofPath=${File(filesDir, "output-proof-v2.bin").absolutePath}",
       )
+      if (profiling) logTimings(bridge)
       "Success: ${proof.size}-byte spend and ${outputProof.size}-byte output tagged V2 proofs\n" +
         "Configure $configurationMillis ms; check $checkMillis ms; " +
         "spend $proveMillis ms; output $outputProveMillis ms"
     } finally {
       bridge.close()
     }
+  }
+
+  /**
+   * Drains the native per-proof stage samples. With the instrumentation rig staged
+   * (see `scripts/mobile-prover-instrumentation`) each sample also carries
+   * `phaseCounters`, which is what decomposes the proof's uncounted remainder.
+   * Logged as one line per drain so `adb logcat` is the whole transport.
+   */
+  private fun logTimings(bridge: LocalProverBridge) {
+    val timings = runCatching { bridge.takeTimings() }
+      .getOrElse { error -> "\"${error.javaClass.simpleName}\"" }
+    Log.i(LOG_TAG, "PROBE_TIMINGS $timings")
   }
 
   private fun elapsedMillis(started: Long): Long = (System.nanoTime() - started) / 1_000_000

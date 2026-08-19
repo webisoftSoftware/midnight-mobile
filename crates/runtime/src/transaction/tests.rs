@@ -340,27 +340,10 @@ fn pausing_prover_attaches_only_matching_material_to_check_and_prove_payloads() 
     assert_eq!(attached.ir_source, material.ir_source);
 }
 
+/// The executor itself is covered in `crate::executor::tests`; this asserts the
+/// prove tree it drives reaches a terminal state.
 #[test]
-fn block_on_handles_pending_futures() {
-    struct WakeOnce(bool);
-    impl Future for WakeOnce {
-        type Output = u8;
-
-        fn poll(
-            mut self: std::pin::Pin<&mut Self>,
-            context: &mut Context<'_>,
-        ) -> Poll<Self::Output> {
-            if self.0 {
-                Poll::Ready(9)
-            } else {
-                self.0 = true;
-                context.waker().wake_by_ref();
-                Poll::Pending
-            }
-        }
-    }
-
-    assert_eq!(block_on(WakeOnce(false)), 9);
+fn drives_an_empty_transaction_to_a_terminal_state() {
     let mut rng = StdRng::seed_from_u64(7);
     let intent = Intent::<Signature, ProofPreimageMarker, PedersenRandomness, InMemoryDB>::empty(
         &mut rng,

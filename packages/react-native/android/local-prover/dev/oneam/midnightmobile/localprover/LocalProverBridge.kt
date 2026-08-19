@@ -244,7 +244,7 @@ class LocalProverBridge(
     native.midnight_mobile_local_prover_cancel(current.handle)
   }
 
-  /** Phase 5 memory-pressure hook: clamps to `1..=4` on the native side. */
+  /** Clamped to `1..=4` natively; cannot fail, so the trim-memory hook can call it safely. */
   fun setMaxConcurrency(limit: Int) {
     native.midnight_mobile_local_prover_set_max_concurrency(limit.toLong())
   }
