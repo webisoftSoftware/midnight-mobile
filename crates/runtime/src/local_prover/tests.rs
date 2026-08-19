@@ -196,22 +196,17 @@ fn providers_resolvers_and_registry_validation_cover_generic_inputs() {
         params: HashMap::new(),
         circuits,
     };
-    let missing = futures_executor::block_on(registry.get_params(9))
-        .err()
-        .unwrap();
+    let missing = block_on(registry.get_params(9)).err().unwrap();
     assert_eq!(missing.kind(), io::ErrorKind::NotFound);
     assert!(
-        futures_executor::block_on(
-            registry.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("missing")))
-        )
-        .unwrap()
-        .is_none()
+        block_on(registry.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("missing"))))
+            .unwrap()
+            .is_none()
     );
-    let resolved = futures_executor::block_on(
-        registry.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered"))),
-    )
-    .unwrap()
-    .unwrap();
+    let resolved =
+        block_on(registry.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered"))))
+            .unwrap()
+            .unwrap();
     assert_eq!(resolved.ir_source, fallback.ir_source);
 
     let supplied = material(vec![4]);
@@ -219,18 +214,17 @@ fn providers_resolvers_and_registry_validation_cover_generic_inputs() {
         registry: &registry,
         supplied: Some(supplied.clone()),
     };
-    let resolved = futures_executor::block_on(
-        resolver.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered"))),
-    )
-    .unwrap()
-    .unwrap();
+    let resolved =
+        block_on(resolver.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered"))))
+            .unwrap()
+            .unwrap();
     assert_eq!(resolved.ir_source, supplied.ir_source);
     let fallback_resolver = RequestResolver {
         registry: &registry,
         supplied: None,
     };
     assert!(
-        futures_executor::block_on(
+        block_on(
             fallback_resolver.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered")))
         )
         .unwrap()

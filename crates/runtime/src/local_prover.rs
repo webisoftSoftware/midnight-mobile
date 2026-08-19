@@ -26,6 +26,7 @@ use zeroize::Zeroizing;
 mod ffi;
 mod timings;
 
+use crate::executor::block_on;
 use timings::{ProveStageDurations, maybe_record_prove_timing, stage_micros};
 pub(crate) use timings::{set_profiling, take_timings};
 
@@ -598,10 +599,11 @@ pub(crate) fn run_prove(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalPro
         supplied,
     };
     let prove_start = Instant::now();
+    // `block_on` here must be the re-entrant one from `crate::executor`, never
+    // `futures_executor::block_on`: a pool worker driving another admitted proof can
+    // steal this job and land a second `block_on` on its own stack. See issue #136.
     let (proof, _) = prover_pool()?
-        .install(|| {
-            futures_executor::block_on(preimage.prove::<IrSource>(OsRng, &*registry, &resolver))
-        })
+        .install(|| block_on(preimage.prove::<IrSource>(OsRng, &*registry, &resolver)))
         .map_err(|_| LocalProverError::ProofFailed)?;
     let prove_call_micros = stage_micros(prove_start);
 

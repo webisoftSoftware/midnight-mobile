@@ -1731,7 +1731,6 @@ dependencies = [
  "anyhow",
  "bech32",
  "flate2",
- "futures-executor",
  "hex",
  "midnight-base-crypto",
  "midnight-coin-structure",

@@ -1,7 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::future::Future;
 use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll, Wake, Waker};
 
 use midnight_base_crypto::schnorr::Signature;
 use midnight_ledger::structure::{LedgerParameters, ProofMarker, ProofPreimageMarker, Transaction};
@@ -14,6 +12,7 @@ use midnight_transient_crypto::commitment::{Pedersen, PedersenRandomness, PureGe
 use rand::rngs::OsRng;
 
 use super::MidnightRuntimeError;
+use super::executor::block_on;
 
 mod remote_proof;
 
@@ -30,30 +29,6 @@ const MAX_TRANSACTION_BYTES: usize = 64 * 1024 * 1024;
 /// always correct — the next replay re-derives whatever was left — so this caps peak
 /// live secret bodies and concurrent prover work without affecting the outcome.
 pub(crate) const MAX_PROOF_BATCH: usize = 64;
-
-struct ThreadWake(std::thread::Thread);
-
-impl Wake for ThreadWake {
-    fn wake(self: Arc<Self>) {
-        self.0.unpark();
-    }
-
-    fn wake_by_ref(self: &Arc<Self>) {
-        self.0.unpark();
-    }
-}
-
-fn block_on<F: Future>(future: F) -> F::Output {
-    let waker = Waker::from(Arc::new(ThreadWake(std::thread::current())));
-    let mut context = Context::from_waker(&waker);
-    let mut future = Box::pin(future);
-    loop {
-        match future.as_mut().poll(&mut context) {
-            Poll::Ready(output) => return output,
-            Poll::Pending => std::thread::park(),
-        }
-    }
-}
 
 pub(crate) struct FinalizedTransaction {
     pub canonical: Vec<u8>,
