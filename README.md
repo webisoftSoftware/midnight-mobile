@@ -32,7 +32,6 @@ The SDK has these limits:
 - The SDK does not provide secure persistent storage.
 - The SDK does not download proof files.
 - The SDK does not support Expo Go.
-- The SDK has no production support.
 
 ## Compatibility
 
