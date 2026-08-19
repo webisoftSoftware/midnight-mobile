@@ -11,6 +11,7 @@ const config = {
   // README files, which are not maintained documentation.
   ignores: [
     "node_modules/**",
+    "**/node_modules/**",
     "target/**",
     "dist/**",
     "build/**",

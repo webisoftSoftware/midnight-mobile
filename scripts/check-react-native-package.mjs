@@ -29,6 +29,7 @@ const EXPECTED_FILES = Object.freeze([
   "ios/build/MidnightMobileRuntime.xcframework",
   "ios/generated",
   "android/build.gradle",
+  "android/consumer-rules.pro",
   "android/local-prover",
   "android/src/main",
   "android/generated",
@@ -52,6 +53,7 @@ const EXPECTED_ENGINES = Object.freeze({ node: ">=22 <23 || >=24 <25" });
 const REQUIRED_PACKED_FILES = Object.freeze([
   "README.md",
   "android/build.gradle",
+  "android/consumer-rules.pro",
   "android/generated/README.md",
   "android/local-prover/dev/oneam/midnightmobile/localprover/LocalProverBridge.kt",
   "android/src/main/jniLibs/arm64-v8a/libmidnight_mobile_runtime.so",
@@ -73,7 +75,7 @@ const REQUIRED_PACKED_FILES = Object.freeze([
   "package.json",
 ]);
 const ALLOWED_PACKED_PATH =
-  /^(?:README\.md|package\.json|dist\/|expo-module\.config\.json$|android\/(?:build\.gradle$|generated\/|local-prover\/|src\/main\/)|ios\/(?:MidnightMobileRuntime\.podspec$|MidnightMobile(?:LocalProver(?:Module|Artifacts)|RuntimeModule)\.swift$|MidnightMobileLocalProverFFI\.h$|build\/MidnightMobileRuntime\.xcframework\/|generated\/))/u;
+  /^(?:README\.md|package\.json|dist\/|expo-module\.config\.json$|android\/(?:build\.gradle$|consumer-rules\.pro$|generated\/|local-prover\/|src\/main\/)|ios\/(?:MidnightMobileRuntime\.podspec$|MidnightMobile(?:LocalProver(?:Module|Artifacts)|RuntimeModule)\.swift$|MidnightMobileLocalProverFFI\.h$|build\/MidnightMobileRuntime\.xcframework\/|generated\/))/u;
 const ALLOWED_NATIVE_BINARY_PATH =
   /^(?:android\/src\/main\/jniLibs\/(?:arm64-v8a|x86_64)\/libmidnight_mobile_runtime\.so|ios\/build\/MidnightMobileRuntime\.xcframework\/[^/]+\/MidnightMobileRuntime\.framework\/MidnightMobileRuntime)$/u;
 const NATIVE_BINARY_PATH = /\.(?:a|aar|dll|dylib|so)(?:\/|$)/u;

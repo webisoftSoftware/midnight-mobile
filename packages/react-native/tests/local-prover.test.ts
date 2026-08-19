@@ -168,15 +168,9 @@ await test("local prover does not invent a circuit size it was not given", async
 function socket(): MidnightWebSocket {
   return {
     readyState: 0,
-    send() {
-      return undefined;
-    },
-    close() {
-      return undefined;
-    },
-    addEventListener() {
-      return undefined;
-    },
+    send: () => undefined,
+    close: () => undefined,
+    addEventListener: () => undefined,
   };
 }
 

@@ -31,6 +31,7 @@
     "ios/build/MidnightMobileRuntime.xcframework",
     "ios/generated",
     "android/build.gradle",
+    "android/consumer-rules.pro",
     "android/local-prover",
     "android/src/main",
     "android/generated"

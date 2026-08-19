@@ -38,6 +38,7 @@ const OUTPUT_DIRECTORIES = new Set([
   "build",
   "dist",
   "jniLibs",
+  "node_modules",
   "staging",
   "staging-build",
   "target",
@@ -67,6 +68,10 @@ const GENERATED_PROJECT_PATHS = new Set([
 // covers only the .env family, not arbitrary undeclared files.
 function isLocalEnvironmentFile(name) {
   return name === ".env" || name.startsWith(".env.");
+}
+
+function isMachineMetadataFile(name) {
+  return name === ".DS_Store";
 }
 
 function isObject(value) {
@@ -242,7 +247,13 @@ function walk(path, repositoryRoot, targets, visited) {
       if (entry.isDirectory() && GENERATED_PROJECT_PATHS.has(relativePath)) {
         continue;
       }
-      if (entry.isFile() && isLocalEnvironmentFile(entry.name)) continue;
+      if (
+        entry.isFile() &&
+        (isLocalEnvironmentFile(entry.name) ||
+          isMachineMetadataFile(entry.name))
+      ) {
+        continue;
+      }
       walk(child, repositoryRoot, targets, visited);
     }
   } else if (stat.isFile()) {

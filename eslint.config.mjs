@@ -10,6 +10,9 @@ const applicationFiles = [
   "examples/**/*.{js,jsx,ts,tsx}",
 ];
 const reactNativePackageFiles = ["packages/react-native/**/*.{js,jsx,ts,tsx}"];
+const circuitRequestBuilder = [
+  "tools/circuit-size-bench/scripts/build-request.mjs",
+];
 
 export default tseslint.config(
   {
@@ -122,6 +125,22 @@ export default tseslint.config(
         "error",
         {
           ignore: ["^expo-modules-core$", "^react$", "^react-native$"],
+        },
+      ],
+    },
+  },
+  {
+    // This optional benchmark runs inside a consuming wallet checkout and uses
+    // that checkout's pinned Ledger toolchain; it is not shipped in the SDK.
+    files: circuitRequestBuilder,
+    rules: {
+      "import/no-unresolved": [
+        "error",
+        {
+          ignore: [
+            "^@midnight-ntwrk/compact-runtime$",
+            "^@midnight-ntwrk/ledger-v8$",
+          ],
         },
       ],
     },

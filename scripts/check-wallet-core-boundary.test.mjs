@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
@@ -11,7 +19,10 @@ import {
   validateCommandContracts,
   validatePolicyManifest,
 } from "./check-wallet-core-boundary.mjs";
-import { validateSanitizedTargetManifest } from "./check-wallet-core-targets.mjs";
+import {
+  listSanitizedTargets,
+  validateSanitizedTargetManifest,
+} from "./check-wallet-core-targets.mjs";
 
 const legacyTargetManifests = [
   "./m1-sanitized-target-manifest.json",
@@ -168,6 +179,26 @@ test("target manifest fixes schema and rejects target-set drift", () => {
   );
   includesError(errors, "sanitized target is missing");
   includesError(errors, "untracked sanitized target");
+});
+
+test("target discovery ignores dependency output and machine metadata", () => {
+  const root = mkdtempSync(join(tmpdir(), "midnight-mobile-targets-"));
+  try {
+    const source = join(root, "crates/runtime/src");
+    mkdirSync(source, { recursive: true });
+    writeFileSync(join(source, "lib.rs"), "pub fn runtime() {}\n");
+    writeFileSync(join(root, "crates/runtime/.DS_Store"), "metadata");
+    writeFileSync(join(root, "crates/runtime/.env.local"), "PRIVATE=value\n");
+    const dependency = join(root, "crates/runtime/node_modules/example");
+    mkdirSync(dependency, { recursive: true });
+    writeFileSync(join(dependency, "README.md"), "generated\n");
+
+    assert.deepEqual(listSanitizedTargets(root, ["crates/runtime"]), [
+      "crates/runtime/src/lib.rs",
+    ]);
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
 });
 
 test("rejects raw-input and generated-output directories in target data", () => {

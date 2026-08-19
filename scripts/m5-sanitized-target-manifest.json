@@ -24,7 +24,7 @@
     "generated-sanitized",
     "repository-authored"
   ],
-  "entryCount": 137,
+  "entryCount": 138,
   "entries": [
     {
       "targetPath": "Cargo.lock",
@@ -41,6 +41,10 @@
     {
       "targetPath": "crates/runtime/Cargo.toml",
       "originClass": "assessed-sanitized"
+    },
+    {
+      "targetPath": "crates/runtime/examples/circuit-size-bench.rs",
+      "originClass": "repository-authored"
     },
     {
       "targetPath": "crates/runtime/examples/generate_android_prover_check_request.rs",

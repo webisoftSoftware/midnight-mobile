@@ -9,14 +9,22 @@ const contents = `permissions:
   artifact-metadata: write
 uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6
 `;
+const currentContents = contents.replace(
+  "f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6",
+  "1e69f48acb82d1966a394da916b4c1698aa569d6",
+);
 
 await test("current GitHub artifact permission bridges stale embedded metadata", () => {
   assert.equal(
-    acceptedCurrentPermission(".github/workflows/release.yml", contents, {
-      line: 2,
-      kind: "permissions",
-      message,
-    }),
+    acceptedCurrentPermission(
+      ".github/workflows/release.yml",
+      currentContents,
+      {
+        line: 2,
+        kind: "permissions",
+        message,
+      },
+    ),
     true,
   );
 });
@@ -34,8 +42,20 @@ await test("the compatibility bridge is exact and fails closed", () => {
     acceptedCurrentPermission(".github/workflows/release.yml", contents, {
       line: 2,
       kind: "permissions",
-      message: "different failure",
+      message,
     }),
+    false,
+  );
+  assert.equal(
+    acceptedCurrentPermission(
+      ".github/workflows/release.yml",
+      currentContents,
+      {
+        line: 2,
+        kind: "permissions",
+        message: "different failure",
+      },
+    ),
     false,
   );
 });

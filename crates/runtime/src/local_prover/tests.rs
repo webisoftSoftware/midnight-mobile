@@ -686,7 +686,7 @@ fn every_packaged_parameter_size_decodes() {
     let blobs: Vec<(u8, Vec<u8>)> = (0..=15_u8)
         .map(|k| {
             let bytes = std::fs::read(directory.join(format!("bls_midnight_2p{k}")))
-                .unwrap_or_else(|error| panic!("bls_midnight_2p{k}: {error}"));
+                .expect("packaged parameter must be readable");
             (k, bytes)
         })
         .collect();

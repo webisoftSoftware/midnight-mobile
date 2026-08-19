@@ -57,10 +57,8 @@ impl Default for LocalProverResponse {
 
 /// Bits of an FFI status carrying the error identity. Everything above is payload.
 ///
-/// The ABI returns one `i32` and has no other channel, so the single error that has
-/// something to report — `CircuitTooLarge`, whose whole purpose is to name a `k` —
-/// packs it into the high bits rather than growing every bridge signature. Callers
-/// mask with this before comparing against a code.
+/// `CircuitTooLarge` packs its `k` into the high bits of the ABI's single `i32` channel.
+/// Callers mask with this before comparing against a code.
 // Dead to Rust by design: the callers that mask are the Kotlin and Swift bridges,
 // which cannot read a Rust constant and keep their own copies. It lives here so the
 // encoding has one authoritative definition, and the encoding test below checks the
@@ -722,8 +720,7 @@ mod tests {
                 bytes_len: sentinel_backing.len(),
             },
         ];
-        // The request array is null with a nonzero count, so decoding fails inside guarded_code --
-        // after the entry zeroing and before any request is read.
+        // A null request array fails after entry zeroing and before any request is read.
         // SAFETY: The output array is live and writable; the null request array is rejected first.
         let code = unsafe {
             midnight_mobile_local_prover_prove_batch(1, ptr::null(), 2, outputs.as_mut_ptr())
@@ -754,7 +751,7 @@ mod tests {
             LocalProverResponse::default(),
             LocalProverResponse::default(),
         ];
-        // SAFETY: Descriptors, their request buffers, and the output array all remain live.
+        // SAFETY: Descriptors, request buffers, and the output array all remain live.
         let code = unsafe {
             midnight_mobile_local_prover_prove_batch(
                 1,
@@ -772,7 +769,7 @@ mod tests {
     #[test]
     fn prove_batch_rejects_an_oversized_request_count_before_touching_memory() {
         let mut outputs = [LocalProverResponse::default()];
-        // SAFETY: The oversized count is rejected before the null request array is dereferenced.
+        // SAFETY: The count is rejected before the null request array is dereferenced.
         let code = unsafe {
             midnight_mobile_local_prover_prove_batch(
                 1,

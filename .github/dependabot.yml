@@ -23,3 +23,19 @@ updates:
     labels:
       - dependencies
       - "workstream: quality"
+    ignore:
+      # The alpha SDK deliberately tracks the Expo 55 / React Native 0.83
+      # compatibility line. Revisit these bounds as one coordinated platform
+      # upgrade instead of allowing incompatible majors to open independently.
+      - dependency-name: eslint
+        versions:
+          - ">=10.0.0"
+      - dependency-name: eslint-config-expo
+        versions:
+          - ">=56.0.0"
+      - dependency-name: react-native
+        versions:
+          - ">=0.84.0"
+      - dependency-name: typescript
+        versions:
+          - ">=6.0.0"

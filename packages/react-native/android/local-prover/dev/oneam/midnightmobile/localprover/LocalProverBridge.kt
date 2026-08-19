@@ -95,9 +95,8 @@ open class NativeResponse : Structure() {
   class ByReference : NativeResponse(), Structure.ByReference
 }
 
-// See the comment on ParameterDescriptor: JNA instantiates this reflectively, so it must stay
-// public with a public no-arg constructor, and the field order below must match the Rust
-// #[repr(C)] LocalProverRequestDescriptor field order exactly (bytes, then bytes_len).
+// JNA instantiates this reflectively, so it stays public with a no-arg constructor; field order
+// must exactly match Rust's #[repr(C)] LocalProverRequestDescriptor (bytes, then bytes_len).
 @Structure.FieldOrder("bytes", "bytesLen")
 open class RequestDescriptor : Structure() {
   @JvmField var bytes: Pointer? = null
@@ -164,9 +163,8 @@ private data class NativeConfiguration(
 
 class LocalProverBridge(
   private val assets: AssetManager? = null,
-  // Phase 2 admission policy: "configured_max = 1 on ActivityManager.isLowRamDevice". Applied once
-  // at configure time rather than continuously, since it reflects a fixed device characteristic,
-  // not a transient memory-pressure signal (that is `setMaxConcurrency`, called from trim-memory).
+  // Phase 2 admission policy: "configured_max = 1 on ActivityManager.isLowRamDevice". This fixed
+  // device characteristic is applied at configure time; trim-memory uses `setMaxConcurrency`.
   private val lowRamDevice: Boolean = false,
 ) {
   private val lock = Any()

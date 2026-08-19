@@ -38,6 +38,7 @@ const metadata = {
     "ios/build/MidnightMobileRuntime.xcframework",
     "ios/generated",
     "android/build.gradle",
+    "android/consumer-rules.pro",
     "android/local-prover",
     "android/src/main",
     "android/generated",
@@ -142,6 +143,7 @@ await test("tarball inspection requires and allowlists M4 native binaries", () =
   const required = [
     "README.md",
     "android/build.gradle",
+    "android/consumer-rules.pro",
     "android/generated/README.md",
     "android/local-prover/dev/oneam/midnightmobile/localprover/LocalProverBridge.kt",
     "android/src/main/jniLibs/arm64-v8a/libmidnight_mobile_runtime.so",

@@ -19,18 +19,6 @@
 //!                                         prove a prepared request
 //! ```
 
-// A measurement harness rather than shipping code, so two of the library's standing rules
-// are relaxed here and only here. It reports its readings on stdout, and a missing
-// artifact or unparseable argument aborts the run loudly instead of being threaded through
-// a `Result` that no caller would handle -- a half-run measurement is worth less than no
-// measurement. The library itself keeps both lints denied.
-#![allow(
-    clippy::print_stdout,
-    clippy::print_stderr,
-    clippy::expect_used,
-    clippy::panic
-)]
-
 use std::env::args;
 use std::fs::read;
 use std::io::Cursor;
@@ -100,6 +88,7 @@ unsafe extern "C" {
 /// circuit must be filed under for a prepared request to resolve.
 const BENCH_KEY_LOCATION: &str = "bench/run";
 
+#[allow(clippy::print_stderr)]
 fn main() {
     let arguments: Vec<String> = args().collect();
     match arguments.get(1).map(String::as_str) {
@@ -123,6 +112,7 @@ fn main() {
     }
 }
 
+#[allow(clippy::expect_used)]
 fn parsed_k(value: &str) -> u32 {
     value.parse().expect("k must be an integer")
 }
@@ -151,6 +141,7 @@ fn peak_rss_field() -> String {
 
 /// Decodes one SRS parameter file exactly as the registry does, including the assertion
 /// that rejects a file whose degree does not match its declared `k`.
+#[allow(clippy::expect_used, clippy::print_stdout)]
 fn params(path: &str, expected_k: u32) {
     let load_start = Instant::now();
     let bytes = read(path).expect("read parameter file");
@@ -175,6 +166,7 @@ fn params(path: &str, expected_k: u32) {
 /// Prints the `k` an IR requires. This is the value the registry matches a circuit
 /// against its parameter set, and the value a caller would need in order to refuse an
 /// oversized circuit before proving it.
+#[allow(clippy::expect_used, clippy::print_stdout)]
 fn ir_k(path: &str) {
     let bytes = read(path).expect("read ir file");
     let ir = IrSource::load_from_tagged(Cursor::new(&bytes[..])).expect("load_from_tagged");
@@ -186,6 +178,7 @@ fn ir_k(path: &str) {
 /// This is the calibration subcommand: its numbers can be compared against the recorded
 /// device-benchmark baseline, which is what establishes that a synthetic ladder rung of
 /// the same `k` is measuring the same work.
+#[allow(clippy::expect_used, clippy::panic)]
 fn zswap(params_dir: &str, artifacts_dir: &str, circuit: &str) {
     let (k, base, location, request) = match circuit {
         "spend" => (
@@ -216,6 +209,7 @@ fn zswap(params_dir: &str, artifacts_dir: &str, circuit: &str) {
 /// inline, which is how the dapp path proves. With one, the circuit is registered in the
 /// registry instead -- necessary above roughly 32 MB of prover key, because an inlined
 /// request would exceed the ABI's request-size cap.
+#[allow(clippy::expect_used)]
 fn prove(params_dir: &str, k: u32, request_path: &str, managed: Option<&str>) {
     let request = read(request_path).expect("read request");
     let material = managed.map(|directory| {
@@ -244,6 +238,7 @@ struct Material {
 }
 
 impl Material {
+    #[allow(clippy::expect_used)]
     fn load(prover_key_path: &str, verifier_key_path: &str, ir_path: &str) -> Self {
         let prover_key = read(prover_key_path).expect("read prover key");
         let verifier_key = read(verifier_key_path).expect("read verifier key");
@@ -279,6 +274,7 @@ impl Material {
 /// A single parameter is deliberate: loading the whole packaged set would attribute its
 /// memory to every rung of the ladder and blur the per-`k` reading this harness exists
 /// to produce.
+#[allow(clippy::expect_used, clippy::print_stdout)]
 fn run(params_dir: &str, k: u32, request: &[u8], circuit: Option<(&str, &Material)>) {
     let params_bytes = read(format!("{params_dir}/bls_midnight_2p{k}")).expect("read parameters");
     let params_hash = digest(&params_bytes);
@@ -296,8 +292,8 @@ fn run(params_dir: &str, k: u32, request: &[u8], circuit: Option<(&str, &Materia
 
     let mut handle = 0_u64;
     let configure_start = Instant::now();
-    // SAFETY: Every referenced buffer and 32-byte hash outlives this synchronous call,
-    // and the handle pointer addresses writable storage.
+    // All referenced buffers and hashes outlive this synchronous call.
+    // SAFETY: The handle pointer addresses valid writable storage.
     let code = unsafe {
         midnight_mobile_local_prover_configure(&parameter, 1, circuits, circuits_count, &mut handle)
     };
@@ -316,8 +312,8 @@ fn run(params_dir: &str, k: u32, request: &[u8], circuit: Option<(&str, &Materia
         bytes_len: 0,
     };
     let prove_start = Instant::now();
-    // SAFETY: The request outlives the call and the response buffer is caller-owned on
-    // success, freed once below.
+    // The request outlives the call; the successful response is freed once below.
+    // SAFETY: The response pointer addresses valid writable storage.
     let code = unsafe {
         midnight_mobile_local_prover_prove(handle, request.as_ptr(), request.len(), &mut response)
     };
