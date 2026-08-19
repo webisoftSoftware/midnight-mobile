@@ -1,3 +1,5 @@
+use super::*;
+
 impl NativeWalletState {
     pub(crate) fn restore(
         legacy: &LegacyWalletState,
@@ -161,7 +163,7 @@ impl NativeWalletState {
         })
     }
 
-    fn import_shielded_v2(
+    pub(super) fn import_shielded_v2(
         &self,
         payload: &[u8],
         zswap_seed: &[u8],
@@ -191,10 +193,9 @@ impl NativeWalletState {
             let record = cursor.length_prefixed()?;
             let _diagnostic_index = cursor.u64_le()?;
             if record.len() > V2_SHIELDED_RECORD_HEADER_BYTES {
-                let events: Vec<Event<InMemoryDB>> = tagged_deserialize_sequence(
-                    &record[V2_SHIELDED_RECORD_HEADER_BYTES..],
-                )
-                .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+                let events: Vec<Event<InMemoryDB>> =
+                    tagged_deserialize_sequence(&record[V2_SHIELDED_RECORD_HEADER_BYTES..])
+                        .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
                 shielded = shielded
                     .replay_events(&keys, events.iter())
                     .map_err(|_| MidnightRuntimeError::SyncGap)?;
@@ -221,7 +222,11 @@ impl NativeWalletState {
         Ok(proposed)
     }
 
-    fn import_dust_v2(&self, payload: &[u8], dust_seed: &[u8]) -> Result<Self, MidnightRuntimeError> {
+    pub(super) fn import_dust_v2(
+        &self,
+        payload: &[u8],
+        dust_seed: &[u8],
+    ) -> Result<Self, MidnightRuntimeError> {
         let mut cursor = BinaryCursor::new(payload);
         let parameter_bytes = cursor.length_prefixed()?;
         let parameters = if parameter_bytes.is_empty() {

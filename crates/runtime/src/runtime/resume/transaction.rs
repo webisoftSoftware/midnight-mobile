@@ -1,9 +1,14 @@
-if matches!(
-    &operation.kind,
-    PendingOperationKind::FinalizeTransactionProof { .. }
-) {
+use super::super::*;
+
+pub(super) fn resume(
+    operation_id: u64,
+    generation: u64,
+    results: &[NetworkResult],
+    mut operation: PendingOperation,
+    mut state: MutexGuard<'_, SessionState>,
+) -> Result<String, MidnightRuntimeError> {
     let bodies = match decode_proof_batch(
-        &results,
+        results,
         operation.kind.pending_requests().unwrap_or(&[]),
         &operation.effect_id,
     ) {
@@ -37,7 +42,7 @@ if matches!(
             key_material,
         )
     } else {
-        unreachable!()
+        return Err(MidnightRuntimeError::NativeInternal);
     };
     match progress {
         Ok(transaction::BalanceProgress::Complete(finalized)) => {
@@ -47,7 +52,7 @@ if matches!(
                 ..
             } = operation.kind
             else {
-                unreachable!()
+                return Err(MidnightRuntimeError::NativeInternal);
             };
             if expected_identifiers
                 .iter()
@@ -65,7 +70,7 @@ if matches!(
             let body = Zeroizing::new(finalized.canonical);
             drop(state);
             lock_registry()?.operations.insert(operation_id, operation);
-            return to_json(&OperationStep {
+            to_json(&OperationStep {
                 kind: "network",
                 operation: Some(OperationHandle {
                     id: operation_id,
@@ -77,7 +82,7 @@ if matches!(
                 body_base64: Some(encode_base64(&body)),
                 effects: None,
                 result_json: None,
-            });
+            })
         }
         Ok(transaction::BalanceProgress::Network(requests)) => {
             operation.kind.set_pending_requests(requests);
@@ -85,11 +90,11 @@ if matches!(
             let step = pending_proof_step(&operation, operation_id, generation)?;
             drop(state);
             lock_registry()?.operations.insert(operation_id, operation);
-            return to_json(&step);
+            to_json(&step)
         }
         Err(_) => {
             clear_active_operation(&mut state, operation_id);
-            return Err(MidnightRuntimeError::ProofFailed);
+            Err(MidnightRuntimeError::ProofFailed)
         }
     }
 }

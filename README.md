@@ -260,6 +260,25 @@ npx expo prebuild --clean
 
 Use disposable keys for tests that contact a network.
 
+## Repository layout
+
+The repository is split by shipped responsibility. Generated native bindings
+remain beside the package that publishes them; build outputs stay ignored.
+
+| Path                     | Responsibility                                                |
+| ------------------------ | ------------------------------------------------------------- |
+| `crates/runtime/`        | Rust wallet runtime and local-prover C/UniFFI APIs            |
+| `packages/react-native/` | Public TypeScript API and iOS/Android bridges                 |
+| `examples/expo/`         | Minimal Expo consumer and deterministic host mocks            |
+| `scripts/`               | Required quality, packaging, security, and release automation |
+| `tools/`                 | Focused binding, device, simulator, and measurement utilities |
+
+Runtime command handlers, operation resumers, and wallet-state components are
+ordinary Rust modules under `crates/runtime/src/`. See
+[`scripts/README.md`](./scripts/README.md) and
+[`tools/README.md`](./tools/README.md) for the boundary between automation and
+manual developer utilities.
+
 ## Validate a change
 
 Use Node.js 22 and the npm version in `package.json`.
@@ -286,7 +305,8 @@ bill of materials (SBOM), a provenance record, and a dependency license report.
 | `npm run check:bindings`       | Check the native ABI and generated bindings.               |
 | `npm run check:package`        | Check all files in the native npm package.                 |
 | `npm run check:native`         | Check native archives and consumer builds.                 |
-| `npm run quality:rc`           | Run all RC checks.                                         |
+| `npm run quality`              | Run the complete local gate (the same checks as an RC).    |
+| `npm run quality:rc`           | Run all RC checks explicitly.                              |
 
 ## Support and security
 

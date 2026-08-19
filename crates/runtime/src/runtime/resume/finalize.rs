@@ -1,4 +1,12 @@
-{
+use super::super::*;
+
+pub(super) fn resume(
+    operation_id: u64,
+    generation: u64,
+    result: &NetworkResult,
+    operation: PendingOperation,
+    mut state: MutexGuard<'_, SessionState>,
+) -> Result<String, MidnightRuntimeError> {
     match &operation.kind {
         PendingOperationKind::SubmitFinalized { transaction_hash } => {
             let submission = state
@@ -54,7 +62,7 @@
         } => match result.outcome.as_str() {
             "accepted" => {
                 let decoded = decode_balance_service_result(
-                    &result,
+                    result,
                     &state.config.network_id,
                     expected_identifiers,
                 );
@@ -97,15 +105,11 @@
                 Err(MidnightRuntimeError::InvalidArgument)
             }
         },
-        PendingOperationKind::Balance { .. } => unreachable!("balance handled above"),
-        PendingOperationKind::FinalizeTransactionProof { .. } => {
-            unreachable!("transaction proof handled above")
-        }
-        PendingOperationKind::DappIntentProof { .. } => {
-            unreachable!("dapp intent proof handled above")
-        }
-        PendingOperationKind::GenerateDustProof { .. } => {
-            unreachable!("DUST registration proof handled above")
+        PendingOperationKind::Balance { .. }
+        | PendingOperationKind::FinalizeTransactionProof { .. }
+        | PendingOperationKind::DappIntentProof { .. }
+        | PendingOperationKind::GenerateDustProof { .. } => {
+            Err(MidnightRuntimeError::NativeInternal)
         }
     }
 }

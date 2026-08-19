@@ -1,4 +1,6 @@
-fn parse_dapp_inputs(
+use super::*;
+
+pub(super) fn parse_dapp_inputs(
     values: Vec<RuntimeDappInput>,
 ) -> Result<Vec<DappIntentInput>, MidnightRuntimeError> {
     values
@@ -16,7 +18,7 @@ fn parse_dapp_inputs(
         .collect()
 }
 
-fn parse_dapp_outputs(
+pub(super) fn parse_dapp_outputs(
     values: Vec<RuntimeDappOutput>,
 ) -> Result<Vec<DappTransactionOutput>, MidnightRuntimeError> {
     values
@@ -35,14 +37,14 @@ fn parse_dapp_outputs(
         .collect()
 }
 
-fn proof_effect(kind: transaction::RemoteProofKind) -> &'static str {
+pub(super) fn proof_effect(kind: transaction::RemoteProofKind) -> &'static str {
     match kind {
         transaction::RemoteProofKind::Check => "check",
         transaction::RemoteProofKind::Prove => "prove",
     }
 }
 
-fn take_proving_key_material(
+pub(super) fn take_proving_key_material(
     key_material: &mut Option<RuntimeProvingKeyMaterial>,
 ) -> Result<Option<ProvingKeyMaterial>, MidnightRuntimeError> {
     let Some(mut material) = key_material.take() else {
@@ -69,7 +71,7 @@ fn take_proving_key_material(
     }))
 }
 
-fn take_proving_key_material_map(
+pub(super) fn take_proving_key_material_map(
     key_material: &mut Option<BTreeMap<String, RuntimeProvingKeyMaterial>>,
 ) -> Result<transaction::RemoteProofKeyMaterials, MidnightRuntimeError> {
     let Some(materials) = key_material.take() else {
@@ -96,7 +98,7 @@ fn take_proving_key_material_map(
 /// A single-effect round keeps the bare operation effect id, so the batched protocol is
 /// byte-identical to the pre-batching one whenever a round holds one request. Ids are
 /// opaque to consumers, which must echo back exactly what they were given.
-fn proof_effect_id(operation_effect_id: &str, index: usize, total: usize) -> String {
+pub(super) fn proof_effect_id(operation_effect_id: &str, index: usize, total: usize) -> String {
     if total <= 1 {
         return operation_effect_id.to_owned();
     }
@@ -105,7 +107,7 @@ fn proof_effect_id(operation_effect_id: &str, index: usize, total: usize) -> Str
 
 /// Captures the wire form of each request before the batch moves into the pending
 /// operation, so the step can be built once the registered effect id is known.
-fn proof_step_bodies(
+pub(super) fn proof_step_bodies(
     requests: &[transaction::RemoteProofRequest],
 ) -> Vec<(&'static str, String)> {
     requests
@@ -116,7 +118,7 @@ fn proof_step_bodies(
 
 /// Builds the network step for a proof round. The singular fields always mirror the
 /// first effect; `effects` appears only for a genuine batch.
-fn proof_step_from_bodies(
+pub(super) fn proof_step_from_bodies(
     handle: OperationHandle,
     effect_id: &str,
     bodies: Vec<(&'static str, String)>,
@@ -149,7 +151,7 @@ fn proof_step_from_bodies(
 
 /// Builds the next network step from the requests already stored on the operation,
 /// after `set_pending_requests` and the effect-id advance.
-fn pending_proof_step(
+pub(super) fn pending_proof_step(
     operation: &PendingOperation,
     operation_id: u64,
     generation: u64,
@@ -177,7 +179,7 @@ fn pending_proof_step(
 /// missing, extra, or duplicated entries, so a partial batch can never silently
 /// under-fill the response map. `InvalidArgument` leaves the operation resumable; every
 /// other error retires it, matching the pre-batching single-effect semantics.
-fn decode_proof_batch(
+pub(super) fn decode_proof_batch(
     results: &[NetworkResult],
     pending: &[transaction::RemoteProofRequest],
     effect_id: &str,
@@ -218,7 +220,7 @@ fn decode_proof_batch(
 }
 
 /// Memoizes one decoded body per outstanding request before the single replay pass.
-fn accept_proof_batch(
+pub(super) fn accept_proof_batch(
     responses: &mut transaction::RemoteProofResponses,
     pending: &[transaction::RemoteProofRequest],
     bodies: Vec<Vec<u8>>,
@@ -232,7 +234,7 @@ fn accept_proof_batch(
     Ok(())
 }
 
-fn next_effect_id(generation: u64, operation_id: u64, current: &str) -> String {
+pub(super) fn next_effect_id(generation: u64, operation_id: u64, current: &str) -> String {
     let sequence = current
         .rsplit(':')
         .next()
@@ -242,7 +244,7 @@ fn next_effect_id(generation: u64, operation_id: u64, current: &str) -> String {
     format!("{generation}:{operation_id}:{sequence}")
 }
 
-fn register_operation(
+pub(super) fn register_operation(
     session_id: u64,
     generation: u64,
     session: &Arc<Mutex<SessionState>>,
@@ -251,7 +253,7 @@ fn register_operation(
     register_operation_with_reservation(session_id, generation, session, kind, false)
 }
 
-fn register_reserved_operation(
+pub(super) fn register_reserved_operation(
     session_id: u64,
     generation: u64,
     session: &Arc<Mutex<SessionState>>,
@@ -260,7 +262,7 @@ fn register_reserved_operation(
     register_operation_with_reservation(session_id, generation, session, kind, true)
 }
 
-fn register_operation_with_reservation(
+pub(super) fn register_operation_with_reservation(
     session_id: u64,
     generation: u64,
     session: &Arc<Mutex<SessionState>>,
@@ -315,7 +317,7 @@ fn register_operation_with_reservation(
     ))
 }
 
-fn reserve_operation(state: &mut SessionState) -> Result<(), MidnightRuntimeError> {
+pub(super) fn reserve_operation(state: &mut SessionState) -> Result<(), MidnightRuntimeError> {
     if state.active_operation.is_some() {
         return Err(MidnightRuntimeError::Unavailable);
     }
@@ -323,7 +325,7 @@ fn reserve_operation(state: &mut SessionState) -> Result<(), MidnightRuntimeErro
     Ok(())
 }
 
-fn clear_operation_reservation(session: &Arc<Mutex<SessionState>>) {
+pub(super) fn clear_operation_reservation(session: &Arc<Mutex<SessionState>>) {
     if let Ok(mut state) = session.lock()
         && state.active_operation == Some(RESERVED_OPERATION_ID)
     {
@@ -331,15 +333,15 @@ fn clear_operation_reservation(session: &Arc<Mutex<SessionState>>) {
     }
 }
 
-struct TransactionFinalizationInput {
-    network_id: String,
-    raw: Vec<u8>,
-    key_material: transaction::RemoteProofKeyMaterials,
-    proposed_state: Option<NativeWalletState>,
-    expected_identifiers: Vec<String>,
+pub(super) struct TransactionFinalizationInput {
+    pub(super) network_id: String,
+    pub(super) raw: Vec<u8>,
+    pub(super) key_material: transaction::RemoteProofKeyMaterials,
+    pub(super) proposed_state: Option<NativeWalletState>,
+    pub(super) expected_identifiers: Vec<String>,
 }
 
-fn start_transaction_finalization(
+pub(super) fn start_transaction_finalization(
     session_id: u64,
     generation: u64,
     session: &Arc<Mutex<SessionState>>,
@@ -401,7 +403,7 @@ fn start_transaction_finalization(
     result
 }
 
-fn start_transaction_balance(
+pub(super) fn start_transaction_balance(
     session_id: u64,
     generation: u64,
     session: &Arc<Mutex<SessionState>>,
@@ -439,7 +441,7 @@ fn start_transaction_balance(
     })
 }
 
-fn discard_operation(operation_id: u64) {
+pub(super) fn discard_operation(operation_id: u64) {
     if let Ok(mut runtime) = lock_registry()
         && let Some(operation) = runtime.operations.remove(&operation_id)
         && let Some(session) = runtime.sessions.get(&operation.session_id)
@@ -450,13 +452,16 @@ fn discard_operation(operation_id: u64) {
     }
 }
 
-fn clear_active_operation(state: &mut SessionState, operation_id: u64) {
+pub(super) fn clear_active_operation(state: &mut SessionState, operation_id: u64) {
     if state.active_operation == Some(operation_id) {
         state.active_operation = None;
     }
 }
 
-fn clear_orphaned_active_operation(session: &Arc<Mutex<SessionState>>, operation_id: u64) {
+pub(super) fn clear_orphaned_active_operation(
+    session: &Arc<Mutex<SessionState>>,
+    operation_id: u64,
+) {
     let operation_is_registered = lock_registry()
         .map(|runtime| runtime.operations.contains_key(&operation_id))
         .unwrap_or(true);
@@ -468,7 +473,7 @@ fn clear_orphaned_active_operation(session: &Arc<Mutex<SessionState>>, operation
     }
 }
 
-fn normalize_transaction_hash(value: &str) -> Option<String> {
+pub(super) fn normalize_transaction_hash(value: &str) -> Option<String> {
     let normalized = value.trim().to_ascii_lowercase();
     let normalized = normalized
         .strip_prefix("0x")
@@ -477,7 +482,7 @@ fn normalize_transaction_hash(value: &str) -> Option<String> {
     valid_lower_hex(normalized, 64).then(|| normalized.to_owned())
 }
 
-fn deserialize_optional_u64<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
+pub(super) fn deserialize_optional_u64<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -500,7 +505,7 @@ where
     }
 }
 
-fn decode_balance_service_result(
+pub(super) fn decode_balance_service_result(
     result: &NetworkResult,
     expected_network_id: &str,
     expected_identifiers: &[String],

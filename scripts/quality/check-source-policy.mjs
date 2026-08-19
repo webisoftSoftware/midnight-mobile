@@ -4,13 +4,9 @@ import { extname } from "node:path";
 import { listRepositoryFiles } from "./quality-utils.mjs";
 
 const MAX_PHYSICAL_LINES = 500;
-// Rust gets a higher ceiling than the other languages. At 500 lines the runtime
-// was forced into statement-level `include!("...")` splices to stay compliant,
-// which is not real module structure: the included fragments are not valid Rust
-// on their own and confuse rustfmt, clippy spans, and IDE navigation. The
-// ceiling exists to stop files becoming unreviewable, not to push code into text
-// substitution. Unwinding the existing splices into ordinary `mod` items is
-// tracked separately; this limit is the precondition for that work.
+// Rust gets a higher ceiling because strongly typed module implementations can
+// remain readable beyond the general limit. The ceiling exists to stop files
+// becoming unreviewable without encouraging artificial file splits.
 const MAX_PHYSICAL_LINES_RUST = 800;
 
 function maxPhysicalLines(file) {

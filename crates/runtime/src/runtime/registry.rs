@@ -1,22 +1,27 @@
-static REGISTRY: OnceLock<Mutex<RuntimeRegistry>> = OnceLock::new();
+use super::*;
 
-fn registry() -> &'static Mutex<RuntimeRegistry> {
+pub(super) static REGISTRY: OnceLock<Mutex<RuntimeRegistry>> = OnceLock::new();
+
+pub(super) fn registry() -> &'static Mutex<RuntimeRegistry> {
     REGISTRY.get_or_init(|| Mutex::new(RuntimeRegistry::default()))
 }
 
-fn lock_registry() -> Result<MutexGuard<'static, RuntimeRegistry>, MidnightRuntimeError> {
+pub(super) fn lock_registry() -> Result<MutexGuard<'static, RuntimeRegistry>, MidnightRuntimeError>
+{
     registry()
         .lock()
         .map_err(|_| MidnightRuntimeError::NativeInternal)
 }
 
-fn lock_session<'a>(
+pub(super) fn lock_session<'a>(
     session: &'a Arc<Mutex<SessionState>>,
 ) -> Result<MutexGuard<'a, SessionState>, MidnightRuntimeError> {
-    session.lock().map_err(|_| MidnightRuntimeError::NativeInternal)
+    session
+        .lock()
+        .map_err(|_| MidnightRuntimeError::NativeInternal)
 }
 
-fn canonical_stream(stream: &str) -> Option<&'static str> {
+pub(super) fn canonical_stream(stream: &str) -> Option<&'static str> {
     match stream {
         "shielded" | "shielded-wire" | "shielded-v2" | "shielded-tip" => Some("shielded"),
         "unshielded" | "unshielded-tip" => Some("unshielded"),
@@ -25,15 +30,17 @@ fn canonical_stream(stream: &str) -> Option<&'static str> {
     }
 }
 
-fn is_tip_marker(stream: &str) -> bool {
+pub(super) fn is_tip_marker(stream: &str) -> bool {
     matches!(stream, "shielded-tip" | "unshielded-tip" | "dust-tip")
 }
 
-fn valid_checkpoint_stream(stream: &str) -> bool {
+pub(super) fn valid_checkpoint_stream(stream: &str) -> bool {
     matches!(stream, "shielded" | "unshielded" | "dust")
 }
 
-fn validate_config(config: WalletSessionConfig) -> Result<WalletSessionConfig, MidnightRuntimeError> {
+pub(super) fn validate_config(
+    config: WalletSessionConfig,
+) -> Result<WalletSessionConfig, MidnightRuntimeError> {
     let valid_network = matches!(
         config.network_id.as_str(),
         "preview" | "preprod" | "mainnet"
@@ -48,7 +55,7 @@ fn validate_config(config: WalletSessionConfig) -> Result<WalletSessionConfig, M
     Ok(config)
 }
 
-fn session_for_handle(
+pub(super) fn session_for_handle(
     session_id: u64,
     generation: u64,
 ) -> Result<Arc<Mutex<SessionState>>, MidnightRuntimeError> {
@@ -66,7 +73,7 @@ fn session_for_handle(
     Ok(session)
 }
 
-fn sorted_offsets(offsets: &HashMap<String, u64>) -> Vec<StreamOffset> {
+pub(super) fn sorted_offsets(offsets: &HashMap<String, u64>) -> Vec<StreamOffset> {
     let mut values = offsets
         .iter()
         .map(|(stream, next_offset)| StreamOffset {
@@ -78,7 +85,7 @@ fn sorted_offsets(offsets: &HashMap<String, u64>) -> Vec<StreamOffset> {
     values
 }
 
-fn sorted_receipts(receipts: &HashMap<BatchKey, String>) -> Vec<BatchReceipt> {
+pub(super) fn sorted_receipts(receipts: &HashMap<BatchKey, String>) -> Vec<BatchReceipt> {
     let mut values = receipts
         .iter()
         .map(|(key, digest)| BatchReceipt {
@@ -98,7 +105,7 @@ fn sorted_receipts(receipts: &HashMap<BatchKey, String>) -> Vec<BatchReceipt> {
     values
 }
 
-fn sorted_pending_submissions(
+pub(super) fn sorted_pending_submissions(
     submissions: &HashMap<String, PendingSubmission>,
 ) -> Vec<PendingSubmission> {
     let mut values = submissions.values().cloned().collect::<Vec<_>>();
@@ -106,7 +113,7 @@ fn sorted_pending_submissions(
     values
 }
 
-fn update_len_prefixed(hasher: &mut Sha256, value: &[u8]) {
+pub(super) fn update_len_prefixed(hasher: &mut Sha256, value: &[u8]) {
     hasher.update((value.len() as u64).to_le_bytes());
     hasher.update(value);
 }

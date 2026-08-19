@@ -46,6 +46,15 @@ use super::{MidnightRuntimeError, WalletAddressMaterial, serializable_hex};
 
 mod dapp;
 pub(crate) use dapp::{DappIntentBuildInput, DappIntentInput, DappTransactionOutput};
+mod apply_and_prepare;
+mod restore;
+mod shielded_and_state;
+mod spend_builders;
+mod sync;
+mod types;
+
+use types::*;
+pub(crate) use types::{DustCommitmentRequest, LegacyWalletState, WalletBalanceSnapshot};
 
 const MAX_LEGACY_STATE_BYTES: usize = 64 * 1024 * 1024;
 const MAX_SYNC_ENTRIES: usize = 1_000_000;
@@ -54,8 +63,6 @@ const DUST_SPEND_HEADER_BYTES: usize = 12;
 const DUST_SPEND_WASM_RECORD_BYTES: usize = 36;
 const DUST_SPEND_EXTENDED_RECORD_BYTES: usize = 48;
 const DUST_COMMITMENT_TREE_DEPTH: u8 = 32;
-
-include!("wallet_state/types.rs");
 
 fn canonical_decimal(value: &str) -> bool {
     value == "0"
@@ -156,12 +163,6 @@ type DustBalancingResult = Result<
     ),
     MidnightRuntimeError,
 >;
-
-include!("wallet_state/sync.rs");
-include!("wallet_state/restore.rs");
-include!("wallet_state/apply_and_prepare.rs");
-include!("wallet_state/spend_builders.rs");
-include!("wallet_state/shielded_and_state.rs");
 
 #[cfg(test)]
 mod tests;

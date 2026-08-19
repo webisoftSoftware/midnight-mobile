@@ -1,6 +1,8 @@
+use super::*;
+
 static TEST_RUNTIME_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
-struct IsolatedRuntime {
+pub(super) struct IsolatedRuntime {
     _serial: MutexGuard<'static, ()>,
 }
 
@@ -13,7 +15,7 @@ impl Drop for IsolatedRuntime {
     }
 }
 
-fn isolated_runtime() -> IsolatedRuntime {
+pub(super) fn isolated_runtime() -> IsolatedRuntime {
     let serial = TEST_RUNTIME_LOCK
         .get_or_init(|| Mutex::new(()))
         .lock()
@@ -27,7 +29,7 @@ fn isolated_runtime() -> IsolatedRuntime {
     IsolatedRuntime { _serial: serial }
 }
 
-fn test_config(wallet_fingerprint: &str) -> String {
+pub(super) fn test_config(wallet_fingerprint: &str) -> String {
     serde_json::json!({
         "networkId": "preview",
         "walletFingerprint": wallet_fingerprint,
@@ -36,14 +38,14 @@ fn test_config(wallet_fingerprint: &str) -> String {
     .to_string()
 }
 
-fn open_test_session(
+pub(super) fn open_test_session(
     wallet_fingerprint: &str,
     checkpoint: Option<Vec<u8>>,
 ) -> RuntimeSessionHandle {
     test_session_result(wallet_fingerprint, checkpoint).unwrap()
 }
 
-fn test_session_result(
+pub(super) fn test_session_result(
     wallet_fingerprint: &str,
     checkpoint: Option<Vec<u8>>,
 ) -> Result<RuntimeSessionHandle, MidnightRuntimeError> {
@@ -56,14 +58,14 @@ fn test_session_result(
     )
 }
 
-fn assert_runtime_error<T: std::fmt::Debug>(
+pub(super) fn assert_runtime_error<T: std::fmt::Debug>(
     result: Result<T, MidnightRuntimeError>,
     expected: &str,
 ) {
     assert_eq!(result.unwrap_err().to_string(), expected);
 }
 
-fn install_submission_operation(
+pub(super) fn install_submission_operation(
     handle: &RuntimeSessionHandle,
     marker: u8,
 ) -> (OperationHandle, String, String) {
@@ -92,7 +94,7 @@ fn install_submission_operation(
     (operation, effect_id, transaction_hash)
 }
 
-fn pending_status(handle: &RuntimeSessionHandle, transaction_hash: &str) -> String {
+pub(super) fn pending_status(handle: &RuntimeSessionHandle, transaction_hash: &str) -> String {
     let raw = get_wallet_snapshot(handle.id, handle.generation).unwrap();
     let snapshot: serde_json::Value = serde_json::from_str(&raw).unwrap();
     snapshot["pendingSubmissions"]
@@ -144,17 +146,13 @@ fn finalize_unproven_transaction_balances_locally_finalized_bytes_and_rejects_ba
 
     let _runtime = isolated_runtime();
     let handle = open_test_session("finalize-unproven", None);
-    let transaction = Transaction::<
-        Signature,
-        ProofPreimageMarker,
-        PedersenRandomness,
-        InMemoryDB,
-    >::new(
-        "preview".to_owned(),
-        LedgerHashMap::new(),
-        None,
-        LedgerHashMap::new(),
-    );
+    let transaction =
+        Transaction::<Signature, ProofPreimageMarker, PedersenRandomness, InMemoryDB>::new(
+            "preview".to_owned(),
+            LedgerHashMap::new(),
+            None,
+            LedgerHashMap::new(),
+        );
     let mut raw = Vec::new();
     tagged_serialize(&transaction, &mut raw).unwrap();
     let command = serde_json::json!({
@@ -413,10 +411,7 @@ fn runtime_defaults_to_two_sessions_and_releases_capacity_on_close() {
     let _runtime = isolated_runtime();
     let first = open_test_session("session-one", None);
     let second = open_test_session("session-two", None);
-    assert_runtime_error(
-        test_session_result("session-three", None),
-        "UNAVAILABLE",
-    );
+    assert_runtime_error(test_session_result("session-three", None), "UNAVAILABLE");
     close_wallet_session(first.id, first.generation).unwrap();
     let third = open_test_session("session-three", None);
     close_wallet_session(second.id, second.generation).unwrap();
@@ -466,14 +461,9 @@ fn cancellation_releases_the_session_and_consumes_a_bounded_tombstone() {
         cancel_operation(operation.id, operation.generation),
         "CANCELLED",
     );
-    let result =
-        serde_json::json!({"effectId": effect_id, "outcome": "accepted"}).to_string();
+    let result = serde_json::json!({"effectId": effect_id, "outcome": "accepted"}).to_string();
     assert_runtime_error(
-        resume_operation(
-            operation.id,
-            operation.generation,
-            Some(result.clone()),
-        ),
+        resume_operation(operation.id, operation.generation, Some(result.clone())),
         "CANCELLED",
     );
     assert_runtime_error(
@@ -495,10 +485,8 @@ fn cancellation_releases_the_session_and_consumes_a_bounded_tombstone() {
 fn sync_requires_contiguous_offsets_and_replays_receipts_idempotently() {
     let _runtime = isolated_runtime();
     let handle = open_test_session("sync-fencing", None);
-    let first =
-        br#"{"type":"UnshieldedTransactionsProgress","highestTransactionId":1}"#.to_vec();
-    let second =
-        br#"{"type":"UnshieldedTransactionsProgress","highestTransactionId":2}"#.to_vec();
+    let first = br#"{"type":"UnshieldedTransactionsProgress","highestTransactionId":1}"#.to_vec();
+    let second = br#"{"type":"UnshieldedTransactionsProgress","highestTransactionId":2}"#.to_vec();
     let applied = apply_sync_batch(
         handle.id,
         handle.generation,
@@ -508,9 +496,11 @@ fn sync_requires_contiguous_offsets_and_replays_receipts_idempotently() {
         vec![first.clone()],
     )
     .unwrap();
-    assert!(!serde_json::from_str::<serde_json::Value>(&applied).unwrap()["duplicate"]
-        .as_bool()
-        .unwrap());
+    assert!(
+        !serde_json::from_str::<serde_json::Value>(&applied).unwrap()["duplicate"]
+            .as_bool()
+            .unwrap()
+    );
     let duplicate = apply_sync_batch(
         handle.id,
         handle.generation,
@@ -640,11 +630,7 @@ fn ambiguous_and_cancelled_submissions_remain_status_unknown() {
     let ambiguous_result =
         serde_json::json!({"effectId": effect_id, "outcome": "statusUnknown"}).to_string();
     assert_runtime_error(
-        resume_operation(
-            ambiguous.id,
-            ambiguous.generation,
-            Some(ambiguous_result),
-        ),
+        resume_operation(ambiguous.id, ambiguous.generation, Some(ambiguous_result)),
         "SUBMISSION_STATUS_UNKNOWN",
     );
     assert_eq!(
@@ -653,8 +639,7 @@ fn ambiguous_and_cancelled_submissions_remain_status_unknown() {
     );
     cancel_operation(ambiguous.id, ambiguous.generation).unwrap();
 
-    let (cancelled, cancelled_effect, cancelled_hash) =
-        install_submission_operation(&handle, 6);
+    let (cancelled, cancelled_effect, cancelled_hash) = install_submission_operation(&handle, 6);
     assert_eq!(
         pending_status(&handle, &cancelled_hash),
         "awaitingResponse".to_owned()
@@ -667,11 +652,7 @@ fn ambiguous_and_cancelled_submissions_remain_status_unknown() {
     let cancelled_result =
         serde_json::json!({"effectId": cancelled_effect, "outcome": "accepted"}).to_string();
     assert_runtime_error(
-        resume_operation(
-            cancelled.id,
-            cancelled.generation,
-            Some(cancelled_result),
-        ),
+        resume_operation(cancelled.id, cancelled.generation, Some(cancelled_result)),
         "CANCELLED",
     );
 }

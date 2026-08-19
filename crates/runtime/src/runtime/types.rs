@@ -1,48 +1,43 @@
-const CHECKPOINT_VERSION: u32 = 1;
-const CHECKPOINT_MAGIC: &[u8; 4] = b"MMCP";
-const MAX_OPEN_SESSIONS: usize = 2;
-const MAX_SYNC_PAYLOAD_BYTES: usize = 64 * 1024 * 1024;
-const MAX_CHECKPOINT_BYTES: usize = 64 * 1024 * 1024;
-const MAX_SIGNING_DOMAIN_BYTES: usize = 1024;
-const MAX_DAPP_SIGN_DATA_BYTES: usize = 1024 * 1024;
-const MAX_SYNC_BATCH_RECEIPTS: usize = 4096;
-const MAX_CANCELLED_OPERATION_TOMBSTONES: usize = 1024;
-const RESERVED_OPERATION_ID: u64 = u64::MAX;
+use super::*;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, uniffi::Record)]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimeSessionHandle {
-    pub id: u64,
-    pub generation: u64,
-}
+pub(super) const CHECKPOINT_VERSION: u32 = 1;
+pub(super) const CHECKPOINT_MAGIC: &[u8; 4] = b"MMCP";
+pub(super) const MAX_OPEN_SESSIONS: usize = 2;
+pub(super) const MAX_SYNC_PAYLOAD_BYTES: usize = 64 * 1024 * 1024;
+pub(super) const MAX_CHECKPOINT_BYTES: usize = 64 * 1024 * 1024;
+pub(super) const MAX_SIGNING_DOMAIN_BYTES: usize = 1024;
+pub(super) const MAX_DAPP_SIGN_DATA_BYTES: usize = 1024 * 1024;
+pub(super) const MAX_SYNC_BATCH_RECEIPTS: usize = 4096;
+pub(super) const MAX_CANCELLED_OPERATION_TOMBSTONES: usize = 1024;
+pub(super) const RESERVED_OPERATION_ID: u64 = u64::MAX;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct WalletSessionConfig {
-    network_id: String,
-    wallet_fingerprint: String,
-    unshielded_address: String,
+pub(super) struct WalletSessionConfig {
+    pub(super) network_id: String,
+    pub(super) wallet_fingerprint: String,
+    pub(super) unshielded_address: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct StreamOffset {
-    stream: String,
-    next_offset: u64,
+pub(super) struct StreamOffset {
+    pub(super) stream: String,
+    pub(super) next_offset: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct BatchReceipt {
-    stream: String,
-    from_offset: u64,
-    to_offset: u64,
-    digest: String,
+pub(super) struct BatchReceipt {
+    pub(super) stream: String,
+    pub(super) from_offset: u64,
+    pub(super) to_offset: u64,
+    pub(super) digest: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-enum SubmissionStatus {
+pub(super) enum SubmissionStatus {
     AwaitingResponse,
     Accepted,
     Rejected,
@@ -51,57 +46,57 @@ enum SubmissionStatus {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct PendingSubmission {
-    transaction_hash: String,
-    identifiers: Vec<String>,
-    status: SubmissionStatus,
+pub(super) struct PendingSubmission {
+    pub(super) transaction_hash: String,
+    pub(super) identifiers: Vec<String>,
+    pub(super) status: SubmissionStatus,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct WalletCheckpoint {
-    version: u32,
-    network_id: String,
-    wallet_fingerprint: String,
-    legacy_state: LegacyWalletState,
-    stream_offsets: Vec<StreamOffset>,
+pub(super) struct WalletCheckpoint {
+    pub(super) version: u32,
+    pub(super) network_id: String,
+    pub(super) wallet_fingerprint: String,
+    pub(super) legacy_state: LegacyWalletState,
+    pub(super) stream_offsets: Vec<StreamOffset>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    caught_up_streams: Vec<String>,
+    pub(super) caught_up_streams: Vec<String>,
     #[serde(default)]
-    batch_receipts: Vec<BatchReceipt>,
+    pub(super) batch_receipts: Vec<BatchReceipt>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pending_submissions: Vec<PendingSubmission>,
-    ledger_revision: String,
-    generation: u64,
-    checksum: String,
+    pub(super) pending_submissions: Vec<PendingSubmission>,
+    pub(super) ledger_revision: String,
+    pub(super) generation: u64,
+    pub(super) checksum: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct WalletSnapshot {
-    wallet_fingerprint: String,
-    network_id: String,
-    status: &'static str,
-    generation: u64,
-    stream_offsets: Vec<StreamOffset>,
-    unshielded_address: String,
-    shielded_coin_public_key_hex: String,
-    shielded_encryption_public_key_hex: String,
-    dust_public_key: String,
-    balances: WalletBalanceSnapshot,
-    pending_submissions: Vec<PendingSubmission>,
+pub(super) struct WalletSnapshot {
+    pub(super) wallet_fingerprint: String,
+    pub(super) network_id: String,
+    pub(super) status: &'static str,
+    pub(super) generation: u64,
+    pub(super) stream_offsets: Vec<StreamOffset>,
+    pub(super) unshielded_address: String,
+    pub(super) shielded_coin_public_key_hex: String,
+    pub(super) shielded_encryption_public_key_hex: String,
+    pub(super) dust_public_key: String,
+    pub(super) balances: WalletBalanceSnapshot,
+    pub(super) pending_submissions: Vec<PendingSubmission>,
 }
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct ApplySyncResult {
-    duplicate: bool,
-    snapshot: WalletSnapshot,
+pub(super) struct ApplySyncResult {
+    pub(super) duplicate: bool,
+    pub(super) snapshot: WalletSnapshot,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-enum SyncRequestMode {
+pub(super) enum SyncRequestMode {
     #[default]
     Standard,
     Fast,
@@ -114,7 +109,7 @@ enum SyncRequestMode {
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]
-enum RuntimeCommand {
+pub(super) enum RuntimeCommand {
     SignData {
         domain: String,
         data_base64: String,
@@ -213,29 +208,29 @@ enum RuntimeCommand {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct RuntimeDappInput {
-    wallet_type: String,
-    token_type: String,
-    amount: String,
+pub(super) struct RuntimeDappInput {
+    pub(super) wallet_type: String,
+    pub(super) token_type: String,
+    pub(super) amount: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct RuntimeDappOutput {
-    wallet_type: String,
-    token_type: String,
-    amount: String,
-    receiver_address: String,
+pub(super) struct RuntimeDappOutput {
+    pub(super) wallet_type: String,
+    pub(super) token_type: String,
+    pub(super) amount: String,
+    pub(super) receiver_address: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct RuntimeProvingKeyMaterial {
-    prover_key_base64: String,
-    verifier_key_base64: String,
-    ir_base64: String,
+pub(super) struct RuntimeProvingKeyMaterial {
+    pub(super) prover_key_base64: String,
+    pub(super) verifier_key_base64: String,
+    pub(super) ir_base64: String,
     #[serde(default)]
-    compression: Option<String>,
+    pub(super) compression: Option<String>,
 }
 
 impl Drop for RuntimeProvingKeyMaterial {
@@ -251,11 +246,11 @@ impl Drop for RuntimeProvingKeyMaterial {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct NetworkResult {
-    effect_id: String,
-    outcome: String,
+pub(super) struct NetworkResult {
+    pub(super) effect_id: String,
+    pub(super) outcome: String,
     #[serde(default)]
-    body_base64: Option<String>,
+    pub(super) body_base64: Option<String>,
 }
 
 /// A resume payload carries either one result (every effect except a batched proof
@@ -263,13 +258,13 @@ struct NetworkResult {
 /// wire-identical to the pre-batching protocol.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
-enum NetworkResults {
+pub(super) enum NetworkResults {
     Single(NetworkResult),
     Batch(Vec<NetworkResult>),
 }
 
 impl NetworkResults {
-    fn into_vec(self) -> Vec<NetworkResult> {
+    pub(super) fn into_vec(self) -> Vec<NetworkResult> {
         match self {
             Self::Single(result) => vec![result],
             Self::Batch(results) => results,
@@ -279,50 +274,50 @@ impl NetworkResults {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct BalanceServiceResult {
-    tx_hash: String,
-    tx_bytes: String,
+pub(super) struct BalanceServiceResult {
+    pub(super) tx_hash: String,
+    pub(super) tx_bytes: String,
     #[serde(default, deserialize_with = "deserialize_optional_u64")]
-    expires_at: Option<u64>,
+    pub(super) expires_at: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct OperationHandle {
-    id: u64,
-    generation: u64,
+pub(super) struct OperationHandle {
+    pub(super) id: u64,
+    pub(super) generation: u64,
 }
 
 /// One effect of a multi-effect round. Emitted only alongside the singular fields, so
 /// consumers that predate batching keep reading the first effect and ignore this list.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct OperationEffect {
-    effect_id: String,
-    effect: &'static str,
-    endpoint_role: &'static str,
-    body_base64: String,
+pub(super) struct OperationEffect {
+    pub(super) effect_id: String,
+    pub(super) effect: &'static str,
+    pub(super) endpoint_role: &'static str,
+    pub(super) body_base64: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct OperationStep {
-    kind: &'static str,
-    operation: Option<OperationHandle>,
-    effect_id: Option<String>,
-    effect: Option<&'static str>,
-    endpoint_role: Option<&'static str>,
-    body_base64: Option<String>,
+pub(super) struct OperationStep {
+    pub(super) kind: &'static str,
+    pub(super) operation: Option<OperationHandle>,
+    pub(super) effect_id: Option<String>,
+    pub(super) effect: Option<&'static str>,
+    pub(super) endpoint_role: Option<&'static str>,
+    pub(super) body_base64: Option<String>,
     /// Present only when the round carries two or more effects; the singular fields
     /// above always mirror the first entry.
     #[serde(skip_serializing_if = "Option::is_none")]
-    effects: Option<Vec<OperationEffect>>,
+    pub(super) effects: Option<Vec<OperationEffect>>,
     #[serde(rename = "result", serialize_with = "serialize_embedded_json")]
-    result_json: Option<String>,
+    pub(super) result_json: Option<String>,
 }
 
-struct SessionSecrets {
-    night_external_key: Vec<u8>,
-    zswap_seed: Vec<u8>,
-    dust_seed: Vec<u8>,
+pub(super) struct SessionSecrets {
+    pub(super) night_external_key: Vec<u8>,
+    pub(super) zswap_seed: Vec<u8>,
+    pub(super) dust_seed: Vec<u8>,
 }

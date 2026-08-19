@@ -1,4 +1,6 @@
-fn checkpoint_checksum(checkpoint: &WalletCheckpoint) -> String {
+use super::*;
+
+pub(super) fn checkpoint_checksum(checkpoint: &WalletCheckpoint) -> String {
     let mut hasher = Sha256::new();
     hasher.update(checkpoint.version.to_le_bytes());
     update_len_prefixed(&mut hasher, checkpoint.network_id.as_bytes());
@@ -79,7 +81,9 @@ fn checkpoint_checksum(checkpoint: &WalletCheckpoint) -> String {
     hex::encode(hasher.finalize())
 }
 
-fn encode_checkpoint(checkpoint: &WalletCheckpoint) -> Result<Vec<u8>, MidnightRuntimeError> {
+pub(super) fn encode_checkpoint(
+    checkpoint: &WalletCheckpoint,
+) -> Result<Vec<u8>, MidnightRuntimeError> {
     let payload =
         serde_json::to_vec(checkpoint).map_err(|_| MidnightRuntimeError::NativeInternal)?;
     if payload.len() > MAX_CHECKPOINT_BYTES.saturating_sub(8) {
@@ -92,7 +96,7 @@ fn encode_checkpoint(checkpoint: &WalletCheckpoint) -> Result<Vec<u8>, MidnightR
     Ok(encoded)
 }
 
-fn decode_checkpoint(raw: &[u8]) -> Result<WalletCheckpoint, MidnightRuntimeError> {
+pub(super) fn decode_checkpoint(raw: &[u8]) -> Result<WalletCheckpoint, MidnightRuntimeError> {
     if raw.is_empty() || raw.len() > MAX_CHECKPOINT_BYTES {
         return Err(MidnightRuntimeError::StateIncompatible);
     }
@@ -109,12 +113,12 @@ fn decode_checkpoint(raw: &[u8]) -> Result<WalletCheckpoint, MidnightRuntimeErro
     } else {
         raw
     };
-    let checkpoint: WalletCheckpoint = serde_json::from_slice(payload)
-        .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
+    let checkpoint: WalletCheckpoint =
+        serde_json::from_slice(payload).map_err(|_| MidnightRuntimeError::StateIncompatible)?;
     validate_checkpoint(checkpoint)
 }
 
-fn validate_checkpoint(
+pub(super) fn validate_checkpoint(
     checkpoint: WalletCheckpoint,
 ) -> Result<WalletCheckpoint, MidnightRuntimeError> {
     if checkpoint.version != CHECKPOINT_VERSION || checkpoint.ledger_revision != SOURCE_REVISION {
@@ -181,18 +185,18 @@ fn validate_checkpoint(
     Ok(checkpoint)
 }
 
-fn valid_lower_hex(value: &str, length: usize) -> bool {
+pub(super) fn valid_lower_hex(value: &str, length: usize) -> bool {
     value.len() == length
         && value
             .bytes()
             .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
 }
 
-fn valid_variable_lower_hex(value: &str) -> bool {
+pub(super) fn valid_variable_lower_hex(value: &str) -> bool {
     !value.is_empty() && value.len().is_multiple_of(2) && valid_lower_hex(value, value.len())
 }
 
-fn payload_digest(payloads: &[Vec<u8>]) -> String {
+pub(super) fn payload_digest(payloads: &[Vec<u8>]) -> String {
     let mut hasher = Sha256::new();
     hasher.update((payloads.len() as u64).to_le_bytes());
     for payload in payloads {
@@ -201,7 +205,7 @@ fn payload_digest(payloads: &[Vec<u8>]) -> String {
     hex::encode(hasher.finalize())
 }
 
-fn prune_batch_receipts(receipts: &mut HashMap<BatchKey, String>) {
+pub(super) fn prune_batch_receipts(receipts: &mut HashMap<BatchKey, String>) {
     while receipts.len() > MAX_SYNC_BATCH_RECEIPTS {
         let oldest = receipts
             .keys()
@@ -221,7 +225,7 @@ fn prune_batch_receipts(receipts: &mut HashMap<BatchKey, String>) {
     }
 }
 
-fn snapshot(state: &SessionState) -> Result<WalletSnapshot, MidnightRuntimeError> {
+pub(super) fn snapshot(state: &SessionState) -> Result<WalletSnapshot, MidnightRuntimeError> {
     let synced = ["shielded", "unshielded", "dust"]
         .iter()
         .all(|stream| state.caught_up_streams.contains(*stream));

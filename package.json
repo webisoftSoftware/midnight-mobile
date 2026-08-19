@@ -40,7 +40,7 @@
     "test:coverage": "node scripts/quality/run-tests.mjs --coverage",
     "quality:pr": "npm run format:check && npm run lint:markdown && npm run typecheck && npm run lint:ts && npm run lint:rust && npm run lint:workflows && npm run lint:shell && npm test && npm run check:package:source",
     "quality:rc": "npm run build:native && npm run quality:pr && npm run check:source-policy && npm run check:wallet-core-boundary && npm run check:bindings && npm run check:package && npm run check:native && npm run check:example && npm run check:security && npm run check:release && npm run test:coverage",
-    "quality": "npm run quality:pr",
+    "quality": "npm run quality:rc",
     "check:wallet-core-boundary": "node scripts/wallet-core/check-wallet-core-boundary.mjs && node scripts/wallet-core/check-wallet-core-artifacts.mjs"
   },
   "overrides": {
@@ -54,9 +54,7 @@
     "@types/node": "24.10.1",
     "eslint": "9.39.5",
     "eslint-config-expo": "55.0.1",
-    "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.11.0",
-    "jest": "30.4.2",
     "markdownlint-cli2": "0.23.2",
     "prettier": "3.9.6",
     "typescript": "5.9.3",

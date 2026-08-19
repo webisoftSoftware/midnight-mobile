@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 
-const EXPECTED_BRACE_VERSIONS = Object.freeze(["1.1.17", "2.1.3", "5.0.8"]);
+const EXPECTED_BRACE_VERSIONS = Object.freeze(["1.1.17", "5.0.8"]);
 const EXPECTED_OVERRIDES = Object.freeze({
   "brace-expansion@<2": "1.1.17",
   "brace-expansion@>=2 <3": "2.1.3",

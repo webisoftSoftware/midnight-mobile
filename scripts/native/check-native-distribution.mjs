@@ -17,17 +17,20 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { removeTree } from "../quality/quality-utils.mjs";
-
 const PACKAGE_ROOT = "packages/react-native";
 const ARTIFACT_ROOT = "artifacts/native";
 const LIBRARY = "libmidnight_mobile_runtime.so";
 const ANDROID_ABIS = ["arm64-v8a", "x86_64"];
-const PEERS = ["expo", "expo-modules-core", "react", "react-native"];
-
+const PEERS = [
+  "@expo/config-plugins",
+  "expo",
+  "expo-modules-core",
+  "react",
+  "react-native",
+];
 function fail(message) {
   throw new Error(`Native distribution gate: ${message}`);
 }
-
 function run(command, argumentsList, options = {}) {
   const result = spawnSync(command, argumentsList, {
     cwd: options.cwd,
@@ -43,7 +46,6 @@ function run(command, argumentsList, options = {}) {
   }
   return `${result.stdout ?? ""}`;
 }
-
 function sha256(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
@@ -269,7 +271,7 @@ function linkPeers(repositoryRoot, consumer) {
 function prepareAndroidConsumer(repositoryRoot, temporaryRoot, tarball) {
   const consumer = resolve(temporaryRoot, "consumer");
   mkdirSync(consumer, { recursive: true });
-  for (const path of ["App.tsx", "app.json", "index.ts", "src"]) {
+  for (const path of ["App.tsx", "app.json", "index.ts", "plugins", "src"]) {
     cpSync(
       resolve(repositoryRoot, "examples/expo", path),
       resolve(consumer, path),
@@ -343,7 +345,6 @@ function rustlessEnvironment(repositoryRoot) {
   }
   return environment;
 }
-
 function resolveJava17(repositoryRoot) {
   const candidates = [
     process.env.JAVA_HOME,

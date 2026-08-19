@@ -1,3 +1,5 @@
+use super::*;
+
 impl NativeWalletState {
     pub(crate) fn apply_batch(
         &self,
@@ -39,8 +41,8 @@ impl NativeWalletState {
                     {
                         return Err(MidnightRuntimeError::InvalidArgument);
                     }
-                    let raw =
-                        hex::decode(&wire.raw).map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+                    let raw = hex::decode(&wire.raw)
+                        .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
                     events.extend(
                         tagged_deserialize_sequence::<Event<InMemoryDB>>(&raw[..])
                             .map_err(|_| MidnightRuntimeError::InvalidArgument)?,
@@ -245,18 +247,15 @@ impl NativeWalletState {
             InMemoryDB,
         > = tagged_deserialize(&mut &raw[..]).map_err(|_| MidnightRuntimeError::InvalidArgument)?;
         let allow_fee_payment = match &transaction {
-            Transaction::Standard(standard) => standard
-                .intents
-                .get(&1)
-                .and_then(|intent| {
-                    intent.dust_actions.as_ref().and_then(|actions| {
-                        actions
-                            .registrations
-                            .iter()
-                            .next()
-                            .map(|registration| registration.allow_fee_payment)
-                    })
-                }),
+            Transaction::Standard(standard) => standard.intents.get(&1).and_then(|intent| {
+                intent.dust_actions.as_ref().and_then(|actions| {
+                    actions
+                        .registrations
+                        .iter()
+                        .next()
+                        .map(|registration| registration.allow_fee_payment)
+                })
+            }),
             Transaction::ClaimRewards(_) => None,
         }
         .ok_or(MidnightRuntimeError::InvalidArgument)?;
@@ -300,20 +299,17 @@ impl NativeWalletState {
         {
             return Err(MidnightRuntimeError::StateIncompatible);
         }
-        let original_network = match original {
-            Transaction::Standard(transaction) => transaction.network_id.as_str(),
+        let transaction = match original {
+            Transaction::Standard(transaction) => transaction,
             Transaction::ClaimRewards(_) => return Err(MidnightRuntimeError::InvalidArgument),
         };
-        if original_network != network_id {
+        if transaction.network_id != network_id {
             return Err(MidnightRuntimeError::InvalidArgument);
         }
 
-        let segment = match original {
-            Transaction::Standard(transaction) => (1_u16..=u16::MAX)
-                .find(|candidate| !transaction.intents.contains_key(candidate))
-                .ok_or(MidnightRuntimeError::InvalidArgument)?,
-            Transaction::ClaimRewards(_) => unreachable!(),
-        };
+        let segment = (1_u16..=u16::MAX)
+            .find(|candidate| !transaction.intents.contains_key(candidate))
+            .ok_or(MidnightRuntimeError::InvalidArgument)?;
         let mut dust_seed: [u8; 32] = dust_seed
             .try_into()
             .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
@@ -474,7 +470,8 @@ impl NativeWalletState {
         proposed.dust = final_state.ok_or(MidnightRuntimeError::InsufficientDust)?;
         let transaction = final_transaction.ok_or(MidnightRuntimeError::InsufficientDust)?;
         let mut raw = Vec::new();
-        tagged_serialize(&transaction, &mut raw).map_err(|_| MidnightRuntimeError::NativeInternal)?;
+        tagged_serialize(&transaction, &mut raw)
+            .map_err(|_| MidnightRuntimeError::NativeInternal)?;
         Ok((proposed, Some(raw)))
     }
 }

@@ -1,3 +1,6 @@
+use super::hardening::isolated_runtime;
+use super::*;
+
 #[test]
 fn command_decoder_accepts_exactly_the_wallet_core_union() {
     let accepted = [
