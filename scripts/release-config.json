@@ -29,10 +29,5 @@
     "androidMinimumApi": 24,
     "androidAbis": ["arm64-v8a", "x86_64"]
   },
-  "releaseEnvironment": "alpha-release",
-  "distributionDecision": {
-    "status": "deferred-to-m6-destination-migration",
-    "trackingIssue": "https://github.com/ADGLx/midnight-mobile/issues/38",
-    "requiredApprovalFile": "docs/DISTRIBUTION_DECISION.json"
-  }
+  "releaseEnvironment": "alpha-release"
 }

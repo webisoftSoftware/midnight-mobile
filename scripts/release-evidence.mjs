@@ -62,12 +62,7 @@ function sbom(config, components, commitTimestamp) {
         name: config.package.name,
         version: config.package.version,
       },
-      properties: [
-        {
-          name: "midnight:distribution-decision",
-          value: config.distributionDecision.status,
-        },
-      ],
+      licenses: [{ expression: "MIT" }],
     },
     components: components.map(cyclonedxComponent),
   };
@@ -77,11 +72,7 @@ function licenseReport(config, components) {
   return {
     schemaVersion: 1,
     package: config.package,
-    distributionDecision: {
-      status: config.distributionDecision.status,
-      trackingIssue: config.distributionDecision.trackingIssue,
-      publicDistributionAllowed: false,
-    },
+    projectLicense: "MIT",
     componentCount: components.length,
     components,
   };

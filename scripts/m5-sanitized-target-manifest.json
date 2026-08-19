@@ -24,7 +24,7 @@
     "generated-sanitized",
     "repository-authored"
   ],
-  "entryCount": 138,
+  "entryCount": 137,
   "entries": [
     {
       "targetPath": "Cargo.lock",
@@ -248,10 +248,6 @@
     },
     {
       "targetPath": "examples/expo/App.tsx",
-      "originClass": "repository-authored"
-    },
-    {
-      "targetPath": "examples/expo/README.md",
       "originClass": "repository-authored"
     },
     {

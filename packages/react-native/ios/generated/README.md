@@ -1,6 +1,11 @@
-# Generated Swift binding location
+# Generated Swift bindings
 
-`npm run generate:bindings` regenerates the UniFFI Swift source, C header, and
-module map here from the sanitized runtime ABI. `npm run check:bindings` repeats
-generation twice and rejects drift before comparing these reviewed files
-byte-for-byte. Native libraries are not stored in this directory.
+The `npm run generate:bindings` command generates the UniFFI Swift source, C
+header, and module map from the Rust runtime. It writes these files to this
+directory.
+
+The `npm run check:bindings` command generates these files twice. It checks that
+both outputs match byte-for-byte. It then compares the generated files with the
+reviewed files byte-for-byte.
+
+This directory does not contain native libraries.

@@ -50,6 +50,7 @@ const EXPECTED_TESTED_DEPENDENCIES = Object.freeze({
   typescript: "5.9.3",
 });
 const EXPECTED_ENGINES = Object.freeze({ node: ">=22 <23 || >=24 <25" });
+const EXPECTED_LICENSE = "MIT";
 const REQUIRED_PACKED_FILES = Object.freeze([
   "README.md",
   "android/build.gradle",
@@ -139,6 +140,7 @@ export function validatePackageMetadata(metadata, autolinking) {
   if (!isObject(metadata)) return ["package metadata must be an object"];
   validateExact(metadata.name, "@1am/midnight-mobile", "name", errors);
   validateExact(metadata.version, "0.1.0-alpha.1", "version", errors);
+  validateExact(metadata.license, EXPECTED_LICENSE, "license", errors);
   validateExact(metadata.type, "module", "type", errors);
   validateExact(metadata.main, "./dist/index.js", "main", errors);
   validateExact(metadata.types, "./dist/index.d.ts", "types", errors);
@@ -441,7 +443,10 @@ function validateConsumerInstall(repositoryRoot, temporaryRoot, tarball) {
   );
 }
 
-export function runPackageCheck(repositoryRoot = process.cwd()) {
+export function runPackageCheck(
+  repositoryRoot = process.cwd(),
+  { sourceOnly = false } = {},
+) {
   const metadata = JSON.parse(
     readFileSync(resolve(repositoryRoot, PACKAGE_ROOT, "package.json"), "utf8"),
   );
@@ -458,6 +463,7 @@ export function runPackageCheck(repositoryRoot = process.cwd()) {
   const temporaryRoot = mkdtempSync(join(tmpdir(), "midnight-mobile-package-"));
   try {
     const builtFiles = buildReproducibly(repositoryRoot);
+    if (sourceOnly) return { builtFiles };
     const packed = packPackage(repositoryRoot, temporaryRoot);
     validateConsumerInstall(repositoryRoot, temporaryRoot, packed.tarball);
     return { builtFiles, packedFiles: packed.entries };
@@ -468,10 +474,24 @@ export function runPackageCheck(repositoryRoot = process.cwd()) {
 
 function main() {
   try {
-    const result = runPackageCheck();
-    console.log(
-      `React Native package passed: reproducible-dist-files=${String(result.builtFiles)}, npm-files=${String(result.packedFiles)}, isolated-offline-install=passed, packed-declarations-with-root-locked-peers=passed`,
+    const arguments_ = process.argv.slice(2);
+    const sourceOnly = arguments_.includes("--source-only");
+    const unsupported = arguments_.filter(
+      (argument) => argument !== "--source-only",
     );
+    if (unsupported.length > 0) {
+      throw new Error(`unsupported argument: ${unsupported.join(", ")}`);
+    }
+    const result = runPackageCheck(process.cwd(), { sourceOnly });
+    if (sourceOnly) {
+      console.log(
+        `React Native package fast check passed: reproducible-dist-files=${String(result.builtFiles)}`,
+      );
+    } else {
+      console.log(
+        `React Native package passed: reproducible-dist-files=${String(result.builtFiles)}, npm-files=${String(result.packedFiles)}, isolated-offline-install=passed, packed-declarations-with-root-locked-peers=passed`,
+      );
+    }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

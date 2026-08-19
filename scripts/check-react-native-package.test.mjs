@@ -10,6 +10,7 @@ import {
 const metadata = {
   name: "@1am/midnight-mobile",
   version: "0.1.0-alpha.1",
+  license: "MIT",
   type: "module",
   main: "./dist/index.js",
   types: "./dist/index.d.ts",
@@ -137,6 +138,16 @@ await test("package metadata enforces the M4 consumer contract", () => {
     ).join("\n"),
     /engines/u,
   );
+});
+
+await test("package metadata requires the MIT license", () => {
+  for (const license of [undefined, "MIT OR Apache-2.0", "Apache-2.0"]) {
+    assert.match(
+      validatePackageMetadata({ ...metadata, license }, autolinking).join("\n"),
+      /license/u,
+    );
+  }
+  assert.deepEqual(validatePackageMetadata(metadata, autolinking), []);
 });
 
 await test("tarball inspection requires and allowlists M4 native binaries", () => {

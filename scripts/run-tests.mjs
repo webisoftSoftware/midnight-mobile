@@ -36,6 +36,7 @@ const hasExpoExample = files.some((file) => file.startsWith(`${expoExample}/`));
 const scriptTests = files
   .filter((file) => /^scripts\/.+\.test\.mjs$/u.test(file))
   .sort();
+const testMode = process.argv.includes("--coverage") ? "coverage" : "unit";
 
 if (
   !hasRustWorkstream &&
@@ -47,7 +48,10 @@ if (
   let testsPassed = true;
   let coveragePolicy;
 
-  if (hasReactNativeWorkstream || hasRustWorkstream) {
+  if (
+    testMode === "coverage" &&
+    (hasReactNativeWorkstream || hasRustWorkstream)
+  ) {
     try {
       coveragePolicy = loadCoveragePolicy();
     } catch (error) {
@@ -95,7 +99,12 @@ if (
     }
   }
 
-  if (hasReactNativeWorkstream && testsPassed && coveragePolicy !== undefined) {
+  if (
+    testMode === "coverage" &&
+    hasReactNativeWorkstream &&
+    testsPassed &&
+    coveragePolicy !== undefined
+  ) {
     const compiledTestsDirectory = `${reactNativePackage}/.staging-build/tests`;
     if (!existsSync(compiledTestsDirectory)) {
       console.error(
@@ -138,23 +147,37 @@ if (
       process.exitCode = 1;
       testsPassed = false;
     } else {
-      testsPassed = runCommand("jest", ["--coverage"]) && testsPassed;
+      testsPassed =
+        runCommand("jest", testMode === "coverage" ? ["--coverage"] : []) &&
+        testsPassed;
     }
   }
 
-  if (hasRustWorkstream && testsPassed && coveragePolicy !== undefined) {
-    testsPassed =
-      runCommand("cargo", [
-        "llvm-cov",
-        "--workspace",
-        "--all-features",
-        "--all-targets",
-        "--fail-under-lines",
-        String(coveragePolicy.rust.enforcedPercent),
-        "--ignore-filename-regex",
-        coveragePolicy.rust.ignoreFilenameRegex,
-        "--",
-        "--test-threads=1",
-      ]) && testsPassed;
+  if (hasRustWorkstream && testsPassed) {
+    if (testMode === "coverage" && coveragePolicy !== undefined) {
+      testsPassed =
+        runCommand("cargo", [
+          "llvm-cov",
+          "--workspace",
+          "--all-features",
+          "--all-targets",
+          "--fail-under-lines",
+          String(coveragePolicy.rust.enforcedPercent),
+          "--ignore-filename-regex",
+          coveragePolicy.rust.ignoreFilenameRegex,
+          "--",
+          "--test-threads=1",
+        ]) && testsPassed;
+    } else if (testMode === "unit") {
+      testsPassed =
+        runCommand("cargo", [
+          "test",
+          "--workspace",
+          "--all-features",
+          "--all-targets",
+          "--",
+          "--test-threads=1",
+        ]) && testsPassed;
+    }
   }
 }

@@ -87,7 +87,7 @@ export function buildReleaseEvidence() {
   console.log(
     `release evidence passed: files=${String(
       Object.keys(first).length,
-    )}, sha256=${firstFingerprint}, distribution=deferred-to-M6`,
+    )}, sha256=${firstFingerprint}`,
   );
 }
 

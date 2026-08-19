@@ -90,7 +90,7 @@ pub enum LocalProverError {
     /// genuine proving fault, with the required `k` discarded. It is refused before
     /// proving starts, both because the work is certain to fail and because the
     /// larger sizes are what take the device down (see
-    /// docs/LOCAL_PROVER_CIRCUIT_SIZE.md) — recovering after the attempt is not an
+    /// proof parameters and device memory) — recovering after the attempt is not an
     /// option when the attempt is the hazard.
     #[error("CIRCUIT_TOO_LARGE")]
     CircuitTooLarge { k: u8 },
