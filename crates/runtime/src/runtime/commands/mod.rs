@@ -41,7 +41,8 @@ pub(super) fn begin_command_kind(
         command @ RuntimeCommand::FinalizeUnprovenTransaction { .. } => {
             finalization::handle(session_id, generation, session, command, state)
         }
-        command @ (RuntimeCommand::BalanceUnsealed { .. }
+        command @ (RuntimeCommand::PreviewBalance { .. }
+        | RuntimeCommand::BalanceUnsealed { .. }
         | RuntimeCommand::BalanceSealed { .. }) => {
             deploy_and_balance::handle(session_id, generation, session, command, state)
         }

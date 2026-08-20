@@ -183,6 +183,30 @@ export const PUBLIC_COMMAND_TYPE_FIXTURES = {
       identifiers: ["generate-dust"],
     },
   ],
+  previewBalance: [
+    {
+      kind: "previewBalance",
+      ledgerParametersBase64: "AA==",
+      rawBase64: "AQ==",
+      sealed: false,
+      feeBlocksMargin: 1,
+      additionalFeeOverhead: "0",
+      feeMode: "localDust",
+    },
+    {
+      manifest: {
+        transactionDigest: hash,
+        variant: "unsealed",
+        contributions: [
+          { walletType: "unshielded", tokenType: hash, amount: "1000000" },
+        ],
+        change: [{ walletType: "unshielded", tokenType: hash, amount: "5" }],
+        dust: "42",
+        walletStateDigest: hash,
+      },
+      manifestDigest: hash,
+    },
+  ],
   balanceUnsealed: [
     {
       kind: "balanceUnsealed",
@@ -190,6 +214,17 @@ export const PUBLIC_COMMAND_TYPE_FIXTURES = {
       rawBase64: "AQ==",
       feeBlocksMargin: 1,
       additionalFeeOverhead: "0",
+      feeMode: "localDust",
+      approvedManifest: {
+        transactionDigest: hash,
+        variant: "unsealed",
+        contributions: [
+          { walletType: "unshielded", tokenType: hash, amount: "1000000" },
+        ],
+        change: [],
+        dust: "42",
+        walletStateDigest: hash,
+      },
     },
     {
       transactionBase64: "AA==",
@@ -205,6 +240,15 @@ export const PUBLIC_COMMAND_TYPE_FIXTURES = {
       rawBase64: "AQ==",
       feeBlocksMargin: 1,
       additionalFeeOverhead: "0",
+      feeMode: "sponsored",
+      approvedManifest: {
+        transactionDigest: hash,
+        variant: "sealed",
+        contributions: [],
+        change: [],
+        dust: "sponsored",
+        walletStateDigest: hash,
+      },
     },
     {
       transactionBase64: "AA==",

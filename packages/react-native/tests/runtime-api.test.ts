@@ -409,7 +409,7 @@ await test("runtime API normalizes native rejections", async () => {
 
 await test("public index loads every production entrypoint", async () => {
   const entrypoint = await import("../src/index.js");
-  assert.equal(entrypoint.MIDNIGHT_COMMAND_KINDS.length, 22);
+  assert.equal(entrypoint.MIDNIGHT_COMMAND_KINDS.length, 23);
   assert.equal(
     entrypoint.EXPO_MIDNIGHT_NATIVE_MODULE_NAME,
     "MidnightMobileRuntime",

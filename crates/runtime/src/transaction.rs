@@ -10,6 +10,7 @@ use midnight_serialize::{
 use midnight_storage::db::InMemoryDB;
 use midnight_transient_crypto::commitment::{Pedersen, PedersenRandomness, PureGeneratorPedersen};
 use rand::rngs::OsRng;
+use sha2::{Digest, Sha256};
 
 use super::MidnightRuntimeError;
 use super::executor::block_on;
@@ -165,6 +166,42 @@ pub(crate) fn decode_balance_original(
         return Err(MidnightRuntimeError::InvalidArgument);
     }
     Ok(erased)
+}
+
+/// Decodes the caller's transaction in the one form whose intents can still be
+/// rewritten: proven, but not yet bound. Used by the balancing planner, which
+/// adds the wallet's unshielded inputs to the existing offers in place.
+pub(crate) fn decode_unsealed_original(
+    raw: &[u8],
+    expected_network_id: &str,
+) -> Result<Transaction<Signature, ProofMarker, PedersenRandomness, InMemoryDB>, MidnightRuntimeError>
+{
+    if raw.is_empty() || raw.len() > MAX_TRANSACTION_BYTES || expected_network_id.is_empty() {
+        return Err(MidnightRuntimeError::InvalidArgument);
+    }
+    let transaction: Transaction<Signature, ProofMarker, PedersenRandomness, InMemoryDB> =
+        tagged_deserialize(&mut &raw[..]).map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+    if transaction_network(&transaction) != expected_network_id {
+        return Err(MidnightRuntimeError::InvalidArgument);
+    }
+    let mut canonical = Vec::new();
+    tagged_serialize(&transaction, &mut canonical)
+        .map_err(|_| MidnightRuntimeError::NativeInternal)?;
+    if canonical != raw {
+        return Err(MidnightRuntimeError::InvalidArgument);
+    }
+    Ok(transaction)
+}
+
+/// A stable identity for the exact bytes the caller asked to have balanced.
+///
+/// The approval manifest binds to this so execution can prove it is acting on
+/// the transaction the user saw, without depending on the ledger's own hash
+/// being defined for every proof and binding stage.
+pub(crate) fn canonical_digest(raw: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(raw);
+    hex::encode(hasher.finalize())
 }
 
 fn transaction_network<S, P, B>(transaction: &Transaction<S, P, B, InMemoryDB>) -> &str

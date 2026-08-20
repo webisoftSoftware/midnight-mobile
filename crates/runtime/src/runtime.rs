@@ -12,9 +12,9 @@ use super::{
     MidnightRuntimeError, SOURCE_REVISION, WalletAddressMaterial, codec,
     derive_wallet_address_material_inner, serializable_hex, transaction,
     wallet_state::{
-        DappIntentBuildInput, DappIntentInput, DappTransactionOutput, DustBalanceInput,
-        DustCommitmentRequest, LegacyExportContext, LegacyWalletState, NativeWalletState,
-        RestoreContext, WalletBalanceSnapshot,
+        BalanceManifest, BalanceRequest, DappIntentBuildInput, DappIntentInput,
+        DappTransactionOutput, DustCommitmentRequest, FeeMode, LegacyExportContext,
+        LegacyWalletState, NativeWalletState, RestoreContext, WalletBalanceSnapshot,
     },
 };
 use midnight_transient_crypto::proofs::ProvingKeyMaterial;

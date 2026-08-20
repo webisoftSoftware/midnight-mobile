@@ -1,11 +1,11 @@
 use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bech32::primitives::decode::CheckedHrpstring;
 use bech32::{Bech32m, Hrp};
 use midnight_base_crypto::hash::HashOutput;
-use midnight_base_crypto::schnorr::{Signature, SigningKey};
+use midnight_base_crypto::schnorr::{Signature, SigningKey, VerifyingKey};
 use midnight_coin_structure::coin::{
     Info as ShieldedCoinInfo, Nullifier as ShieldedNullifier, PublicKey as ShieldedCoinPublicKey,
     ShieldedTokenType, TokenType, UnshieldedTokenType, UserAddress,
@@ -18,8 +18,8 @@ use midnight_ledger::dust::{
 use midnight_ledger::events::Event;
 use midnight_ledger::semantics::ZswapLocalStateExt;
 use midnight_ledger::structure::{
-    Intent, IntentHash, LedgerParameters, ProofPreimageMarker, Transaction, UnshieldedOffer,
-    UtxoOutput, UtxoSpend,
+    Intent, IntentHash, LedgerParameters, ProofMarker, ProofPreimageMarker, StandardTransaction,
+    Transaction, UnshieldedOffer, UtxoOutput, UtxoSpend,
 };
 use midnight_serialize::{
     Deserializable, Serializable, Tagged, tagged_deserialize, tagged_deserialize_sequence,
@@ -40,10 +40,13 @@ use num_bigint::BigUint;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use zeroize::Zeroize;
 
 use super::{MidnightRuntimeError, WalletAddressMaterial, serializable_hex};
 
+mod balance;
+pub(crate) use balance::{BalanceManifest, BalancePlan, BalanceRequest, FeeMode};
 mod dapp;
 pub(crate) use dapp::{DappIntentBuildInput, DappIntentInput, DappTransactionOutput};
 mod apply_and_prepare;
@@ -136,17 +139,6 @@ pub(crate) struct LegacyExportContext<'a> {
     pub unshielded_offset: Option<u64>,
 }
 
-pub(crate) struct DustBalanceInput<'a> {
-    pub network_id: &'a str,
-    pub original: &'a Transaction<Signature, (), Pedersen, InMemoryDB>,
-    pub ledger_parameters: &'a LedgerParameters,
-    pub fee_blocks_margin: usize,
-    pub additional_fee_overhead: u128,
-    pub dust_seed: &'a [u8],
-    pub current_time_seconds: u64,
-    pub ttl_seconds: u64,
-}
-
 struct UnshieldedTransferInput<'a> {
     network_id: &'a str,
     target_address: &'a str,
@@ -155,14 +147,6 @@ struct UnshieldedTransferInput<'a> {
     night_external_key: &'a [u8],
     ttl_seconds: u64,
 }
-
-type DustBalancingResult = Result<
-    (
-        DustLocalState<InMemoryDB>,
-        Transaction<Signature, ProofPreimageMarker, PedersenRandomness, InMemoryDB>,
-    ),
-    MidnightRuntimeError,
->;
 
 #[cfg(test)]
 mod tests;

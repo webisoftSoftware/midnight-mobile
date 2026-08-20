@@ -22,12 +22,13 @@ fn command_decoder_accepts_exactly_the_wallet_core_union() {
         r#"{"kind":"dappTransfer","outputs":[]}"#,
         r#"{"kind":"dappIntent","inputs":[],"outputs":[]}"#,
         r#"{"kind":"generateDust","ledgerParametersBase64":"","feeBlocksMargin":0,"additionalFeeOverhead":"0"}"#,
-        r#"{"kind":"balanceUnsealed","rawBase64":"","ledgerParametersBase64":"","feeBlocksMargin":0,"additionalFeeOverhead":"0"}"#,
-        r#"{"kind":"balanceSealed","rawBase64":"","ledgerParametersBase64":"","feeBlocksMargin":0,"additionalFeeOverhead":"0"}"#,
+        r#"{"kind":"previewBalance","rawBase64":"","sealed":false,"ledgerParametersBase64":"","feeBlocksMargin":0,"additionalFeeOverhead":"0","feeMode":"localDust"}"#,
+        r#"{"kind":"balanceUnsealed","rawBase64":"","ledgerParametersBase64":"","feeBlocksMargin":0,"additionalFeeOverhead":"0","feeMode":"localDust","approvedManifest":{"transactionDigest":"","variant":"unsealed","contributions":[],"change":[],"dust":"0","walletStateDigest":""}}"#,
+        r#"{"kind":"balanceSealed","rawBase64":"","ledgerParametersBase64":"","feeBlocksMargin":0,"additionalFeeOverhead":"0","feeMode":"sponsored","approvedManifest":{"transactionDigest":"","variant":"sealed","contributions":[],"change":[],"dust":"sponsored","walletStateDigest":""}}"#,
         r#"{"kind":"finalizeUnprovenTransaction","rawBase64":""}"#,
         r#"{"kind":"submitFinalized","rawBase64":""}"#,
     ];
-    assert_eq!(accepted.len(), 22);
+    assert_eq!(accepted.len(), 23);
     for command in accepted {
         serde_json::from_str::<RuntimeCommand>(command).unwrap();
     }

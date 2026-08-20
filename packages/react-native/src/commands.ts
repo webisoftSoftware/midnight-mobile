@@ -121,6 +121,15 @@ export interface MidnightCommandMap {
     readonly feeBlocksMargin: number;
     readonly additionalFeeOverhead: string;
   };
+  readonly previewBalance: {
+    readonly kind: "previewBalance";
+    readonly ledgerParametersBase64: string;
+    readonly rawBase64: string;
+    readonly sealed: boolean;
+    readonly feeBlocksMargin: number;
+    readonly additionalFeeOverhead: string;
+    readonly feeMode: MidnightFeeMode;
+  };
   readonly balanceUnsealed: MidnightBalanceCommand<"balanceUnsealed">;
   readonly balanceSealed: MidnightBalanceCommand<"balanceSealed">;
   readonly finalizeUnprovenTransaction: {
@@ -142,6 +151,38 @@ interface MidnightBalanceCommand<
   readonly rawBase64: string;
   readonly feeBlocksMargin: number;
   readonly additionalFeeOverhead: string;
+  readonly feeMode: MidnightFeeMode;
+  /**
+   * The manifest returned by `previewBalance` and shown to the user, passed
+   * back verbatim. The runtime replans and refuses to execute unless the fresh
+   * plan costs no more than this one.
+   */
+  readonly approvedManifest: MidnightBalanceManifest;
+}
+
+/** Where a transaction's fee comes from. */
+export type MidnightFeeMode = "localDust" | "sponsored";
+
+export interface MidnightWalletContribution {
+  readonly walletType: MidnightWalletType;
+  readonly tokenType: string;
+  /** Net amount in atomic units: selected inputs minus returned change. */
+  readonly amount: string;
+}
+
+export interface MidnightBalanceManifest {
+  readonly transactionDigest: string;
+  readonly variant: "sealed" | "unsealed";
+  readonly contributions: readonly MidnightWalletContribution[];
+  readonly change: readonly MidnightWalletContribution[];
+  /** Maximum DUST the wallet may spend, or `"sponsored"` when it spends none. */
+  readonly dust: string;
+  readonly walletStateDigest: string;
+}
+
+export interface MidnightBalancePreviewResult {
+  readonly manifest: MidnightBalanceManifest;
+  readonly manifestDigest: string;
 }
 
 export type MidnightCommandKind = keyof MidnightCommandMap;
@@ -242,6 +283,7 @@ export interface MidnightCommandResultMap {
   readonly dappTransfer: MidnightFinalizedTransactionResult;
   readonly dappIntent: MidnightFinalizedTransactionResult;
   readonly generateDust: MidnightFinalizedTransactionResult;
+  readonly previewBalance: MidnightBalancePreviewResult;
   readonly balanceUnsealed: MidnightFinalizedTransactionResult;
   readonly balanceSealed: MidnightFinalizedTransactionResult;
   readonly finalizeUnprovenTransaction: MidnightFinalizedTransactionResult;
@@ -270,6 +312,7 @@ export const MIDNIGHT_COMMAND_KINDS = [
   "dappTransfer",
   "dappIntent",
   "generateDust",
+  "previewBalance",
   "balanceUnsealed",
   "balanceSealed",
   "finalizeUnprovenTransaction",
