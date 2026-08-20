@@ -372,8 +372,42 @@ fn a_fallible_deficit_is_balanced_inside_its_own_intent() {
 #[test]
 fn a_surplus_is_returned_to_the_wallet() {
     let (state, _keys, _address) = funded_state();
-    // The dApp over-supplies the segment, so the wallet takes the excess back
-    // instead of leaving the transaction unbalanced.
+    // The dApp declares spending one of the wallet's own UTXOs without paying
+    // it out, so the wallet signs that input and takes the surplus back rather
+    // than leaving the transaction unbalanced.
+    let raw = unsealed(vec![(
+        1,
+        dapp_intent(
+            Some(offer(
+                vec![UtxoSpend {
+                    value: 500,
+                    owner: SigningKey::from_bytes(&[1; 32]).unwrap().verifying_key(),
+                    type_: token(OTHER_TOKEN),
+                    intent_hash: IntentHash(decode_hash(&format!("{:064x}", 2)).unwrap()),
+                    output_no: 1,
+                }],
+                Vec::new(),
+            )),
+            None,
+        ),
+    )]);
+    let plan = plan(&state, &raw, false, FeeMode::Sponsored);
+    assert_eq!(
+        change(&plan, "unshielded", OTHER_TOKEN).as_deref(),
+        Some("500")
+    );
+    assert_eq!(contribution(&plan, "unshielded", OTHER_TOKEN), None);
+    assert_token_balanced(&raw, false, &plan);
+    assert_signatures_valid(&plan.base_raw.clone().unwrap());
+}
+
+#[test]
+fn an_offer_carrying_an_unsigned_counterparty_input_is_unsupported() {
+    let (state, _keys, _address) = funded_state();
+    // Adding the wallet's inputs changes the intent's signature data, so a
+    // counterparty's input can only survive if it is already signed. Signing it
+    // here would be a forgery, and leaving a gap would misattribute the next
+    // signature, so the request is refused instead.
     let raw = unsealed(vec![(
         1,
         dapp_intent(
@@ -390,13 +424,11 @@ fn a_surplus_is_returned_to_the_wallet() {
             None,
         ),
     )]);
-    let plan = plan(&state, &raw, false, FeeMode::Sponsored);
-    assert_eq!(
-        change(&plan, "unshielded", OTHER_TOKEN).as_deref(),
-        Some("900")
-    );
-    assert_eq!(contribution(&plan, "unshielded", OTHER_TOKEN), None);
-    assert_token_balanced(&raw, false, &plan);
+    let mut rng = StdRng::seed_from_u64(7);
+    let error = state
+        .plan_balance_with_rng(request(&raw, false, FeeMode::Sponsored), &mut rng)
+        .unwrap_err();
+    assert_eq!(error.to_string(), "UNSUPPORTED_TRANSACTION");
 }
 
 #[test]

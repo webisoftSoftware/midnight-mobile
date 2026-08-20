@@ -189,10 +189,25 @@ fn install(
     }
 }
 
-fn signed(inputs: &SignedInputs, signature: &Signature) -> Vec<Signature> {
+/// Fills in the signatures for an edited offer.
+///
+/// A counterparty's existing signature is preserved, and an input this wallet
+/// owns is signed with the fresh signature. An input owned by someone else that
+/// carries no signature cannot be completed here: the ledger zips signatures
+/// with inputs in order, so a gap would misattribute a signature, and signing on
+/// the owner's behalf would be a forgery. Such an offer is rejected instead.
+fn signed(
+    inputs: &SignedInputs,
+    verifying_key: &VerifyingKey,
+    signature: &Signature,
+) -> Result<Vec<Signature>, MidnightRuntimeError> {
     inputs
         .iter()
-        .map(|(_, existing)| existing.clone().unwrap_or_else(|| signature.clone()))
+        .map(|(input, existing)| match existing {
+            Some(existing) => Ok(existing.clone()),
+            None if input.owner == *verifying_key => Ok(signature.clone()),
+            None => Err(MidnightRuntimeError::UnsupportedTransaction),
+        })
         .collect()
 }
 
@@ -232,6 +247,7 @@ impl IntentEdit {
         signing_key: &SigningKey,
         rng: &mut R,
     ) -> Result<UnsealedIntent, MidnightRuntimeError> {
+        let verifying_key = signing_key.verifying_key();
         let mut updated = intent.clone();
         if let Some((inputs, outputs)) = &self.guaranteed {
             updated.guaranteed_unshielded_offer = Some(Sp::new(install(inputs, outputs.clone())));
@@ -251,7 +267,7 @@ impl IntentEdit {
                 .ok_or(MidnightRuntimeError::NativeInternal)?
                 .clone())
             .clone();
-            offer.add_signatures(signed(inputs, &signature));
+            offer.add_signatures(signed(inputs, &verifying_key, &signature)?);
             updated.guaranteed_unshielded_offer = Some(Sp::new(offer));
         }
         if let Some((inputs, _)) = &self.fallible {
@@ -261,7 +277,7 @@ impl IntentEdit {
                 .ok_or(MidnightRuntimeError::NativeInternal)?
                 .clone())
             .clone();
-            offer.add_signatures(signed(inputs, &signature));
+            offer.add_signatures(signed(inputs, &verifying_key, &signature)?);
             updated.fallible_unshielded_offer = Some(Sp::new(offer));
         }
         Ok(updated)
