@@ -18,6 +18,20 @@ export const ALLOWED_COMMAND_KINDS = Object.freeze([
 ]);
 export { validatePolicyManifest };
 
+/** Where the runtime declares its error variants. */
+const ERROR_ENUM_SOURCE = "crates/runtime/src/lib.rs";
+
+/**
+ * The bridges that translate the enum, and therefore have to name every variant.
+ * The TypeScript union is deliberately not listed: it is a curated host surface
+ * that folds some variants into a broader code, whereas a bridge that misses a
+ * variant reports it as NATIVE_INTERNAL and loses it.
+ */
+const ERROR_SURFACES = Object.freeze([
+  "packages/react-native/ios/MidnightMobileRuntimeModule.swift",
+  "packages/react-native/android/src/main/java/dev/oneam/midnightmobile/MidnightMobileRuntimeModule.kt",
+]);
+
 const TEXT_EXTENSIONS = new Set(
   ",.c,.cc,.cpp,.gradle,.h,.hpp,.java,.js,.json,.kt,.kts,.md,.mjs,.modulemap,.podspec,.properties,.rs,.sh,.swift,.toml,.ts,.tsx,.txt,.xml".split(
     ",",
@@ -244,6 +258,35 @@ function readJson(path, errors, label) {
   }
 }
 
+/**
+ * Both platform bridges turn the Rust error enum into a string code with a
+ * switch that falls back to NATIVE_INTERNAL, so neither compiler can catch a
+ * missing variant: a new typed error would reach the host as a generic internal
+ * failure. Require every variant to be named in both bridges.
+ */
+export function validateErrorSurfaces({ errorEnumSource, surfaces }) {
+  const block = errorEnumSource.match(
+    /pub enum MidnightRuntimeError \{([\s\S]*?)\n\}/u,
+  );
+  if (!block)
+    return ["MidnightRuntimeError enum was not found in the Rust runtime"];
+  const variants = [...block[1].matchAll(/^\s{4}([A-Z][A-Za-z0-9]*),$/gmu)].map(
+    (match) => match[1],
+  );
+  if (variants.length === 0)
+    return ["MidnightRuntimeError declares no variants"];
+  const errors = [];
+  for (const [name, source] of Object.entries(surfaces)) {
+    for (const variant of variants) {
+      const code = variant.replace(/(?<!^)([A-Z])/gu, "_$1").toUpperCase();
+      if (!source.includes(variant) && !source.includes(code)) {
+        errors.push(`${name} does not surface the ${variant} runtime error`);
+      }
+    }
+  }
+  return errors;
+}
+
 export function runBoundaryCheck({
   repositoryRoot = process.cwd(),
   manifestPath = resolve(
@@ -287,6 +330,27 @@ export function runBoundaryCheck({
     left.path.localeCompare(right.path),
   );
   errors.push(...findForbiddenContent(scannedFiles));
+
+  const errorSurfaces = {};
+  for (const surface of ERROR_SURFACES) {
+    const path = resolve(repositoryRoot, surface);
+    if (!existsSync(path)) {
+      errors.push(`error surface is missing: ${surface}`);
+      continue;
+    }
+    errorSurfaces[surface] = readFileSync(path, "utf8");
+  }
+  const errorEnumPath = resolve(repositoryRoot, ERROR_ENUM_SOURCE);
+  if (existsSync(errorEnumPath)) {
+    errors.push(
+      ...validateErrorSurfaces({
+        errorEnumSource: readFileSync(errorEnumPath, "utf8"),
+        surfaces: errorSurfaces,
+      }),
+    );
+  } else {
+    errors.push(`error enum source is missing: ${ERROR_ENUM_SOURCE}`);
+  }
   return { errors, files: scannedFiles, manifest };
 }
 

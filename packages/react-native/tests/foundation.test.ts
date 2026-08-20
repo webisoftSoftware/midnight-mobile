@@ -45,6 +45,20 @@ await test("native errors normalize every supported carrier", () => {
     normalizeMidnightError("submission-status-unknown").code,
     "SUBMISSION_STATUS_UNKNOWN",
   );
+  // A token shortfall, a stale approval, and a transaction the wallet cannot
+  // fund each reach JavaScript as themselves, never as NATIVE_INTERNAL.
+  assert.equal(
+    normalizeMidnightError({ code: "insufficientFunds" }).code,
+    "INSUFFICIENT_FUNDS",
+  );
+  assert.equal(
+    normalizeMidnightError({ name: "balanceApprovalChanged" }).code,
+    "BALANCE_APPROVAL_CHANGED",
+  );
+  assert.equal(
+    normalizeMidnightError("unsupported-transaction").code,
+    "UNSUPPORTED_TRANSACTION",
+  );
   assert.equal(normalizeMidnightError(4).code, "NATIVE_INTERNAL");
   assert.equal(
     normalizeMidnightError({ code: "not-real" }).code,
