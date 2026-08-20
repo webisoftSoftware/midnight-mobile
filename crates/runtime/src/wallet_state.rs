@@ -13,7 +13,8 @@ use midnight_coin_structure::coin::{
 use midnight_coin_structure::transfer::{Recipient, SenderEvidence};
 use midnight_ledger::dust::{
     DustActions, DustGenerationInfo, DustLocalState, DustParameters, DustPublicKey,
-    DustRegistration, DustSecretKey, INITIAL_DUST_PARAMETERS, QualifiedDustOutput, successor_utxo,
+    DustRegistration, DustSecretKey, DustSpendError, INITIAL_DUST_PARAMETERS, QualifiedDustOutput,
+    successor_utxo,
 };
 use midnight_ledger::events::Event;
 use midnight_ledger::semantics::ZswapLocalStateExt;

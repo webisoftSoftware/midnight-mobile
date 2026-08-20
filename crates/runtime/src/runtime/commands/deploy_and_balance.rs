@@ -119,6 +119,7 @@ fn plan(
         dust_seed: &state.secrets.dust_seed,
         current_time_seconds,
         ttl_seconds,
+        materialize: arguments.approved_manifest.is_some(),
     })
 }
 

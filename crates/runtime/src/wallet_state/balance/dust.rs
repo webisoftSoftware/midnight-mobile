@@ -61,7 +61,14 @@ pub(super) fn plan(
         .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
     let dust_key = DustSecretKey::derive_secret_key(&seed);
     seed.zeroize();
-    let current_time = midnight_base_crypto::time::Timestamp::from_secs(current_time_seconds);
+    // Set ctime before the wall-clock time. Do not set it before the latest
+    // DUST state that the wallet has synchronized.
+    let current_time = midnight_base_crypto::time::Timestamp::from_secs(
+        current_time_seconds
+            .saturating_sub(30)
+            .max(dust_state.sync_time.to_secs())
+            .min(current_time_seconds),
+    );
     let ttl = midnight_base_crypto::time::Timestamp::from_secs(ttl_seconds);
 
     let mut available = dust_state
@@ -109,7 +116,10 @@ pub(super) fn plan(
         for ((_, coin), deduction) in available.iter().zip(deductions) {
             let (next, spend) = next_state
                 .spend(&dust_key, coin, *deduction, current_time)
-                .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+                .map_err(|error| match error {
+                    DustSpendError::NotEnoughDust { .. } => MidnightRuntimeError::InsufficientDust,
+                    _ => MidnightRuntimeError::InvalidArgument,
+                })?;
             next_state = next;
             spends.push(spend);
         }

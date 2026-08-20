@@ -196,12 +196,14 @@ await runtime.closeWalletSession(session);
 await runtime.dispose();
 ```
 
-## Balance a transaction built elsewhere
+## Balance a transaction from a dApp
 
-A dApp can hand over a transaction it cannot fund on its own. `previewBalance`
-reports what this wallet would contribute, without selecting a coin, signing, or
-proving anything. Show that to the user, then pass the same manifest back to
-`balanceUnsealed` or `balanceSealed`.
+A dApp can provide a transaction that it cannot fund. `previewBalance` reports
+the tokens and DUST that the wallet must provide. The command does not change
+wallet state. It does not create valid signatures or proofs. It selects inputs
+from a copy of the wallet state to calculate the manifest. Show the manifest to
+the user. After approval, give the same manifest to `balanceUnsealed` or
+`balanceSealed`.
 
 ```ts
 const preview = await runtime.runCommand(session, {
@@ -214,10 +216,10 @@ const preview = await runtime.runCommand(session, {
   feeMode: "localDust",
 });
 
-// preview.manifest.contributions is the net debit per wallet and token: the
-// coins selected minus the change returned, not the value of the selected UTXO.
-// preview.manifest.dust is the maximum DUST this wallet may spend, or
-// "sponsored" when the fee is settled outside the transaction.
+// preview.manifest.contributions contains the wallet debit for each token.
+// The debit is the selected value minus the returned change.
+// preview.manifest.dust contains the maximum DUST that the wallet can spend.
+// Its value is "sponsored" if the transaction does not pay this fee.
 if (!(await confirmWithUser(preview.manifest))) return;
 
 const balanced = await runtime.runCommand(session, {
@@ -231,18 +233,22 @@ const balanced = await runtime.runCommand(session, {
 });
 ```
 
-The runtime replans before it acts and fails with `BALANCE_APPROVAL_CHANGED`
-unless the transaction, the token contributions, and the wallet's coin set still
-match the approved manifest. A cheaper DUST outcome is allowed; a larger one is
-not.
+The runtime makes the plan again before execution. It returns
+`BALANCE_APPROVAL_CHANGED` if the transaction, token contributions, or wallet
+coins do not match the approved manifest. The DUST cost can be lower than the
+approved cost. It cannot be higher.
 
-An unsealed transaction is balanced in place, so its existing offers keep the
-signatures they already carry and only this wallet's own inputs are signed. A
-sealed transaction is preserved byte for byte and balanced by a separate intent.
-Some transactions cannot be funded at all once sealed, because the ledger binds
-a fallible section to its own intent; those return `UNSUPPORTED_TRANSACTION`. A
-shortfall in a token returns `INSUFFICIENT_FUNDS`, which is never reported as
-`INSUFFICIENT_DUST`.
+The runtime changes an unsealed transaction to balance it. This change also
+changes the signing data for all parts of the intent. The runtime signs all inputs
+that the wallet owns in both offer sections. It rejects an input that another
+party owns.
+
+The runtime does not change a sealed transaction. It balances the transaction
+with a separate intent. Some sealed transactions cannot use this method. The
+ledger binds a fallible section to its own intent. The runtime returns
+`UNSUPPORTED_TRANSACTION` for these transactions. It returns
+`INSUFFICIENT_FUNDS` for a token shortage. It does not report a token shortage
+as `INSUFFICIENT_DUST`.
 
 ## Network results
 

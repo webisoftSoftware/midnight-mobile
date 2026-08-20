@@ -57,6 +57,29 @@ fn dapp_intent(
     }
 }
 
+fn signed_intent(intent: UnsealedIntent, segment: u16, signing_key: &SigningKey) -> UnsealedIntent {
+    let mut rng = StdRng::seed_from_u64(19);
+    let data_to_sign = intent
+        .erase_proofs()
+        .erase_signatures()
+        .data_to_sign(segment);
+    let signature = signing_key.sign(&mut rng, &data_to_sign);
+    let mut signed = intent;
+    for offer in [
+        signed.guaranteed_unshielded_offer.as_mut(),
+        signed.fallible_unshielded_offer.as_mut(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let mut updated_offer = (**offer).clone();
+        let count = updated_offer.inputs.len();
+        updated_offer.add_signatures(vec![signature.clone(); count]);
+        *offer = Sp::new(updated_offer);
+    }
+    signed
+}
+
 fn unsealed(intents: Vec<(u16, UnsealedIntent)>) -> Vec<u8> {
     let transaction: Transaction<Signature, ProofMarker, PedersenRandomness, InMemoryDB> =
         Transaction::Standard(StandardTransaction {
@@ -132,7 +155,14 @@ fn request<'a>(raw: &'a [u8], sealed: bool, fee_mode: FeeMode) -> BalanceRequest
         dust_seed: &[3; 32],
         current_time_seconds: CURRENT_TIME,
         ttl_seconds: TTL,
+        materialize: true,
     }
+}
+
+fn preview_request<'a>(raw: &'a [u8], sealed: bool, fee_mode: FeeMode) -> BalanceRequest<'a> {
+    let mut request = request(raw, sealed, fee_mode);
+    request.materialize = false;
+    request
 }
 
 fn plan(state: &NativeWalletState, raw: &[u8], sealed: bool, fee_mode: FeeMode) -> BalancePlan {
@@ -209,6 +239,60 @@ fn assert_signatures_valid(raw: &[u8]) {
             .expect("every input signature must verify");
         }
     }
+}
+
+#[test]
+fn preview_planning_does_not_materialize_unshielded_signatures() {
+    let (state, _keys, _address) = funded_state();
+    let raw = via_transaction();
+    let mut rng = StdRng::seed_from_u64(7);
+    let plan = state
+        .plan_balance_with_rng(preview_request(&raw, false, FeeMode::Sponsored), &mut rng)
+        .unwrap();
+    let base = plan
+        .base_raw
+        .expect("preview must include the changed transaction");
+    let Transaction::Standard(standard) =
+        crate::transaction::decode_unsealed_original(&base, "preview").unwrap()
+    else {
+        unreachable!()
+    };
+    let intent = standard.intents.get(&1).unwrap();
+    for offer in [
+        intent.guaranteed_unshielded_offer.as_ref(),
+        intent.fallible_unshielded_offer.as_ref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        assert_eq!(
+            Vec::from(&offer.signatures),
+            vec![Signature::default(); offer.inputs.len()]
+        );
+    }
+}
+
+#[test]
+fn preview_and_execution_quote_the_same_dust_for_unshielded_funding() {
+    let state = dust_funded_state();
+    let raw = via_transaction();
+    let mut preview_rng = StdRng::seed_from_u64(7);
+    let preview = state
+        .plan_balance_with_rng(
+            preview_request(&raw, false, FeeMode::LocalDust),
+            &mut preview_rng,
+        )
+        .unwrap();
+    let mut execution_rng = StdRng::seed_from_u64(7);
+    let execution = state
+        .plan_balance_with_rng(request(&raw, false, FeeMode::LocalDust), &mut execution_rng)
+        .unwrap();
+    assert_eq!(preview.manifest.dust, execution.manifest.dust);
+    assert_eq!(
+        preview.manifest.contributions,
+        execution.manifest.contributions
+    );
+    assert_eq!(preview.manifest.change, execution.manifest.change);
 }
 
 #[test]
@@ -429,6 +513,72 @@ fn an_offer_carrying_an_unsigned_counterparty_input_is_unsupported() {
         .plan_balance_with_rng(request(&raw, false, FeeMode::Sponsored), &mut rng)
         .unwrap_err();
     assert_eq!(error.to_string(), "UNSUPPORTED_TRANSACTION");
+}
+
+#[test]
+fn an_offer_carrying_a_signed_counterparty_input_is_unsupported() {
+    let (state, _keys, _address) = funded_state();
+    let foreign = SigningKey::from_bytes(&[9; 32]).unwrap();
+    let raw = unsealed(vec![(
+        1,
+        signed_intent(
+            dapp_intent(
+                Some(offer(
+                    vec![UtxoSpend {
+                        value: 900,
+                        owner: foreign.verifying_key(),
+                        type_: token(OTHER_TOKEN),
+                        intent_hash: IntentHash(decode_hash(&"aa".repeat(32)).unwrap()),
+                        output_no: 0,
+                    }],
+                    Vec::new(),
+                )),
+                None,
+            ),
+            1,
+            &foreign,
+        ),
+    )]);
+    let mut rng = StdRng::seed_from_u64(7);
+    let error = state
+        .plan_balance_with_rng(request(&raw, false, FeeMode::Sponsored), &mut rng)
+        .unwrap_err();
+    assert_eq!(error.to_string(), "UNSUPPORTED_TRANSACTION");
+}
+
+#[test]
+fn wallet_owned_signatures_are_refreshed_across_both_offer_sections() {
+    let (state, _keys, _address) = funded_state();
+    let wallet = SigningKey::from_bytes(&[1; 32]).unwrap();
+    let raw = unsealed(vec![(
+        1,
+        signed_intent(
+            dapp_intent(
+                Some(offer(
+                    Vec::new(),
+                    vec![UtxoOutput {
+                        value: VIA_AMOUNT,
+                        owner: counterparty(),
+                        type_: token(NIGHT),
+                    }],
+                )),
+                Some(offer(
+                    vec![UtxoSpend {
+                        value: 500,
+                        owner: wallet.verifying_key(),
+                        type_: token(OTHER_TOKEN),
+                        intent_hash: IntentHash(decode_hash(&"bb".repeat(32)).unwrap()),
+                        output_no: 0,
+                    }],
+                    Vec::new(),
+                )),
+            ),
+            1,
+            &wallet,
+        ),
+    )]);
+    let plan = plan(&state, &raw, false, FeeMode::Sponsored);
+    assert_signatures_valid(&plan.base_raw.unwrap());
 }
 
 #[test]
@@ -755,6 +905,18 @@ fn local_dust_pays_the_complete_fee_of_the_balanced_transaction() {
     let mut merged = crate::transaction::decode_balance_original(&base, false, "preview").unwrap();
     let balancing: Transaction<Signature, ProofPreimageMarker, PedersenRandomness, InMemoryDB> =
         tagged_deserialize(&mut &local.balancing_raw.clone().unwrap()[..]).unwrap();
+    let Transaction::Standard(standard) = &balancing else {
+        unreachable!()
+    };
+    let ctime = match standard.intents.get(&2) {
+        Some(intent) => intent.dust_actions.as_ref().map(|actions| actions.ctime),
+        None => None,
+    };
+    assert_eq!(
+        ctime,
+        Some(Timestamp::from_secs(CURRENT_TIME - 30)),
+        "DUST spend time must be before the wall-clock time"
+    );
     merged = merged.merge(&balancing.erase_proofs()).unwrap();
     let fees = merged.fees_with_margin(&INITIAL_PARAMETERS, 0).unwrap();
     for ((token_type, segment), value) in merged.balance(Some(fees)).unwrap() {

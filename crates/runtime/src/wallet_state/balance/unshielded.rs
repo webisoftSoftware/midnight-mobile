@@ -142,80 +142,71 @@ pub(super) fn plan_segment(
     Ok(plan)
 }
 
-/// One offer's inputs paired with the signature that already covers them.
+/// The inputs and outputs in one balanced offer.
 ///
-/// A `None` signature marks an input this wallet added and must sign itself;
-/// `Some` preserves a counterparty's existing signature through the re-sort
-/// that adding inputs forces.
-type SignedInputs = Vec<(UtxoSpend, Option<Signature>)>;
+/// Do not keep existing signatures. When the wallet adds an input, the signing
+/// data for the intent changes. The wallet must sign each input in the changed
+/// intent again. `IntentEdit::apply` rejects an input that the wallet does not
+/// own.
+type OfferParts = (Vec<UtxoSpend>, Vec<UtxoOutput>);
 
 fn merge_offer(
     existing: Option<&UnshieldedOffer<Signature, InMemoryDB>>,
     added_inputs: &[UtxoSpend],
     added_outputs: &[UtxoOutput],
-) -> (SignedInputs, Vec<UtxoOutput>) {
-    let mut inputs: SignedInputs = Vec::new();
+) -> OfferParts {
+    let mut inputs = Vec::new();
     let mut outputs = Vec::new();
     if let Some(existing) = existing {
-        let signatures = Vec::from(&existing.signatures);
-        for (index, input) in Vec::from(&existing.inputs).into_iter().enumerate() {
-            inputs.push((input, signatures.get(index).cloned()));
-        }
+        inputs.extend(Vec::from(&existing.inputs));
         outputs.extend(Vec::from(&existing.outputs));
     }
-    inputs.extend(added_inputs.iter().cloned().map(|input| (input, None)));
+    inputs.extend(added_inputs.iter().cloned());
     outputs.extend(added_outputs.iter().cloned());
-    inputs.sort_by(|left, right| left.0.cmp(&right.0));
+    inputs.sort();
     outputs.sort();
     (inputs, outputs)
 }
 
-/// Installs an offer whose signatures are still missing for the wallet's own
-/// inputs. Signature data is derived from the signature-erased intent, so an
-/// offer can be installed first and signed once the intent is final.
+/// Adds an offer without signatures. The runtime calculates the signature data
+/// after it changes all offers.
 fn install(
-    inputs: &SignedInputs,
+    inputs: &[UtxoSpend],
     outputs: Vec<UtxoOutput>,
 ) -> UnshieldedOffer<Signature, InMemoryDB> {
     UnshieldedOffer {
-        inputs: inputs
-            .iter()
-            .map(|(input, _)| input.clone())
-            .collect::<Vec<_>>()
-            .into_iter()
-            .collect(),
+        inputs: inputs.iter().cloned().collect(),
         outputs: outputs.into_iter().collect(),
         signatures: Vec::new().into_iter().collect(),
     }
 }
 
-/// Fills in the signatures for an edited offer.
-///
-/// A counterparty's existing signature is preserved, and an input this wallet
-/// owns is signed with the fresh signature. An input owned by someone else that
-/// carries no signature cannot be completed here: the ledger zips signatures
-/// with inputs in order, so a gap would misattribute a signature, and signing on
-/// the owner's behalf would be a forgery. Such an offer is rejected instead.
-fn signed(
-    inputs: &SignedInputs,
+/// Rejects an input that this wallet cannot sign. A signature from another
+/// party is not valid after the intent changes.
+fn ensure_wallet_inputs(
+    inputs: &[UtxoSpend],
     verifying_key: &VerifyingKey,
-    signature: &Signature,
-) -> Result<Vec<Signature>, MidnightRuntimeError> {
-    inputs
-        .iter()
-        .map(|(input, existing)| match existing {
-            Some(existing) => Ok(existing.clone()),
-            None if input.owner == *verifying_key => Ok(signature.clone()),
-            None => Err(MidnightRuntimeError::UnsupportedTransaction),
-        })
-        .collect()
+) -> Result<(), MidnightRuntimeError> {
+    if inputs.iter().all(|input| input.owner == *verifying_key) {
+        Ok(())
+    } else {
+        Err(MidnightRuntimeError::UnsupportedTransaction)
+    }
+}
+
+/// A signature has a fixed encoded size. A preview uses the default value to
+/// calculate the same fee as execution. The runtime does not send this value
+/// to the ledger. Execution replaces it with a valid wallet signature before
+/// proof generation.
+fn placeholder_signature() -> Signature {
+    Signature::default()
 }
 
 /// The edits one intent needs before it can be signed.
 #[derive(Default)]
 pub(super) struct IntentEdit {
-    guaranteed: Option<(SignedInputs, Vec<UtxoOutput>)>,
-    fallible: Option<(SignedInputs, Vec<UtxoOutput>)>,
+    guaranteed: Option<OfferParts>,
+    fallible: Option<OfferParts>,
 }
 
 impl IntentEdit {
@@ -238,13 +229,15 @@ impl IntentEdit {
         }
     }
 
-    /// Rewrites the intent with the staged offers and signs every input the
-    /// wallet added, leaving counterparty signatures untouched.
+    /// Changes the intent. If `materialize` is true, this function signs each
+    /// input. It removes all existing signatures because a change to one offer
+    /// changes the signing data for both offer sections.
     pub(super) fn apply<R: Rng + CryptoRng>(
         &self,
         intent: &UnsealedIntent,
         segment: u16,
         signing_key: &SigningKey,
+        materialize: bool,
         rng: &mut R,
     ) -> Result<UnsealedIntent, MidnightRuntimeError> {
         let verifying_key = signing_key.verifying_key();
@@ -255,30 +248,40 @@ impl IntentEdit {
         if let Some((inputs, outputs)) = &self.fallible {
             updated.fallible_unshielded_offer = Some(Sp::new(install(inputs, outputs.clone())));
         }
-        let data_to_sign = updated
-            .erase_proofs()
-            .erase_signatures()
-            .data_to_sign(segment);
-        let signature = signing_key.sign(rng, &data_to_sign);
-        if let Some((inputs, _)) = &self.guaranteed {
-            let mut offer = (*updated
-                .guaranteed_unshielded_offer
-                .as_ref()
-                .ok_or(MidnightRuntimeError::NativeInternal)?
-                .clone())
-            .clone();
-            offer.add_signatures(signed(inputs, &verifying_key, &signature)?);
-            updated.guaranteed_unshielded_offer = Some(Sp::new(offer));
+        // Also clear signatures in an offer that did not change. A change to
+        // either offer makes all signatures in the intent invalid.
+        for slot in [
+            &mut updated.guaranteed_unshielded_offer,
+            &mut updated.fallible_unshielded_offer,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            let mut offer = (**slot).clone();
+            ensure_wallet_inputs(&Vec::from(&offer.inputs), &verifying_key)?;
+            offer.signatures = Vec::new().into_iter().collect();
+            *slot = Sp::new(offer);
         }
-        if let Some((inputs, _)) = &self.fallible {
-            let mut offer = (*updated
-                .fallible_unshielded_offer
-                .as_ref()
-                .ok_or(MidnightRuntimeError::NativeInternal)?
-                .clone())
-            .clone();
-            offer.add_signatures(signed(inputs, &verifying_key, &signature)?);
-            updated.fallible_unshielded_offer = Some(Sp::new(offer));
+        let signature = if materialize {
+            let data_to_sign = updated
+                .erase_proofs()
+                .erase_signatures()
+                .data_to_sign(segment);
+            signing_key.sign(rng, &data_to_sign)
+        } else {
+            placeholder_signature()
+        };
+        for slot in [
+            &mut updated.guaranteed_unshielded_offer,
+            &mut updated.fallible_unshielded_offer,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            let mut offer = (**slot).clone();
+            let count = offer.inputs.len();
+            offer.add_signatures(vec![signature.clone(); count]);
+            *slot = Sp::new(offer);
         }
         Ok(updated)
     }
@@ -320,14 +323,19 @@ pub(super) fn sign_balancing_intent<R: Rng + CryptoRng>(
     intent: &UnprovenIntent,
     segment: u16,
     signing_key: &SigningKey,
+    materialize: bool,
     rng: &mut R,
 ) -> Result<UnprovenIntent, MidnightRuntimeError> {
     let mut updated = intent.clone();
-    let data_to_sign = updated
-        .erase_proofs()
-        .erase_signatures()
-        .data_to_sign(segment);
-    let signature = signing_key.sign(rng, &data_to_sign);
+    let signature = if materialize {
+        let data_to_sign = updated
+            .erase_proofs()
+            .erase_signatures()
+            .data_to_sign(segment);
+        signing_key.sign(rng, &data_to_sign)
+    } else {
+        placeholder_signature()
+    };
     let mut offer = (**updated
         .guaranteed_unshielded_offer
         .as_ref()

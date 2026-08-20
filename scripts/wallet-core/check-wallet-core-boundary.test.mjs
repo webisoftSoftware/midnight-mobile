@@ -185,7 +185,12 @@ function writeErrorSurfaceFixtures(
   ];
   for (const bridge of bridges) {
     mkdirSync(join(root, bridge, ".."), { recursive: true });
-    writeFileSync(join(root, bridge), variants.join("\n"));
+    const source = bridge.endsWith(".swift")
+      ? variants.map((variant) => `case MidnightRuntimeError.${variant}:`).join("\n")
+      : variants
+          .map((variant) => `is MidnightRuntimeException.${variant} ->`)
+          .join("\n");
+    writeFileSync(join(root, bridge), source);
   }
   return bridges;
 }
@@ -197,8 +202,10 @@ test("every runtime error variant must be named in both platform bridges", () =>
     validateErrorSurfaces({
       errorEnumSource: enumSource,
       surfaces: {
-        "ios.swift": "Unavailable SyncGap",
-        "android.kt": "Unavailable SyncGap",
+        "ios.swift":
+          "case MidnightRuntimeError.Unavailable:\ncase MidnightRuntimeError.SyncGap:",
+        "android.kt":
+          "is MidnightRuntimeException.Unavailable ->\nis MidnightRuntimeException.SyncGap ->",
       },
     }),
     [],
@@ -209,23 +216,25 @@ test("every runtime error variant must be named in both platform bridges", () =>
     validateErrorSurfaces({
       errorEnumSource: enumSource,
       surfaces: {
-        "ios.swift": "Unavailable",
-        "android.kt": "Unavailable SyncGap",
+        "ios.swift": "case MidnightRuntimeError.Unavailable:",
+        "android.kt":
+          "is MidnightRuntimeException.Unavailable ->\nis MidnightRuntimeException.SyncGap ->",
       },
     }),
     "ios.swift does not surface the SyncGap runtime error",
   );
-  // A code spelled in screaming snake case counts, so a bridge may map either
-  // the variant name or the wire code.
-  assert.deepEqual(
+  // Do not count text in comments or strings as switch arms.
+  includesError(
     validateErrorSurfaces({
       errorEnumSource: enumSource,
       surfaces: {
-        "ios.swift": "UNAVAILABLE SYNC_GAP",
-        "android.kt": "Unavailable SyncGap",
+        "ios.swift":
+          '/*\ncase MidnightRuntimeError.Unavailable:\n*/\nlet value = "case MidnightRuntimeError.SyncGap:"',
+        "android.kt":
+          "// is MidnightRuntimeException.Unavailable ->\nval value = \"is MidnightRuntimeException.SyncGap ->\"",
       },
     }),
-    [],
+    "ios.swift does not surface the Unavailable runtime error",
   );
   includesError(
     validateErrorSurfaces({

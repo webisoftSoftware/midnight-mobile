@@ -277,9 +277,19 @@ export function validateErrorSurfaces({ errorEnumSource, surfaces }) {
     return ["MidnightRuntimeError declares no variants"];
   const errors = [];
   for (const [name, source] of Object.entries(surfaces)) {
+    // Match only switch arms in code. Text in a comment or string is not a
+    // mapping.
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//gu, "")
+      .replace(/\/\/[^\n]*$/gmu, "")
+      .replace(/"""[\s\S]*?"""/gu, "")
+      .replace(/"(?:\\.|[^"\\])*"/gu, "");
+    const cases = new Set([
+      ...code.matchAll(/^\s*case\s+MidnightRuntimeError\.([A-Z][A-Za-z0-9]*)\s*:/gmu),
+      ...code.matchAll(/^\s*is\s+MidnightRuntimeException\.([A-Z][A-Za-z0-9]*)\s*->/gmu),
+    ].map((match) => match[1]));
     for (const variant of variants) {
-      const code = variant.replace(/(?<!^)([A-Z])/gu, "_$1").toUpperCase();
-      if (!source.includes(variant) && !source.includes(code)) {
+      if (!cases.has(variant)) {
         errors.push(`${name} does not surface the ${variant} runtime error`);
       }
     }

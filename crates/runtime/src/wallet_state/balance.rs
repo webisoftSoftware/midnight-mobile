@@ -43,6 +43,10 @@ pub(crate) struct BalanceRequest<'a> {
     pub(crate) dust_seed: &'a [u8],
     pub(crate) current_time_seconds: u64,
     pub(crate) ttl_seconds: u64,
+    /// Set this field to true to create wallet signatures. Set it to false for
+    /// a preview. A preview selects inputs and calculates fees, but it does not
+    /// create valid signatures.
+    pub(crate) materialize: bool,
 }
 
 #[derive(Debug)]
@@ -288,7 +292,13 @@ impl NativeWalletState {
                     let segment = free_segments(&base_segments, 1)?[0];
                     balancing_intents.insert(
                         segment,
-                        unshielded::sign_balancing_intent(&intent, segment, &signing_key, rng)?,
+                        unshielded::sign_balancing_intent(
+                            &intent,
+                            segment,
+                            &signing_key,
+                            request.materialize,
+                            rng,
+                        )?,
                     );
                 }
             }
@@ -337,9 +347,10 @@ impl NativeWalletState {
                     .get(target)
                     .map(|intent| (*intent).clone())
                     .ok_or(MidnightRuntimeError::UnsupportedTransaction)?;
-                standard.intents = standard
-                    .intents
-                    .insert(*target, edit.apply(&intent, *target, &signing_key, rng)?);
+                standard.intents = standard.intents.insert(
+                    *target,
+                    edit.apply(&intent, *target, &signing_key, request.materialize, rng)?,
+                );
             }
             let rewritten: UnsealedTransaction = Transaction::Standard(standard);
             let mut raw = Vec::new();
