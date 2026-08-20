@@ -38,7 +38,6 @@ await test("OSV accepts only exact brace findings on reviewed patched nodes", ()
     validateOsvReport(
       report([
         affected("brace-expansion", "1.1.17"),
-        affected("brace-expansion", "2.1.3"),
         affected("brace-expansion", "5.0.8"),
       ]),
       policy,
@@ -51,6 +50,7 @@ await test("mixed OSV findings and unverified patched sources fail", () => {
   const errors = validateOsvReport(
     report([
       affected("brace-expansion", "1.1.17"),
+      affected("brace-expansion", "2.1.3"),
       affected("postcss", "8.5.1", [
         { id: "GHSA-other", aliases: ["CVE-other"] },
       ]),

@@ -1,9 +1,14 @@
-if matches!(
-    &operation.kind,
-    PendingOperationKind::GenerateDustProof { .. }
-) {
+use super::super::*;
+
+pub(super) fn resume(
+    operation_id: u64,
+    generation: u64,
+    results: &[NetworkResult],
+    mut operation: PendingOperation,
+    mut state: MutexGuard<'_, SessionState>,
+) -> Result<String, MidnightRuntimeError> {
     let bodies = match decode_proof_batch(
-        &results,
+        results,
         operation.kind.pending_requests().unwrap_or(&[]),
         &operation.effect_id,
     ) {
@@ -31,7 +36,7 @@ if matches!(
         }
         transaction::advance_unproven_transaction(raw, &state.config.network_id, responses)
     } else {
-        unreachable!()
+        return Err(MidnightRuntimeError::NativeInternal);
     };
     match progress {
         Ok(transaction::BalanceProgress::Complete(finalized)) => {
@@ -41,7 +46,7 @@ if matches!(
                 ..
             } = operation.kind
             else {
-                unreachable!()
+                return Err(MidnightRuntimeError::NativeInternal);
             };
             if expected_identifiers
                 .iter()
@@ -52,7 +57,7 @@ if matches!(
             }
             state.wallet_state = proposed_state;
             clear_active_operation(&mut state, operation_id);
-            return to_json(&OperationStep {
+            to_json(&OperationStep {
                 kind: "complete",
                 operation: Some(OperationHandle {
                     id: operation_id,
@@ -64,7 +69,7 @@ if matches!(
                 body_base64: None,
                 effects: None,
                 result_json: Some(finalized_transaction_result(&finalized)?),
-            });
+            })
         }
         Ok(transaction::BalanceProgress::Network(requests)) => {
             operation.kind.set_pending_requests(requests);
@@ -72,11 +77,11 @@ if matches!(
             let step = pending_proof_step(&operation, operation_id, generation)?;
             drop(state);
             lock_registry()?.operations.insert(operation_id, operation);
-            return to_json(&step);
+            to_json(&step)
         }
         Err(_) => {
             clear_active_operation(&mut state, operation_id);
-            return Err(MidnightRuntimeError::ProofFailed);
+            Err(MidnightRuntimeError::ProofFailed)
         }
     }
 }

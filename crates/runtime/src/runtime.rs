@@ -19,19 +19,86 @@ use super::{
 };
 use midnight_transient_crypto::proofs::ProvingKeyMaterial;
 
-include!("runtime/types.rs");
+// This UniFFI record stays at the runtime module boundary so its stable public
+// type identity is independent of the private implementation layout.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, uniffi::Record)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeSessionHandle {
+    pub id: u64,
+    pub generation: u64,
+}
 
-include!("runtime/registry_types.rs");
+mod checkpoint;
+mod commands;
+mod operation_helpers;
+mod registry;
+mod registry_types;
+mod resume;
+mod session;
+mod types;
+#[path = "runtime/codec.rs"]
+mod wire_codec;
 
-include!("runtime/registry.rs");
+use checkpoint::*;
+use operation_helpers::*;
+use registry::*;
+use registry_types::*;
+use types::*;
+use wire_codec::*;
 
-include!("runtime/checkpoint.rs");
+// Keep the exported functions in this module so UniFFI's public metadata remains
+// stable while the session implementation lives in its focused submodule.
+#[uniffi::export]
+pub fn open_wallet_session(
+    config_json: String,
+    night_external_key: Vec<u8>,
+    zswap_seed: Vec<u8>,
+    dust_seed: Vec<u8>,
+    checkpoint: Option<Vec<u8>>,
+) -> Result<RuntimeSessionHandle, MidnightRuntimeError> {
+    session::open_wallet_session(
+        config_json,
+        night_external_key,
+        zswap_seed,
+        dust_seed,
+        checkpoint,
+    )
+}
 
-include!("runtime/codec.rs");
+#[uniffi::export]
+pub fn apply_sync_batch(
+    session_id: u64,
+    generation: u64,
+    stream: String,
+    from_offset: u64,
+    to_offset: u64,
+    payloads: Vec<Vec<u8>>,
+) -> Result<String, MidnightRuntimeError> {
+    session::apply_sync_batch(
+        session_id,
+        generation,
+        stream,
+        from_offset,
+        to_offset,
+        payloads,
+    )
+}
 
-include!("runtime/operation_helpers.rs");
+#[uniffi::export]
+pub fn get_wallet_snapshot(
+    session_id: u64,
+    generation: u64,
+) -> Result<String, MidnightRuntimeError> {
+    session::get_wallet_snapshot(session_id, generation)
+}
 
-include!("runtime/session.rs");
+#[uniffi::export]
+pub fn export_wallet_checkpoint(
+    session_id: u64,
+    generation: u64,
+) -> Result<Vec<u8>, MidnightRuntimeError> {
+    session::export_wallet_checkpoint(session_id, generation)
+}
 
 #[uniffi::export]
 pub fn begin_command(
@@ -40,18 +107,11 @@ pub fn begin_command(
     mut command_json: String,
 ) -> Result<String, MidnightRuntimeError> {
     let result = (|| {
-        let mut command: RuntimeCommand = serde_json::from_str(&command_json)
+        let command: RuntimeCommand = serde_json::from_str(&command_json)
             .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
         let session = session_for_handle(session_id, generation)?;
-        let mut state = lock_session(&session)?;
-        include!("runtime/commands/session_and_sync.rs");
-        include!("runtime/commands/codecs.rs");
-        include!("runtime/commands/dapp.rs");
-        include!("runtime/commands/transfers.rs");
-        include!("runtime/commands/finalization.rs");
-        include!("runtime/commands/deploy_and_balance.rs");
-        include!("runtime/commands/submission_and_queries.rs");
-        Err(MidnightRuntimeError::Unavailable)
+        let state = lock_session(&session)?;
+        commands::begin_command_kind(session_id, generation, &session, command, state)
     })();
     command_json.zeroize();
     result
@@ -75,7 +135,7 @@ pub fn resume_operation(
             return Err(MidnightRuntimeError::InvalidArgument);
         }
         let mut runtime = lock_registry()?;
-        let mut operation = match runtime.operations.remove(&operation_id) {
+        let operation = match runtime.operations.remove(&operation_id) {
             Some(operation) => operation,
             None if runtime
                 .cancelled_operations
@@ -93,7 +153,7 @@ pub fn resume_operation(
         drop(runtime);
         let session = session.ok_or(MidnightRuntimeError::StaleSession)?;
         resumed_session = Some(Arc::clone(&session));
-        let mut state = lock_session(&session)?;
+        let state = lock_session(&session)?;
         if state.generation != generation || state.closing {
             return Err(MidnightRuntimeError::StaleSession);
         }
@@ -121,11 +181,14 @@ pub fn resume_operation(
             lock_registry()?.operations.insert(operation_id, operation);
             return Err(MidnightRuntimeError::InvalidArgument);
         }
-        include!("runtime/resume/dapp.rs");
-        include!("runtime/resume/generate_dust.rs");
-        include!("runtime/resume/balance.rs");
-        include!("runtime/resume/transaction.rs");
-        include!("runtime/resume/finalize.rs")
+        resume::resume_operation_kind(
+            operation_id,
+            generation,
+            &results,
+            &result,
+            operation,
+            state,
+        )
     })();
     if resumed.is_err()
         && let Some(session) = resumed_session
@@ -205,13 +268,5 @@ pub fn close_wallet_session(session_id: u64, generation: u64) -> Result<(), Midn
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[path = "operations.rs"]
-    mod operations;
-
-    include!("runtime/tests/sanitized.rs");
-    include!("runtime/tests/hardening.rs");
-    include!("runtime/tests/coverage.rs");
-}
+#[path = "runtime/tests/mod.rs"]
+mod tests;

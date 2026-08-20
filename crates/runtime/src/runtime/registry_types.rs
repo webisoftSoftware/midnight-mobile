@@ -1,5 +1,7 @@
+use super::*;
+
 impl SessionSecrets {
-    fn clear(&mut self) {
+    pub(super) fn clear(&mut self) {
         self.night_external_key.zeroize();
         self.zswap_seed.zeroize();
         self.dust_seed.zeroize();
@@ -13,28 +15,28 @@ impl Drop for SessionSecrets {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-struct BatchKey {
-    stream: String,
-    from_offset: u64,
-    to_offset: u64,
+pub(super) struct BatchKey {
+    pub(super) stream: String,
+    pub(super) from_offset: u64,
+    pub(super) to_offset: u64,
 }
 
-struct SessionState {
-    generation: u64,
-    config: WalletSessionConfig,
-    secrets: SessionSecrets,
-    address_material: WalletAddressMaterial,
-    wallet_state: NativeWalletState,
-    offsets: HashMap<String, u64>,
-    applied_batches: HashMap<BatchKey, String>,
-    seen_streams: HashSet<String>,
-    caught_up_streams: HashSet<String>,
-    pending_submissions: HashMap<String, PendingSubmission>,
-    active_operation: Option<u64>,
-    closing: bool,
+pub(super) struct SessionState {
+    pub(super) generation: u64,
+    pub(super) config: WalletSessionConfig,
+    pub(super) secrets: SessionSecrets,
+    pub(super) address_material: WalletAddressMaterial,
+    pub(super) wallet_state: NativeWalletState,
+    pub(super) offsets: HashMap<String, u64>,
+    pub(super) applied_batches: HashMap<BatchKey, String>,
+    pub(super) seen_streams: HashSet<String>,
+    pub(super) caught_up_streams: HashSet<String>,
+    pub(super) pending_submissions: HashMap<String, PendingSubmission>,
+    pub(super) active_operation: Option<u64>,
+    pub(super) closing: bool,
 }
 
-enum PendingOperationKind {
+pub(super) enum PendingOperationKind {
     SubmitFinalized {
         transaction_hash: String,
     },
@@ -74,7 +76,7 @@ enum PendingOperationKind {
 impl PendingOperationKind {
     /// The proof requests this operation is currently waiting on, or `None` for the
     /// kinds that never carry proof effects.
-    fn pending_requests(&self) -> Option<&[transaction::RemoteProofRequest]> {
+    pub(super) fn pending_requests(&self) -> Option<&[transaction::RemoteProofRequest]> {
         match self {
             Self::FinalizeTransactionProof {
                 pending_requests, ..
@@ -94,7 +96,7 @@ impl PendingOperationKind {
 
     /// Replaces the outstanding requests after a replay discovered the next round. The
     /// displaced requests zeroize their bodies on drop.
-    fn set_pending_requests(&mut self, requests: Vec<transaction::RemoteProofRequest>) {
+    pub(super) fn set_pending_requests(&mut self, requests: Vec<transaction::RemoteProofRequest>) {
         match self {
             Self::FinalizeTransactionProof {
                 pending_requests, ..
@@ -113,20 +115,20 @@ impl PendingOperationKind {
     }
 }
 
-struct PendingOperation {
-    generation: u64,
-    session_id: u64,
-    effect_id: String,
-    kind: PendingOperationKind,
+pub(super) struct PendingOperation {
+    pub(super) generation: u64,
+    pub(super) session_id: u64,
+    pub(super) effect_id: String,
+    pub(super) kind: PendingOperationKind,
 }
 
-struct RuntimeRegistry {
-    next_id: u64,
-    next_generation: u64,
-    sessions: HashMap<u64, Arc<Mutex<SessionState>>>,
-    operations: HashMap<u64, PendingOperation>,
-    cancelled_operations: HashSet<(u64, u64)>,
-    cancelled_operation_order: VecDeque<(u64, u64)>,
+pub(super) struct RuntimeRegistry {
+    pub(super) next_id: u64,
+    pub(super) next_generation: u64,
+    pub(super) sessions: HashMap<u64, Arc<Mutex<SessionState>>>,
+    pub(super) operations: HashMap<u64, PendingOperation>,
+    pub(super) cancelled_operations: HashSet<(u64, u64)>,
+    pub(super) cancelled_operation_order: VecDeque<(u64, u64)>,
 }
 
 impl Default for RuntimeRegistry {
@@ -143,7 +145,7 @@ impl Default for RuntimeRegistry {
 }
 
 impl RuntimeRegistry {
-    fn remember_cancelled(&mut self, key: (u64, u64)) {
+    pub(super) fn remember_cancelled(&mut self, key: (u64, u64)) {
         if self.cancelled_operations.insert(key) {
             self.cancelled_operation_order.push_back(key);
         }
@@ -154,7 +156,7 @@ impl RuntimeRegistry {
         }
     }
 
-    fn clear_cancelled_generation(&mut self, generation: u64) {
+    pub(super) fn clear_cancelled_generation(&mut self, generation: u64) {
         self.cancelled_operations
             .retain(|(_, candidate)| *candidate != generation);
         self.cancelled_operation_order

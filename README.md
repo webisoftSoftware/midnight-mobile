@@ -1,39 +1,37 @@
 # Midnight Mobile
 
 Midnight Mobile is an experimental wallet runtime for React Native and Expo. It
-is not an official Midnight SDK. The API and data formats can change in every
-release.
+is not an official Midnight SDK. APIs and data formats may change between
+releases.
 
-## Functions
+## What it does
 
-The SDK provides these functions:
+Midnight Mobile can:
 
-- The SDK opens a wallet session with application keys.
-- The SDK applies wallet data from an indexer.
-- The SDK creates and proves wallet transactions.
-- The SDK submits finalized transactions to a node.
-- The SDK saves and restores wallet checkpoints.
-- The SDK connects the wallet runtime to the React application lifecycle.
-- The SDK runs the experimental proof operations `check` and `prove` on a
-  device.
+- Open a wallet session with keys supplied by the application.
+- Apply wallet updates from an indexer.
+- Create, prove, and submit wallet transactions.
+- Save and restore wallet checkpoints.
+- Connect the wallet runtime to the React application lifecycle.
+- Run the experimental `check` and `prove` operations on the device.
 
-The Rust runtime does not access the network. The application supplies the
-indexer, proof server, node, HTTP client, WebSocket client, headers, and
-checkpoint store.
+The Rust runtime never accesses the network directly. The application must
+provide the indexer, proof server, node, HTTP and WebSocket clients, request
+headers, and checkpoint storage.
 
-## Limits
+## What it does not do
 
-The SDK has these limits:
+Midnight Mobile does not:
 
-- The SDK does not create or store a mnemonic.
-- The SDK does not derive application keys or addresses.
-- The SDK does not operate an indexer, proof server, or node.
-- The SDK does not supply service URLs or credentials.
-- The SDK does not provide secure persistent storage.
-- The SDK does not download proof files.
-- The SDK does not support Expo Go.
+- Create or store a mnemonic.
+- Derive application keys or addresses.
+- Operate an indexer, proof server, or node.
+- Supply service URLs or credentials.
+- Provide secure persistent storage.
+- Download proof files.
+- Support Expo Go.
 
-## Compatibility
+## Supported versions
 
 Use the versions in this table. Other versions are not supported.
 
@@ -49,11 +47,11 @@ Use the versions in this table. Other versions are not supported.
 | Android           | API 24 or later; `arm64-v8a` or `x86_64`               |
 | Midnight Ledger   | 8.1.0 at `02716c2c95d50654aeb3cb63bfd8386046e4ca7d`    |
 
-The SDK accepts the network IDs `preview`, `preprod`, and `mainnet`. A network
-ID does not confirm that a service is safe or compatible. Test each service
-before use.
+The runtime accepts the network IDs `preview`, `preprod`, and `mainnet`. A valid
+network ID does not prove that a service is safe or compatible. Test every
+service before using it with a wallet.
 
-## Install
+## Install in an Expo app
 
 Use an Expo 55 development build.
 
@@ -64,8 +62,8 @@ npx expo run:ios
 npx expo run:android
 ```
 
-For a local build, install an npm package file that passes the package checks.
-Do not install the native libraries or generated bindings as separate packages.
+For local development, install an npm package file that has passed the package
+checks. Do not install native libraries or generated bindings separately.
 
 ## Create the runtime
 
@@ -113,14 +111,14 @@ const runtime = new MidnightRuntimeController({
 });
 ```
 
-Use HTTP or HTTPS service URLs. Use WS or WSS for the indexer WebSocket URL. Use
-TLS with remote services. Do not log URLs, headers, credentials, keys,
-checkpoints, or transaction data.
+Use HTTP or HTTPS URLs for HTTP services and WS or WSS for the indexer
+WebSocket. Use TLS for every remote service. Never log service URLs, headers,
+credentials, keys, checkpoints, or transaction data.
 
-## Open a wallet session
+## Open and sync a wallet session
 
-Each key input must contain exactly 32 bytes. The SDK clears only its own key
-copies. The application must clear the original arrays.
+Each key must contain exactly 32 bytes. The runtime clears its own copies. The
+application must clear the original arrays.
 
 ```ts
 const keys = {
@@ -188,7 +186,7 @@ await runtime.runCommand(session, {
 });
 ```
 
-Pass each amount as a decimal string. A decimal string prevents number precision
+Pass every amount as a decimal string to avoid JavaScript number-precision
 errors.
 
 Close the session when work is complete.
@@ -200,7 +198,7 @@ await runtime.dispose();
 
 ## Network results
 
-The SDK does not retry a failed submission.
+The runtime does not retry a failed submission.
 
 | Result                                 | Submission     | Other network operation |
 | -------------------------------------- | -------------- | ----------------------- |
@@ -214,10 +212,13 @@ or indexer. Do not submit the same transaction until you know its status.
 
 ## Protect checkpoints and keys
 
-A checkpoint contains private wallet data. The in-memory checkpoint store is for
-tests and examples only. A real application must use encrypted storage. The
-storage must authenticate the data. It must replace data safely. It must prevent
-rollback attacks. It must also delete data when the application requests it.
+A checkpoint contains private wallet data. Use the in-memory checkpoint store
+only in tests and examples. A production checkpoint store must:
+
+- Encrypt and authenticate its data.
+- Replace existing data safely.
+- Prevent rollback to an older checkpoint.
+- Delete data when the application requests deletion.
 
 JavaScript cannot guarantee immediate memory removal. Keep key arrays for the
 shortest possible time. Do not convert keys to strings. Do not put keys in logs,
@@ -228,15 +229,15 @@ Checkpoint migration between releases is not guaranteed.
 ## Use the local prover
 
 The `@1am/midnight-mobile/local-prover` entry point runs the `check` and `prove`
-proof operations on iOS and Android.
+proof operations locally on iOS and Android.
 
 The application supplies all proof parameters and circuit files. Each file must
-have an expected size and SHA-256 value. The SDK opens each file in read-only
-mode. The SDK does not download or write these files.
+have an expected size and SHA-256 value. The runtime opens each file in
+read-only mode. It does not download or write these files.
 
-The local prover handles only `check` and `prove`. Other operations use the
-configured remote services. The local prover cannot cancel active proof work. It
-can return `PROVER_BUSY` when another proof operation is active.
+Only `check` and `prove` run locally. Other network operations still use the
+configured remote services. Active local proof work cannot be cancelled. A
+concurrent request may return `PROVER_BUSY`.
 
 The Android local prover accepts an uncompressed `asset://` file or an absolute
 path in the application sandbox. The iOS local prover accepts a `bundle://` file
@@ -244,9 +245,9 @@ or an absolute path in the application sandbox.
 
 ## Run the example
 
-The `examples/expo` application is a one-button SDK tour with deterministic mock
-host services and real native runtime/prover checks. It does not contain a real
-service credential or mnemonic. See the
+The `examples/expo` application is a one-button demonstration with deterministic
+mock host services and real native runtime and prover checks. It does not
+contain a real service credential or mnemonic. See the
 [example guide](./examples/expo/README.md) for setup and the scope boundary
 between mock host effects and on-device proving.
 
@@ -260,6 +261,25 @@ npx expo prebuild --clean
 
 Use disposable keys for tests that contact a network.
 
+## Repository layout
+
+Each top-level directory has one main purpose. Generated native bindings stay
+beside the package that publishes them. Build outputs are ignored.
+
+| Path                     | Responsibility                                                |
+| ------------------------ | ------------------------------------------------------------- |
+| `crates/runtime/`        | Rust wallet runtime and local-prover native interfaces        |
+| `packages/react-native/` | Public TypeScript API and iOS/Android bridges                 |
+| `examples/expo/`         | Minimal Expo consumer and deterministic host mocks            |
+| `scripts/`               | Required quality, packaging, security, and release automation |
+| `tools/`                 | Focused binding, device, simulator, and measurement utilities |
+
+Runtime command handlers, operation resume handlers, and wallet-state code are
+regular Rust modules under `crates/runtime/src/`. See
+[`scripts/README.md`](./scripts/README.md) and
+[`tools/README.md`](./tools/README.md) for the boundary between automation and
+manual developer utilities.
+
 ## Validate a change
 
 Use Node.js 22 and the npm version in `package.json`.
@@ -269,24 +289,26 @@ npm ci
 npm run quality:pr
 ```
 
-Pull requests run format checks, lint checks, type checks, unit tests, and the
-package source check.
+Pull requests run formatting, linting, type checks, unit tests, and the package
+source check.
 
-A release candidate (RC) tag runs native builds and release checks. These checks
-verify the native ABI, package contents, clean consumer builds, security rules,
-and build reproducibility. The RC workflow also creates checksums, a software
-bill of materials (SBOM), a provenance record, and a dependency license report.
+A release-candidate tag runs the full native and release checks. These checks
+verify the native application binary interface (ABI), package contents, clean
+consumer builds, security rules, and reproducible builds. The workflow also
+creates checksums, a software bill of materials (SBOM), a provenance record, and
+a dependency license report.
 
 | Command                        | Function                                                   |
 | ------------------------------ | ---------------------------------------------------------- |
 | `npm test`                     | Run tests without coverage.                                |
-| `npm run test:coverage`        | Run tests with coverage for an RC.                         |
+| `npm run test:coverage`        | Run tests and enforce coverage thresholds.                 |
 | `npm run typecheck`            | Check TypeScript types.                                    |
 | `npm run check:package:source` | Check package metadata and reproducible TypeScript output. |
-| `npm run check:bindings`       | Check the native ABI and generated bindings.               |
+| `npm run check:bindings`       | Check the native interface and generated bindings.         |
 | `npm run check:package`        | Check all files in the native npm package.                 |
 | `npm run check:native`         | Check native archives and consumer builds.                 |
-| `npm run quality:rc`           | Run all RC checks.                                         |
+| `npm run quality`              | Run the complete local gate.                               |
+| `npm run quality:rc`           | Run the same complete gate explicitly.                     |
 
 ## Support and security
 

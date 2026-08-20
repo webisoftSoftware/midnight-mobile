@@ -1,5 +1,6 @@
-#[uniffi::export]
-pub fn open_wallet_session(
+use super::*;
+
+pub(super) fn open_wallet_session(
     config_json: String,
     mut night_external_key: Vec<u8>,
     mut zswap_seed: Vec<u8>,
@@ -8,14 +9,12 @@ pub fn open_wallet_session(
 ) -> Result<RuntimeSessionHandle, MidnightRuntimeError> {
     let result = (|| {
         let config = validate_config(
-            serde_json::from_str(&config_json).map_err(|_| MidnightRuntimeError::InvalidArgument)?,
+            serde_json::from_str(&config_json)
+                .map_err(|_| MidnightRuntimeError::InvalidArgument)?,
         )?;
         let address_material =
             derive_wallet_address_material_inner(&night_external_key, &zswap_seed, &dust_seed)?;
-        let checkpoint = checkpoint
-            .as_deref()
-            .map(decode_checkpoint)
-            .transpose()?;
+        let checkpoint = checkpoint.as_deref().map(decode_checkpoint).transpose()?;
         if checkpoint.as_ref().is_some_and(|checkpoint| {
             checkpoint.network_id != config.network_id
                 || checkpoint.wallet_fingerprint != config.wallet_fingerprint
@@ -50,9 +49,7 @@ pub fn open_wallet_session(
         }
         let id = runtime.next_id;
         let generation = runtime.next_generation;
-        let next_id = id
-            .checked_add(1)
-            .ok_or(MidnightRuntimeError::Unavailable)?;
+        let next_id = id.checked_add(1).ok_or(MidnightRuntimeError::Unavailable)?;
         let next_generation = generation
             .checked_add(1)
             .ok_or(MidnightRuntimeError::Unavailable)?;
@@ -122,8 +119,7 @@ pub fn open_wallet_session(
     result
 }
 
-#[uniffi::export]
-pub fn apply_sync_batch(
+pub(super) fn apply_sync_batch(
     session_id: u64,
     generation: u64,
     stream: String,
@@ -131,7 +127,8 @@ pub fn apply_sync_batch(
     to_offset: u64,
     payloads: Vec<Vec<u8>>,
 ) -> Result<String, MidnightRuntimeError> {
-    let canonical_stream = canonical_stream(&stream).ok_or(MidnightRuntimeError::InvalidArgument)?;
+    let canonical_stream =
+        canonical_stream(&stream).ok_or(MidnightRuntimeError::InvalidArgument)?;
     if to_offset < from_offset {
         return Err(MidnightRuntimeError::InvalidArgument);
     }
@@ -214,15 +211,16 @@ pub fn apply_sync_batch(
     })
 }
 
-#[uniffi::export]
-pub fn get_wallet_snapshot(session_id: u64, generation: u64) -> Result<String, MidnightRuntimeError> {
+pub(super) fn get_wallet_snapshot(
+    session_id: u64,
+    generation: u64,
+) -> Result<String, MidnightRuntimeError> {
     let session = session_for_handle(session_id, generation)?;
     let state = lock_session(&session)?;
     to_json(&snapshot(&state)?)
 }
 
-#[uniffi::export]
-pub fn export_wallet_checkpoint(
+pub(super) fn export_wallet_checkpoint(
     session_id: u64,
     generation: u64,
 ) -> Result<Vec<u8>, MidnightRuntimeError> {

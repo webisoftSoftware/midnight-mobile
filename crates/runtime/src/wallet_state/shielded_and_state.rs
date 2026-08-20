@@ -1,5 +1,7 @@
+use super::*;
+
 impl NativeWalletState {
-    fn build_shielded_transfer_with_rng<R: Rng + CryptoRng + ?Sized>(
+    pub(super) fn build_shielded_transfer_with_rng<R: Rng + CryptoRng + ?Sized>(
         &self,
         network_id: &str,
         target_address: &str,
@@ -86,8 +88,8 @@ impl NativeWalletState {
                 .watch_for(&secret_keys.coin_public_key(), &target_coin);
         }
 
-        let offer =
-            ZswapOffer::new(inputs, outputs, Vec::new()).ok_or(MidnightRuntimeError::NativeInternal)?;
+        let offer = ZswapOffer::new(inputs, outputs, Vec::new())
+            .ok_or(MidnightRuntimeError::NativeInternal)?;
         let transaction =
             Transaction::<Signature, ProofPreimageMarker, PedersenRandomness, InMemoryDB>::new(
                 network_id.to_owned(),
@@ -96,12 +98,13 @@ impl NativeWalletState {
                 LedgerHashMap::new(),
             );
         let mut raw = Vec::new();
-        tagged_serialize(&transaction, &mut raw).map_err(|_| MidnightRuntimeError::NativeInternal)?;
+        tagged_serialize(&transaction, &mut raw)
+            .map_err(|_| MidnightRuntimeError::NativeInternal)?;
         proposed.refresh_coin_hashes(&secret_keys)?;
         Ok((proposed, raw))
     }
 
-    fn validate_coin_hash_keys(&self) -> Result<(), MidnightRuntimeError> {
+    pub(super) fn validate_coin_hash_keys(&self) -> Result<(), MidnightRuntimeError> {
         for (_, coin) in self.shielded.coins.iter() {
             let nonce = serializable_hex(&coin.nonce)?;
             if !self.coin_hashes.contains_key(&nonce) {
@@ -117,7 +120,7 @@ impl NativeWalletState {
         Ok(())
     }
 
-    fn refresh_coin_hashes(
+    pub(super) fn refresh_coin_hashes(
         &mut self,
         secret_keys: &ZswapSecretKeys,
     ) -> Result<(), MidnightRuntimeError> {
@@ -132,7 +135,7 @@ impl NativeWalletState {
         Ok(())
     }
 
-    fn insert_coin_hash(
+    pub(super) fn insert_coin_hash(
         &self,
         destination: &mut BTreeMap<String, CoinHashes>,
         secret_keys: &ZswapSecretKeys,
@@ -157,7 +160,7 @@ impl NativeWalletState {
         Ok(())
     }
 
-    fn apply_unshielded(&mut self, payload: &[u8]) -> Result<(), MidnightRuntimeError> {
+    pub(super) fn apply_unshielded(&mut self, payload: &[u8]) -> Result<(), MidnightRuntimeError> {
         let update: UnshieldedSyncUpdate =
             serde_json::from_slice(payload).map_err(|_| MidnightRuntimeError::InvalidArgument)?;
         match update {

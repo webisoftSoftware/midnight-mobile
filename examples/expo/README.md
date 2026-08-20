@@ -1,25 +1,23 @@
 # Midnight Mobile Expo example
 
-This small Expo 55 application is a guided SDK tour. Press **Run SDK example**
-once to see three compact phases:
+This Expo 55 application demonstrates Midnight Mobile in three phases. Press
+**Run SDK example** once to run all three:
 
-- **Mock host flow** opens the public test wallet, applies all three sync
-  streams, reads balances, creates and submits a transaction, and restores a
-  checkpoint.
-- **Native runtime** loads the packaged Rust runtime and runs session,
+- **Mock host flow:** Opens a test wallet, syncs all three streams, reads its
+  balances, creates and submits a transaction, and restores a checkpoint.
+- **Native runtime:** Loads the packaged Rust runtime and runs session,
   checkpoint, and signing operations on the device or simulator.
-- **Native prover** runs the real local `check` and `prove` operations against
-  the staged spend circuit. No proof server is contacted for these operations.
+- **Native prover:** Runs the real local `check` and `prove` operations with the
+  staged spend circuit. These operations do not contact a proof server.
 
-The host flow is deterministic and never contacts an indexer, proof service, or
-node. It uses the SDK's mock-native module to make the controller flow easy to
-read and repeat. The native phases are the device-facing checks that require a
-development build.
+The host flow is deterministic. It uses mock services and never contacts an
+indexer, proof service, or node. The two native phases require a development
+build and run on the device or simulator.
 
-The displayed wallet address is a deterministic public preview fixture derived
-from the synthetic key bytes in `src/demo-wallet.ts`. It is not generated from
-or accompanied by a mnemonic. Never fund or reuse it. A real application owns
-key management and must clear its original key arrays after opening a session.
+The displayed address is a public test fixture derived from the synthetic keys
+in `src/demo-wallet.ts`. It has no mnemonic. Never fund or reuse this address. A
+real application must manage its own keys and clear the original key arrays
+after opening a session.
 
 ## Run it
 
@@ -39,14 +37,14 @@ npx expo run:ios
 # or: npx expo run:android
 ```
 
-The SDK includes a custom native module, so Expo Go is not supported. Use a
-development build. The prover artifacts are downloaded from the pinned public
-ledger release, checked by size and SHA-256, and copied into an ignored
-directory. They are intentionally not committed to the example.
+Midnight Mobile includes native code, so Expo Go is not supported. The
+preparation command downloads prover files from the pinned public ledger
+release, verifies their size and SHA-256 hash, and copies them into an ignored
+directory. These files are not committed.
 
-If the artifacts are not staged, the host and native-runtime phases still show
-their results and the native-prover phase reports the missing-artifact error.
-The example never substitutes a fake proof response.
+If the prover files are missing, the host and native-runtime phases still run.
+The native-prover phase reports the missing files; it never returns a fake proof
+response.
 
 ## Test it
 
@@ -58,14 +56,13 @@ npm test
 npm run validate:platforms
 ```
 
-The tests use deterministic synthetic fixtures only. `validate:platforms`
-exports reproducible iOS and Android JavaScript bundles; it does not contact a
-live service.
+Tests use deterministic synthetic data only. `validate:platforms` exports
+reproducible iOS and Android JavaScript bundles without contacting a live
+service.
 
-## Scope boundary
+## What is real and what is mocked
 
-The controller transaction is a deterministic host-boundary simulation. Its
-network effects use mock services; the separate native-prover phase runs the
-real `check` and `prove` operations. In production, balance and submission still
-use application-supplied host services. This example is safe to run without
-credentials or a funded wallet.
+The controller transaction uses mock network services. The native-prover phase
+runs the real `check` and `prove` operations on the device. Production balance
+and submission operations require services supplied by the application. You can
+run this example without credentials or a funded wallet.

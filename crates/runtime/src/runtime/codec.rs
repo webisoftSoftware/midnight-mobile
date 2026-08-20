@@ -1,8 +1,10 @@
-fn to_json<T: Serialize>(value: &T) -> Result<String, MidnightRuntimeError> {
+use super::*;
+
+pub(super) fn to_json<T: Serialize>(value: &T) -> Result<String, MidnightRuntimeError> {
     serde_json::to_string(value).map_err(|_| MidnightRuntimeError::NativeInternal)
 }
 
-fn serialize_embedded_json<S>(
+pub(super) fn serialize_embedded_json<S>(
     value: &Option<String>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
@@ -65,7 +67,7 @@ pub(crate) fn decode_base64(value: &str) -> Result<Vec<u8>, MidnightRuntimeError
     Ok(output)
 }
 
-fn encode_base64(bytes: &[u8]) -> String {
+pub(super) fn encode_base64(bytes: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut output = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
@@ -88,7 +90,10 @@ fn encode_base64(bytes: &[u8]) -> String {
     output
 }
 
-fn signing_transcript(domain: &str, data: &[u8]) -> Result<Vec<u8>, MidnightRuntimeError> {
+pub(super) fn signing_transcript(
+    domain: &str,
+    data: &[u8],
+) -> Result<Vec<u8>, MidnightRuntimeError> {
     let domain = domain.as_bytes();
     if domain.is_empty() || domain.len() > MAX_SIGNING_DOMAIN_BYTES {
         return Err(MidnightRuntimeError::InvalidArgument);
@@ -111,7 +116,7 @@ fn signing_transcript(domain: &str, data: &[u8]) -> Result<Vec<u8>, MidnightRunt
     Ok(transcript)
 }
 
-fn sign_data_locked(
+pub(super) fn sign_data_locked(
     state: &SessionState,
     domain: &str,
     data: &[u8],
@@ -126,7 +131,7 @@ fn sign_data_locked(
     }))
 }
 
-fn complete_json(result_json: String) -> Result<String, MidnightRuntimeError> {
+pub(super) fn complete_json(result_json: String) -> Result<String, MidnightRuntimeError> {
     to_json(&OperationStep {
         kind: "complete",
         operation: None,
@@ -139,7 +144,7 @@ fn complete_json(result_json: String) -> Result<String, MidnightRuntimeError> {
     })
 }
 
-fn finalized_transaction_result(
+pub(super) fn finalized_transaction_result(
     finalized: &transaction::FinalizedTransaction,
 ) -> Result<String, MidnightRuntimeError> {
     to_json(&serde_json::json!({
@@ -150,7 +155,7 @@ fn finalized_transaction_result(
     }))
 }
 
-fn balance_service_transaction_result(
+pub(super) fn balance_service_transaction_result(
     response: &BalanceServiceResult,
     finalized: &transaction::FinalizedTransaction,
     transaction_hash: &str,
@@ -170,7 +175,7 @@ fn balance_service_transaction_result(
     to_json(&result)
 }
 
-fn submission_result(
+pub(super) fn submission_result(
     transaction_hash: &str,
     identifiers: Vec<String>,
     status: &str,

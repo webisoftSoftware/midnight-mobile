@@ -88,7 +88,7 @@ await test("npm dependency gate requires patched brace evidence", () => {
   const lockfile = npmFixture();
   lockfile.packages["node_modules/a/brace-expansion"] = {
     ...lockfile.packages["node_modules/brace-expansion"],
-    version: "2.1.3",
+    version: "5.0.8",
   };
   lockfile.packages["node_modules/b/brace-expansion"] = {
     ...lockfile.packages["node_modules/brace-expansion"],

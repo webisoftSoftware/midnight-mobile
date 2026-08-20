@@ -1,5 +1,7 @@
+use super::*;
+
 impl NativeWalletState {
-    fn build_dust_registration_with_rng<R: Rng + CryptoRng>(
+    pub(super) fn build_dust_registration_with_rng<R: Rng + CryptoRng>(
         &self,
         network_id: &str,
         night_external_key: &[u8],
@@ -155,7 +157,8 @@ impl NativeWalletState {
                 LedgerHashMap::new(),
             );
         let mut raw = Vec::new();
-        tagged_serialize(&transaction, &mut raw).map_err(|_| MidnightRuntimeError::NativeInternal)?;
+        tagged_serialize(&transaction, &mut raw)
+            .map_err(|_| MidnightRuntimeError::NativeInternal)?;
 
         let mut proposed = self.clone();
         for (_, coin) in selected {
@@ -165,7 +168,7 @@ impl NativeWalletState {
         Ok((proposed, raw))
     }
 
-    fn build_unshielded_transfer_with_rng<R: Rng + CryptoRng>(
+    pub(super) fn build_unshielded_transfer_with_rng<R: Rng + CryptoRng>(
         &self,
         input: UnshieldedTransferInput<'_>,
         rng: &mut R,
@@ -289,7 +292,8 @@ impl NativeWalletState {
                 LedgerHashMap::new(),
             );
         let mut raw = Vec::new();
-        tagged_serialize(&transaction, &mut raw).map_err(|_| MidnightRuntimeError::NativeInternal)?;
+        tagged_serialize(&transaction, &mut raw)
+            .map_err(|_| MidnightRuntimeError::NativeInternal)?;
 
         let mut proposed = self.clone();
         for coin in selected {

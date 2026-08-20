@@ -31,9 +31,10 @@ const xcframeworkArchive = resolve(
   repositoryRoot,
   "artifacts/apple/MidnightMobileRuntime.xcframework.zip",
 );
-const device =
-  process.env.IOS_PROVER_SIMULATOR_UDID ??
-  "BF591F85-D9AF-4F7E-B82D-E4A368EB3D17";
+const device = process.env.IOS_PROVER_SIMULATOR_UDID;
+if (device === undefined || device.length === 0) {
+  throw new Error("IOS_PROVER_SIMULATOR_UDID is required");
+}
 const bundleIdentifier = "dev.oneam.midnightmobile.localprover.validation";
 const timeoutMillis = 15 * 60 * 1_000;
 const resumeApplicationBuild = process.env.IOS_PROVER_RESUME === "1";

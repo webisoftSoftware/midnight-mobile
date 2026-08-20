@@ -1,10 +1,10 @@
 # Generated Kotlin bindings
 
-The `npm run generate:bindings` command generates the UniFFI Kotlin source from
-the Rust runtime. It writes the source to this directory.
+UniFFI generates Kotlin code that calls the Rust runtime. Run
+`npm run generate:bindings` from the repository root to update this directory.
 
-The `npm run check:bindings` command generates the Kotlin source twice. It
-checks that both outputs match byte-for-byte. It then compares the generated
-source with the reviewed source byte-for-byte.
+`npm run check:bindings` generates the code twice and requires identical output.
+It then compares that output with the files committed here.
 
-Consumer builds use the packaged source. They do not run Cargo.
+Applications compile the packaged Kotlin files. They do not run Cargo or
+generate bindings during a build.

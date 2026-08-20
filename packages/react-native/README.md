@@ -1,9 +1,10 @@
 # `@1am/midnight-mobile`
 
-This package provides an experimental wallet runtime for React Native and Expo.
-Use it in an Expo development build. Expo Go cannot run the native module.
+This package provides the experimental Midnight Mobile wallet runtime for React
+Native and Expo. It contains native code, so it requires an Expo development
+build and does not work in Expo Go.
 
-For installation instructions and supported versions, read the
+For installation, supported versions, API examples, and security requirements,
+read the
 [Midnight Mobile README](https://github.com/ADGLx/midnight-mobile#readme). The
-main README also explains SDK behavior, security requirements, and validation
-commands.
+main README also lists the repository validation commands.

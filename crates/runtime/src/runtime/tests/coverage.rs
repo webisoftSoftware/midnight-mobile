@@ -1,10 +1,5 @@
-fn run_command(
-    handle: &RuntimeSessionHandle,
-    command: serde_json::Value,
-) -> Result<serde_json::Value, MidnightRuntimeError> {
-    begin_command(handle.id, handle.generation, command.to_string())
-        .and_then(|value| serde_json::from_str(&value).map_err(|_| MidnightRuntimeError::NativeInternal))
-}
+use super::hardening::*;
+use super::*;
 
 fn resume_result(
     operation: &OperationHandle,
@@ -33,6 +28,20 @@ fn valid_checkpoint_fixture() -> WalletCheckpoint {
 
 #[test]
 fn runtime_codecs_and_operation_result_helpers_cover_wire_shapes() {
+    let network_results = NetworkResults::Batch(vec![NetworkResult {
+        effect_id: "1:2:3".to_owned(),
+        outcome: "accepted".to_owned(),
+        body_base64: None,
+    }]);
+    assert_eq!(network_results.into_vec().len(), 1);
+
+    drop(RuntimeProvingKeyMaterial {
+        prover_key_base64: "AA==".to_owned(),
+        verifier_key_base64: "AA==".to_owned(),
+        ir_base64: "AA==".to_owned(),
+        compression: Some("raw".to_owned()),
+    });
+
     for bytes in [
         Vec::new(),
         vec![0],
@@ -108,11 +117,13 @@ fn runtime_codecs_and_operation_result_helpers_cover_wire_shapes() {
         transaction_hash: "ab".repeat(32),
         identifiers: vec!["cd".repeat(32)],
     };
-    assert!(serde_json::from_str::<serde_json::Value>(
-        &finalized_transaction_result(&finalized).unwrap()
-    )
-    .unwrap()["transactionBase64"]
-        .is_string());
+    assert!(
+        serde_json::from_str::<serde_json::Value>(
+            &finalized_transaction_result(&finalized).unwrap()
+        )
+        .unwrap()["transactionBase64"]
+            .is_string()
+    );
     let response = BalanceServiceResult {
         tx_hash: "ef".repeat(32),
         tx_bytes: "010203".to_owned(),
@@ -123,9 +134,13 @@ fn runtime_codecs_and_operation_result_helpers_cover_wire_shapes() {
         serde_json::from_str::<serde_json::Value>(&balance).unwrap()["expiresAt"],
         7
     );
-    let submission =
-        submission_result("aa", vec!["bb".to_owned()], "accepted", Some("AA==".to_owned()))
-            .unwrap();
+    let submission = submission_result(
+        "aa",
+        vec!["bb".to_owned()],
+        "accepted",
+        Some("AA==".to_owned()),
+    )
+    .unwrap();
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&submission).unwrap()["bodyBase64"],
         "AA=="
@@ -213,9 +228,18 @@ fn checkpoint_validation_rejects_each_structural_drift() {
     ];
     complete.checksum = checkpoint_checksum(&complete);
     let encoded = encode_checkpoint(&complete).unwrap();
-    assert_eq!(decode_checkpoint(&encoded).unwrap().pending_submissions.len(), 4);
+    assert_eq!(
+        decode_checkpoint(&encoded)
+            .unwrap()
+            .pending_submissions
+            .len(),
+        4
+    );
 
-    assert_ne!(payload_digest(&[vec![1], vec![2]]), payload_digest(&[vec![1, 2]]));
+    assert_ne!(
+        payload_digest(&[vec![1], vec![2]]),
+        payload_digest(&[vec![1, 2]])
+    );
     let mut receipts = HashMap::new();
     for index in 0..=MAX_SYNC_BATCH_RECEIPTS {
         receipts.insert(
@@ -271,8 +295,11 @@ fn wallet_commands_cover_sync_codec_and_validation_paths() {
         )
         .is_err()
     );
-    let mint_context =
-        run_command(&handle, serde_json::json!({"kind": "deriveShieldedMintContext"})).unwrap();
+    let mint_context = run_command(
+        &handle,
+        serde_json::json!({"kind": "deriveShieldedMintContext"}),
+    )
+    .unwrap();
     assert_eq!(
         mint_context["result"]["coinPublicKeyHex"]
             .as_str()
@@ -292,7 +319,13 @@ fn wallet_commands_cover_sync_codec_and_validation_paths() {
         )
         .is_err()
     );
-    assert!(run_command(&handle, serde_json::json!({"kind": "createShieldedSpentRequest"})).is_ok());
+    assert!(
+        run_command(
+            &handle,
+            serde_json::json!({"kind": "createShieldedSpentRequest"})
+        )
+        .is_ok()
+    );
     assert!(
         run_command(
             &handle,
@@ -314,7 +347,13 @@ fn wallet_commands_cover_sync_codec_and_validation_paths() {
         )
         .is_ok()
     );
-    assert!(run_command(&handle, serde_json::json!({"kind": "createDustSpendRequest"})).is_ok());
+    assert!(
+        run_command(
+            &handle,
+            serde_json::json!({"kind": "createDustSpendRequest"})
+        )
+        .is_ok()
+    );
     let mut spend = Vec::new();
     spend.extend_from_slice(&1_u64.to_le_bytes());
     spend.extend_from_slice(&0_u32.to_le_bytes());
@@ -440,8 +479,9 @@ fn proof_rounds_advertise_one_effect_per_request_and_keep_the_singular_form_for_
         id: 4,
         generation: 9,
     };
-    let single = proof_step_from_bodies(handle.clone(), "9:4:1", vec![("prove", "AQ==".to_owned())])
-        .unwrap();
+    let single =
+        proof_step_from_bodies(handle.clone(), "9:4:1", vec![("prove", "AQ==".to_owned())])
+            .unwrap();
     assert_eq!(single.effect_id.as_deref(), Some("9:4:1"));
     assert_eq!(single.effect, Some("prove"));
     assert_eq!(single.body_base64.as_deref(), Some("AQ=="));

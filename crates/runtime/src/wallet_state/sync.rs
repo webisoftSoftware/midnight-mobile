@@ -1,3 +1,5 @@
+use super::*;
+
 impl NativeWalletState {
     pub(crate) fn validate_wire_offsets(
         stream: &str,
@@ -15,8 +17,8 @@ impl NativeWalletState {
             .checked_add(1)
             .ok_or(MidnightRuntimeError::SyncGap)?;
         for payload in payloads {
-            let value: serde_json::Value =
-                serde_json::from_slice(payload).map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+            let value: serde_json::Value = serde_json::from_slice(payload)
+                .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
             let id = value
                 .as_object()
                 .and_then(|record| record.get("id"))
@@ -25,7 +27,9 @@ impl NativeWalletState {
             if id != expected {
                 return Err(MidnightRuntimeError::SyncGap);
             }
-            expected = expected.checked_add(1).ok_or(MidnightRuntimeError::SyncGap)?;
+            expected = expected
+                .checked_add(1)
+                .ok_or(MidnightRuntimeError::SyncGap)?;
         }
         if expected.saturating_sub(1) != to_offset {
             return Err(MidnightRuntimeError::SyncGap);

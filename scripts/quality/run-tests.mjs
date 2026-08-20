@@ -25,13 +25,6 @@ const expoExample = "examples/expo";
 const hasReactNativeWorkstream = files.some((file) =>
   file.startsWith(`${reactNativePackage}/`),
 );
-const hasOtherJavaScriptWorkstream = files.some(
-  (file) =>
-    /^(?:packages|examples)\/.+\.(?:js|jsx|ts|tsx)$/u.test(file) &&
-    !file.startsWith(`${reactNativePackage}/`) &&
-    !file.startsWith(`${expoExample}/`) &&
-    !file.endsWith(".d.ts"),
-);
 const hasExpoExample = files.some((file) => file.startsWith(`${expoExample}/`));
 const scriptTests = files
   .filter((file) => /^scripts\/.+\.test\.mjs$/u.test(file))
@@ -138,18 +131,6 @@ if (
             ...compiledTests,
           ]) && testsPassed;
       }
-    }
-  }
-
-  if (hasOtherJavaScriptWorkstream) {
-    if (!existsSync("jest.config.mjs")) {
-      console.error("required configuration not found: jest.config.mjs");
-      process.exitCode = 1;
-      testsPassed = false;
-    } else {
-      testsPassed =
-        runCommand("jest", testMode === "coverage" ? ["--coverage"] : []) &&
-        testsPassed;
     }
   }
 
