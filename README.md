@@ -196,6 +196,54 @@ await runtime.closeWalletSession(session);
 await runtime.dispose();
 ```
 
+## Balance a transaction built elsewhere
+
+A dApp can hand over a transaction it cannot fund on its own. `previewBalance`
+reports what this wallet would contribute, without selecting a coin, signing, or
+proving anything. Show that to the user, then pass the same manifest back to
+`balanceUnsealed` or `balanceSealed`.
+
+```ts
+const preview = await runtime.runCommand(session, {
+  kind: "previewBalance",
+  rawBase64: transactionFromDapp,
+  sealed: false,
+  ledgerParametersBase64,
+  feeBlocksMargin: 5,
+  additionalFeeOverhead: "0",
+  feeMode: "localDust",
+});
+
+// preview.manifest.contributions is the net debit per wallet and token: the
+// coins selected minus the change returned, not the value of the selected UTXO.
+// preview.manifest.dust is the maximum DUST this wallet may spend, or
+// "sponsored" when the fee is settled outside the transaction.
+if (!(await confirmWithUser(preview.manifest))) return;
+
+const balanced = await runtime.runCommand(session, {
+  kind: "balanceUnsealed",
+  rawBase64: transactionFromDapp,
+  ledgerParametersBase64,
+  feeBlocksMargin: 5,
+  additionalFeeOverhead: "0",
+  feeMode: "localDust",
+  approvedManifest: preview.manifest,
+});
+```
+
+The runtime replans before it acts and fails with `BALANCE_APPROVAL_CHANGED`
+unless the transaction, the token contributions, and the wallet's coin set still
+match the approved manifest. A cheaper DUST outcome is allowed; a larger one is
+not.
+
+An unsealed transaction is balanced in place, so its existing offers keep the
+signatures they already carry and only this wallet's own inputs are signed. A
+sealed transaction is preserved byte for byte and balanced by a separate intent.
+Some transactions cannot be funded at all once sealed, because the ledger binds
+a fallible section to its own intent; those return `UNSUPPORTED_TRANSACTION`. A
+shortfall in a token returns `INSUFFICIENT_FUNDS`, which is never reported as
+`INSUFFICIENT_DUST`.
+
 ## Network results
 
 The runtime does not retry a failed submission.
