@@ -153,10 +153,12 @@ pub(super) fn handle(
     drop(proposed);
 
     let Some(approved) = arguments.approved_manifest else {
-        return to_json(&BalancePreviewResult {
+        // A preview has no network effects, so it completes inline. Wrap it in a
+        // completion step so the host decodes it like every other result.
+        return complete_json(to_json(&BalancePreviewResult {
             manifest_digest: manifest.digest(),
             manifest,
-        });
+        })?);
     };
     // Fail closed: the transaction, the token contributions, and the wallet
     // state must all still match what the user approved, and the DUST cost may
