@@ -1,11 +1,11 @@
 # Generated Swift bindings
 
-The `npm run generate:bindings` command generates the UniFFI Swift source, C
-header, and module map from the Rust runtime. It writes these files to this
+UniFFI generates Swift code, a C header, and a module map that call the Rust
+runtime. Run `npm run generate:bindings` from the repository root to update this
 directory.
 
-The `npm run check:bindings` command generates these files twice. It checks that
-both outputs match byte-for-byte. It then compares the generated files with the
-reviewed files byte-for-byte.
+`npm run check:bindings` generates the files twice and requires identical
+output. It then compares that output with the files committed here.
 
-This directory does not contain native libraries.
+This directory contains source bindings only. Native libraries are packaged
+separately.

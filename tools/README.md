@@ -1,38 +1,43 @@
 # Repository tools
 
-`tools/` contains focused developer utilities. Unlike `scripts/`, these are not
-general quality or release entry points. Run the root `package.json` scripts for
-normal repository work.
+`tools/` contains utilities for focused development and measurement tasks. For
+normal builds, tests, and releases, use the npm commands in the root
+`package.json`.
 
-| Directory                        | Purpose                                                                  | Used by normal automation?                            |
-| -------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------- |
-| `bindgen/`                       | UniFFI binding generator invoked by the binding check                    | Yes, through `check:bindings`                         |
-| `android-prover-spike/`          | Builds and runs the real local prover on an Android device               | Its artifact staging is also used by the Expo example |
-| `ios-local-prover/`              | Builds a temporary Expo consumer and validates the prover in a simulator | No                                                    |
-| `circuit-size-bench/`            | Generates and measures synthetic circuits one size at a time             | No                                                    |
-| `mobile-prover-instrumentation/` | Applies reversible profiling patches for device measurements             | No                                                    |
+| Directory                        | Purpose                                                                 |
+| -------------------------------- | ----------------------------------------------------------------------- |
+| `bindgen/`                       | Generates UniFFI bindings for `check:bindings`                          |
+| `android-prover-spike/`          | Builds and tests the local prover on an Android device                  |
+| `ios-local-prover/`              | Builds a temporary Expo app and tests the prover in an iOS simulator    |
+| `circuit-size-bench/`            | Generates and measures one synthetic circuit size per process           |
+| `mobile-prover-instrumentation/` | Applies temporary profiling patches for measurements on a mobile device |
 
-The Android and iOS harnesses write only under `target/` and generated native
-build directories. The instrumentation rig is the exception: it temporarily
-patches the working tree and must be reverted as described in its README.
+The Android and iOS tools write under `target/` and generated native build
+directories. The instrumentation tool is different: it changes the working tree
+temporarily. Follow its README and restore the tree after every run.
 
 ## Local prover harnesses
 
-Stage the pinned public proving artifacts before using either platform harness:
+Prepare and verify the pinned public prover files before using either platform
+tool:
 
 ```sh
 node tools/android-prover-spike/scripts/prepare-artifacts.mjs
 ```
 
-For Android, set `ANDROID_HOME` or `ANDROID_SDK_ROOT`, provide Gradle 9 when it
-is not on `PATH`, connect an arm64 device, then run:
+For Android:
+
+1. Set `ANDROID_HOME` or `ANDROID_SDK_ROOT`.
+2. Install Gradle 9 or set `GRADLE` to its executable.
+3. Connect an arm64 Android device.
+4. Run:
 
 ```sh
 GRADLE=/path/to/gradle node tools/android-prover-spike/scripts/build.mjs
 node tools/android-prover-spike/scripts/run-device.mjs
 ```
 
-For iOS, choose an installed simulator explicitly:
+For iOS, choose an installed simulator:
 
 ```sh
 IOS_PROVER_SIMULATOR_UDID=<simulator-udid> \

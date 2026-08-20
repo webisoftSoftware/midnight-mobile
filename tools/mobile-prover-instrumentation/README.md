@@ -1,49 +1,66 @@
 # Mobile prover instrumentation
 
-Measurement rig for on-device proving. Nothing here ships: the patches are
-applied to a staged copy of the pinned prover crates, and to the runtime crate
-in the working tree, and both are reverted before any artifact is built.
+This tool measures proving work on a mobile device. It applies temporary
+profiling patches to:
 
-This exists because the Phase A instrumentation that produced every per-stage
-proving figure in `docs/performance/mobile/` was never committed. It lived in a
-fork outside the repository plus a handful of in-repo edits that were reverted,
-so the numbers in `gpu-prover-feasibility-2026-08-05.md` — Galaxy S10, k=15
-zswap spend, MSM 51.8%, FFT 18.1%, remainder 30.1% — could not be reproduced
-without rebuilding the rig from scratch. Keeping the edits as patch files is
-what let the extension run dozens of A/Bs against a stable baseline; see
-`packages/wallet-runtime-browser/wasm-prover-fork/` in the wallet repository,
-which these files are modelled on.
+- A staged copy of the pinned prover crates.
+- `crates/runtime` in the current working tree.
 
-## What the patches contain
+Nothing in this directory ships in the mobile package. Always start from a clean
+working tree and restore it after a measurement.
 
-| Patch                    | Applies to                                     | Adds                                                                                                             |
-| ------------------------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `phase-counters.patch`   | staged `midnight-curves` and `midnight-proofs` | `oneam_profile`, the counter module; MSM and FFT counters; thirteen counters splitting the PLONK prover's phases |
-| `runtime-snapshot.patch` | `crates/runtime` in the working tree           | drains a snapshot per proof and forwards it in the `take_timings` JSON as `phaseCounters`                        |
+## Why this tool exists
 
-`phase-counters.patch` counts MSM at `msm_specific`, not at `msm_best`: aarch64
-takes the blstrs `multi_exp` fast path and never reaches `msm_best`, so a
-counter there reads zero on the device that matters.
+Earlier performance measurements used changes that were kept outside this
+repository. Those measurements could not be reproduced without rebuilding the
+profiling setup. This directory stores the changes as patch files so every run
+can use the same baseline.
 
-The counters are process-wide, so a snapshot is only attributable with admission
-pinned to 1 — `setMaxConcurrency(1)` through the local prover, which is the same
-reason that knob was exposed to JS.
+The original Galaxy S10 measurement used a Zswap spend circuit at `k=15`:
 
-## The loop
+- Multi-scalar multiplication (MSM): 51.8%
+- Fast Fourier transform (FFT): 18.1%
+- All other work: 30.1%
 
-Stage, measure, revert. Each step is reversible and the last one leaves the tree
-exactly as it was.
+## Patches
+
+| Patch                    | Target                                         | Purpose                                                              |
+| ------------------------ | ---------------------------------------------- | -------------------------------------------------------------------- |
+| `phase-counters.patch`   | Staged `midnight-curves` and `midnight-proofs` | Adds MSM, FFT, and thirteen PLONK prover phase counters              |
+| `runtime-snapshot.patch` | `crates/runtime`                               | Adds `phaseCounters` to each proof sample returned by `take_timings` |
+
+`phase-counters.patch` records MSM calls at `msm_specific`. On arm64, the
+`blstrs` implementation uses its `multi_exp` fast path and does not call
+`msm_best`. A counter at `msm_best` would therefore report zero on the target
+device.
+
+The counters are shared by the entire process. Set the prover admission limit to
+one with `maxConcurrency=1` when measuring a single proof. Otherwise, concurrent
+proofs can contribute to the same sample.
+
+## Run a measurement
+
+### 1. Confirm that the tree is clean
+
+Commit or stash unrelated work before applying the patches:
+
+```sh
+git status --short
+```
+
+### 2. Stage and apply the patches
 
 ```sh
 node tools/mobile-prover-instrumentation/stage.mjs stage
 git apply tools/mobile-prover-instrumentation/runtime-snapshot.patch
 ```
 
-`stage` refreshes `Cargo.lock` offline after writing the override, because
-`runtime-snapshot.patch` adds a direct `midnight-curves` edge and every
-`--locked` build -- including the device probe's -- refuses to start otherwise.
+The `stage` command creates `.prover-fork/`, writes a Cargo path override, and
+refreshes `Cargo.lock` offline. The lockfile update is required because the
+runtime patch adds a direct `midnight-curves` dependency and device builds use
+`--locked`.
 
-Then build and run against the device probe in `tools/android-prover-spike`:
+### 3. Build and run the Android probe
 
 ```sh
 node tools/android-prover-spike/scripts/prepare-artifacts.mjs
@@ -53,75 +70,94 @@ node tools/android-prover-spike/scripts/run-device.mjs \
   profiling=true maxConcurrency=1
 ```
 
-The probe takes measurement extras as `key=value` arguments: `profiling=true`
-turns the native stage instrumentation on and logs a `PROBE_TIMINGS` line per
-drain, `maxConcurrency=N` pins the admission limit, and `batch=true` proves a
-spend plus two outputs through one `proveBatch` call, which is the shape a real
-send emits. Each drained sample carries `phaseCounters` as a JSON object of
-nanosecond totals.
+The device probe accepts these `key=value` options:
 
-Revert before building anything shipped:
+- `profiling=true`: Enables phase counters and logs one `PROBE_TIMINGS` record
+  for each sample.
+- `maxConcurrency=N`: Sets the number of proof operations that may run at once.
+  Use `1` for per-proof measurements.
+- `batch=true`: Runs one spend and two outputs through one `proveBatch` call,
+  which matches the shape of a normal send.
+
+Each `PROBE_TIMINGS` record contains `phaseCounters`, a JSON object whose values
+are measured in nanoseconds.
+
+### 4. Restore the repository
+
+Restore the runtime files, then let the staging tool remove its temporary files
+and restore the saved lockfile:
 
 ```sh
-git checkout -- crates/runtime
+git restore --source=HEAD -- crates/runtime
+node tools/mobile-prover-instrumentation/stage.mjs revert
+git status --short
+```
+
+The final status must match the status from step 1. The `revert` command removes
+`.prover-fork/` and the generated `.cargo/config.toml`. It restores `Cargo.lock`
+from the saved copy because removing a Cargo path override alone does not
+restore registry source and checksum entries.
+
+## Update a patch
+
+Do not edit generated patch files by hand. The staging tool reads the pinned
+crate versions from `Cargo.lock` and fails if a patch no longer applies.
+
+To update the prover patch:
+
+```sh
+ONEAM_STAGE_WITHOUT_PATCHES=1 \
+  node tools/mobile-prover-instrumentation/stage.mjs stage
+# Edit files under .prover-fork/.
+node tools/mobile-prover-instrumentation/stage.mjs capture > \
+  tools/mobile-prover-instrumentation/phase-counters.patch
 node tools/mobile-prover-instrumentation/stage.mjs revert
 ```
 
-`revert` removes `.prover-fork/`, removes the generated `.cargo/config.toml`,
-and restores `Cargo.lock` from the copy `stage` saved — a path override drops
-the registry source and checksum lines for the crates it replaces, so the
-lockfile needs restoring, not just the source tree.
-
-## Changing the patches
-
-Edit the staged tree, then capture. Never hand-edit the patch files: they are
-generated, and the pinned crate versions are read from `Cargo.lock` at stage
-time, so a dependency bump makes `stage` fail on a rejected hunk rather than
-silently instrumenting the wrong source.
+To update the runtime patch, apply it, edit `crates/runtime`, and capture the
+result:
 
 ```sh
-ONEAM_STAGE_WITHOUT_PATCHES=1 node tools/mobile-prover-instrumentation/stage.mjs stage
-# edit .prover-fork/**
-node tools/mobile-prover-instrumentation/stage.mjs capture > \
-  tools/mobile-prover-instrumentation/phase-counters.patch
+git diff -- crates/runtime > \
+  tools/mobile-prover-instrumentation/runtime-snapshot.patch
 ```
 
-For the runtime side, apply the patch, edit `crates/runtime`, and regenerate
-with `git diff -- crates/runtime > .../runtime-snapshot.patch`.
+## Get reliable device measurements
 
-## Measuring on the device
+### Keep the device awake
 
-Two things will silently ruin a run.
+A sleeping Galaxy S10 parks its performance cores. In testing, the same `k=15`
+spend took about 31 seconds while the phone slept and 13 seconds while it was
+awake. The output does not identify this throttling.
 
-**Wake the phone first.** A dozing S10 parks its performance cores, and proving
-measured while it dozes is about **2.4x slower** than the same build measured
-awake -- 31 s versus 13 s for the k=15 spend. Nothing in the output says the
-device was throttled, and the inflated numbers look perfectly self-consistent.
-Send `input keyevent KEYCODE_WAKEUP` before each run; the probe activity holds
-`FLAG_KEEP_SCREEN_ON` once it starts, so only the install window is exposed.
-Doze also wedges `adb install` of the 42 MB APK indefinitely.
+Wake the device before each run:
 
-**Pin admission to 1 for any per-proof number.** At the default limit of 2 the
-same k=15 spend reports between 11.4 s and 20.5 s depending only on whether a
-neighbour is crowding it, while the batch's wall clock _drops_ by about 20%. Use
-`maxConcurrency=1` for attribution and batch wall clock for throughput; never
-mix them.
+```sh
+adb shell input keyevent KEYCODE_WAKEUP
+```
 
-## Verified so far
+The probe keeps the screen on after it starts. Waking the device also prevents
+`adb install` from hanging while it installs the 42 MB application package.
 
-- Both patches apply to the pinned sources, and the instrumented workspace
-  compiles and passes `cargo test --lib`.
-- The counters record: one k=12 FFT through `best_fft` reports a non-zero
-  `fft_ns` with `fft_calls` of 1, and stops accumulating after `finish`.
-- `revert` restores the tree, the lockfile, and a clean pinned build.
-- **Measured on the S10** (SM-G973W, Android 12, 2026-08-19). The rig reproduces
-  the standing baseline to within about 1%: MSM 51.0% against a recorded 51.8%,
-  FFT 18.6% against 18.1%, and a non-MSM/FFT remainder of 30.4% against 30.1%.
-  The phase counters account for 99.1% of the prove call. See
-  `docs/performance/mobile/remainder-decomposition-2026-08-19.md` in the wallet
-  repository.
+### Use one proof at a time for attribution
 
-Instrumentation costs about 15% of the prove call (13.19 s against 11.46 s
-uninstrumented, with three uninstrumented controls agreeing to within 3.6%), so
-compare shares between staged runs rather than absolute times against an
-unstaged one.
+At the default concurrency of two, the measured `k=15` spend ranged from 11.4 to
+20.5 seconds depending on competing work. Use `maxConcurrency=1` when
+attributing time to one proof. Use batch wall-clock time when measuring
+throughput. Do not compare those two kinds of measurement directly.
+
+## Verified results
+
+- Both patches apply to the pinned sources.
+- The instrumented workspace compiles and passes `cargo test --lib`.
+- A `k=12` FFT reports a non-zero `fft_ns`, reports one `fft_calls`, and stops
+  accumulating after `finish`.
+- The revert process restores the sources, Cargo configuration, and lockfile.
+- On a Galaxy S10 (SM-G973W, Android 12, 2026-08-19), the tool reproduced the
+  earlier baseline within about 1%: MSM 51.0%, FFT 18.6%, and other work 30.4%.
+  The phase counters accounted for 99.1% of the proof call.
+
+Instrumentation added about 15% overhead in this test: 13.19 seconds with
+instrumentation and 11.46 seconds without it. Compare phase percentages between
+instrumented runs. Do not compare absolute times from instrumented and normal
+builds.
