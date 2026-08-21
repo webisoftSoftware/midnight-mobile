@@ -186,7 +186,9 @@ function writeErrorSurfaceFixtures(
   for (const bridge of bridges) {
     mkdirSync(join(root, bridge, ".."), { recursive: true });
     const source = bridge.endsWith(".swift")
-      ? variants.map((variant) => `case MidnightRuntimeError.${variant}:`).join("\n")
+      ? variants
+          .map((variant) => `case MidnightRuntimeError.${variant}:`)
+          .join("\n")
       : variants
           .map((variant) => `is MidnightRuntimeException.${variant} ->`)
           .join("\n");
@@ -231,7 +233,7 @@ test("every runtime error variant must be named in both platform bridges", () =>
         "ios.swift":
           '/*\ncase MidnightRuntimeError.Unavailable:\n*/\nlet value = "case MidnightRuntimeError.SyncGap:"',
         "android.kt":
-          "// is MidnightRuntimeException.Unavailable ->\nval value = \"is MidnightRuntimeException.SyncGap ->\"",
+          '// is MidnightRuntimeException.Unavailable ->\nval value = "is MidnightRuntimeException.SyncGap ->"',
       },
     }),
     "ios.swift does not surface the Unavailable runtime error",

@@ -284,10 +284,16 @@ export function validateErrorSurfaces({ errorEnumSource, surfaces }) {
       .replace(/\/\/[^\n]*$/gmu, "")
       .replace(/"""[\s\S]*?"""/gu, "")
       .replace(/"(?:\\.|[^"\\])*"/gu, "");
-    const cases = new Set([
-      ...code.matchAll(/^\s*case\s+MidnightRuntimeError\.([A-Z][A-Za-z0-9]*)\s*:/gmu),
-      ...code.matchAll(/^\s*is\s+MidnightRuntimeException\.([A-Z][A-Za-z0-9]*)\s*->/gmu),
-    ].map((match) => match[1]));
+    const cases = new Set(
+      [
+        ...code.matchAll(
+          /^\s*case\s+MidnightRuntimeError\.([A-Z][A-Za-z0-9]*)\s*:/gmu,
+        ),
+        ...code.matchAll(
+          /^\s*is\s+MidnightRuntimeException\.([A-Z][A-Za-z0-9]*)\s*->/gmu,
+        ),
+      ].map((match) => match[1]),
+    );
     for (const variant of variants) {
       if (!cases.has(variant)) {
         errors.push(`${name} does not surface the ${variant} runtime error`);

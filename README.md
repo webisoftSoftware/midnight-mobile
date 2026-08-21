@@ -239,9 +239,9 @@ coins do not match the approved manifest. The DUST cost can be lower than the
 approved cost. It cannot be higher.
 
 The runtime changes an unsealed transaction to balance it. This change also
-changes the signing data for all parts of the intent. The runtime signs all inputs
-that the wallet owns in both offer sections. It rejects an input that another
-party owns.
+changes the signing data for all parts of the intent. The runtime signs all
+inputs that the wallet owns in both offer sections. It rejects an input that
+another party owns.
 
 The runtime does not change a sealed transaction. It balances the transaction
 with a separate intent. Some sealed transactions cannot use this method. The
