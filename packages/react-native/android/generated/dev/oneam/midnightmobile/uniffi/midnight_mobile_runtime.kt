@@ -1144,6 +1144,24 @@ sealed class MidnightRuntimeException: kotlin.Exception() {
             get() = ""
     }
 
+    class InsufficientFunds(
+        ) : MidnightRuntimeException() {
+        override val message
+            get() = ""
+    }
+
+    class BalanceApprovalChanged(
+        ) : MidnightRuntimeException() {
+        override val message
+            get() = ""
+    }
+
+    class UnsupportedTransaction(
+        ) : MidnightRuntimeException() {
+        override val message
+            get() = ""
+    }
+
     class SubmissionStatusUnknown(
         ) : MidnightRuntimeException() {
         override val message
@@ -1195,10 +1213,13 @@ public object FfiConverterTypeMidnightRuntimeError : FfiConverterRustBuffer<Midn
             6 -> MidnightRuntimeException.SyncGap()
             7 -> MidnightRuntimeException.ProofFailed()
             8 -> MidnightRuntimeException.InsufficientDust()
-            9 -> MidnightRuntimeException.SubmissionStatusUnknown()
-            10 -> MidnightRuntimeException.InvalidLength()
-            11 -> MidnightRuntimeException.DecodeFailed()
-            12 -> MidnightRuntimeException.NativeInternal()
+            9 -> MidnightRuntimeException.InsufficientFunds()
+            10 -> MidnightRuntimeException.BalanceApprovalChanged()
+            11 -> MidnightRuntimeException.UnsupportedTransaction()
+            12 -> MidnightRuntimeException.SubmissionStatusUnknown()
+            13 -> MidnightRuntimeException.InvalidLength()
+            14 -> MidnightRuntimeException.DecodeFailed()
+            15 -> MidnightRuntimeException.NativeInternal()
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
     }
@@ -1234,6 +1255,18 @@ public object FfiConverterTypeMidnightRuntimeError : FfiConverterRustBuffer<Midn
                 4UL
             )
             is MidnightRuntimeException.InsufficientDust -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is MidnightRuntimeException.InsufficientFunds -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is MidnightRuntimeException.BalanceApprovalChanged -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is MidnightRuntimeException.UnsupportedTransaction -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
             )
@@ -1290,20 +1323,32 @@ public object FfiConverterTypeMidnightRuntimeError : FfiConverterRustBuffer<Midn
                 buf.putInt(8)
                 Unit
             }
-            is MidnightRuntimeException.SubmissionStatusUnknown -> {
+            is MidnightRuntimeException.InsufficientFunds -> {
                 buf.putInt(9)
                 Unit
             }
-            is MidnightRuntimeException.InvalidLength -> {
+            is MidnightRuntimeException.BalanceApprovalChanged -> {
                 buf.putInt(10)
                 Unit
             }
-            is MidnightRuntimeException.DecodeFailed -> {
+            is MidnightRuntimeException.UnsupportedTransaction -> {
                 buf.putInt(11)
                 Unit
             }
-            is MidnightRuntimeException.NativeInternal -> {
+            is MidnightRuntimeException.SubmissionStatusUnknown -> {
                 buf.putInt(12)
+                Unit
+            }
+            is MidnightRuntimeException.InvalidLength -> {
+                buf.putInt(13)
+                Unit
+            }
+            is MidnightRuntimeException.DecodeFailed -> {
+                buf.putInt(14)
+                Unit
+            }
+            is MidnightRuntimeException.NativeInternal -> {
+                buf.putInt(15)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
