@@ -50,6 +50,12 @@ pub enum MidnightRuntimeError {
     ProofFailed,
     #[error("INSUFFICIENT_DUST")]
     InsufficientDust,
+    #[error("INSUFFICIENT_FUNDS")]
+    InsufficientFunds,
+    #[error("BALANCE_APPROVAL_CHANGED")]
+    BalanceApprovalChanged,
+    #[error("UNSUPPORTED_TRANSACTION")]
+    UnsupportedTransaction,
     #[error("SUBMISSION_STATUS_UNKNOWN")]
     SubmissionStatusUnknown,
     #[error("INVALID_LENGTH")]

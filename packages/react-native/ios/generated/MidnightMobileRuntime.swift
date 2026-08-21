@@ -610,6 +610,9 @@ enum MidnightRuntimeError: Swift.Error, Equatable, Hashable, Foundation.Localize
     case SyncGap
     case ProofFailed
     case InsufficientDust
+    case InsufficientFunds
+    case BalanceApprovalChanged
+    case UnsupportedTransaction
     case SubmissionStatusUnknown
     case InvalidLength
     case DecodeFailed
@@ -651,10 +654,13 @@ public struct FfiConverterTypeMidnightRuntimeError: FfiConverterRustBuffer {
         case 6: return .SyncGap
         case 7: return .ProofFailed
         case 8: return .InsufficientDust
-        case 9: return .SubmissionStatusUnknown
-        case 10: return .InvalidLength
-        case 11: return .DecodeFailed
-        case 12: return .NativeInternal
+        case 9: return .InsufficientFunds
+        case 10: return .BalanceApprovalChanged
+        case 11: return .UnsupportedTransaction
+        case 12: return .SubmissionStatusUnknown
+        case 13: return .InvalidLength
+        case 14: return .DecodeFailed
+        case 15: return .NativeInternal
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -699,20 +705,32 @@ public struct FfiConverterTypeMidnightRuntimeError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(8))
 
 
-        case .SubmissionStatusUnknown:
+        case .InsufficientFunds:
             writeInt(&buf, Int32(9))
 
 
-        case .InvalidLength:
+        case .BalanceApprovalChanged:
             writeInt(&buf, Int32(10))
 
 
-        case .DecodeFailed:
+        case .UnsupportedTransaction:
             writeInt(&buf, Int32(11))
 
 
-        case .NativeInternal:
+        case .SubmissionStatusUnknown:
             writeInt(&buf, Int32(12))
+
+
+        case .InvalidLength:
+            writeInt(&buf, Int32(13))
+
+
+        case .DecodeFailed:
+            writeInt(&buf, Int32(14))
+
+
+        case .NativeInternal:
+            writeInt(&buf, Int32(15))
 
         }
     }

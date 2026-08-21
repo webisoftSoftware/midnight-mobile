@@ -184,17 +184,29 @@ pub(super) enum RuntimeCommand {
         fee_blocks_margin: u64,
         additional_fee_overhead: String,
     },
+    PreviewBalance {
+        raw_base64: String,
+        sealed: bool,
+        ledger_parameters_base64: String,
+        fee_blocks_margin: u64,
+        additional_fee_overhead: String,
+        fee_mode: String,
+    },
     BalanceUnsealed {
         raw_base64: String,
         ledger_parameters_base64: String,
         fee_blocks_margin: u64,
         additional_fee_overhead: String,
+        fee_mode: String,
+        approved_manifest: BalanceManifest,
     },
     BalanceSealed {
         raw_base64: String,
         ledger_parameters_base64: String,
         fee_blocks_margin: u64,
         additional_fee_overhead: String,
+        fee_mode: String,
+        approved_manifest: BalanceManifest,
     },
     FinalizeUnprovenTransaction {
         raw_base64: String,
@@ -279,6 +291,16 @@ pub(super) struct BalanceServiceResult {
     pub(super) tx_bytes: String,
     #[serde(default, deserialize_with = "deserialize_optional_u64")]
     pub(super) expires_at: Option<u64>,
+}
+
+/// The preview a dApp balance request must be approved against. Both the
+/// manifest and its digest are returned: the manifest is what execution has to
+/// be handed back, the digest is a compact identity for logs and equality.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct BalancePreviewResult {
+    pub(super) manifest: BalanceManifest,
+    pub(super) manifest_digest: String,
 }
 
 #[derive(Clone, Debug, Serialize)]

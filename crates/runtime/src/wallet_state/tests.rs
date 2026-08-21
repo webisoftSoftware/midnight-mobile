@@ -7,6 +7,7 @@ use super::*;
 
 const NIGHT: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
+mod balance;
 mod sync;
 
 fn material() -> WalletAddressMaterial {
@@ -437,28 +438,6 @@ fn funded_wallet_builds_real_transfer_and_dapp_transactions() {
         state
             .build_dust_registration("preview", &[1; 32], &[3; 32], 10_000, 20_000,)
             .is_ok()
-    );
-
-    let empty = Transaction::<Signature, ProofPreimageMarker, PedersenRandomness, InMemoryDB>::new(
-        "preview".to_owned(),
-        LedgerHashMap::new(),
-        None,
-        LedgerHashMap::new(),
-    )
-    .erase_proofs();
-    assert!(
-        state
-            .build_dust_balance(DustBalanceInput {
-                network_id: "preview",
-                original: &empty,
-                ledger_parameters: &INITIAL_PARAMETERS,
-                fee_blocks_margin: 0,
-                additional_fee_overhead: 0,
-                dust_seed: &[3; 32],
-                current_time_seconds: 10_000,
-                ttl_seconds: 20_000,
-            })
-            .is_err()
     );
 }
 

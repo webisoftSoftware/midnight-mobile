@@ -30,6 +30,7 @@ const commandAndResultKeysMatch: Readonly<
   dappTransfer: true,
   dappIntent: true,
   generateDust: true,
+  previewBalance: true,
   balanceUnsealed: true,
   balanceSealed: true,
   finalizeUnprovenTransaction: true,
@@ -37,13 +38,13 @@ const commandAndResultKeysMatch: Readonly<
 } satisfies Readonly<Record<keyof MidnightCommandMap, true>>;
 
 await test("command and result maps contain the exact public command set", () => {
-  assert.equal(Object.keys(commandAndResultKeysMatch).length, 22);
-  assert.equal(MIDNIGHT_COMMAND_KINDS.length, 22);
+  assert.equal(Object.keys(commandAndResultKeysMatch).length, 23);
+  assert.equal(MIDNIGHT_COMMAND_KINDS.length, 23);
   assert.deepEqual(
     Object.keys(PUBLIC_COMMAND_TYPE_FIXTURES),
     MIDNIGHT_COMMAND_KINDS,
   );
-  assert.equal(new Set(MIDNIGHT_COMMAND_KINDS).size, 22);
+  assert.equal(new Set(MIDNIGHT_COMMAND_KINDS).size, 23);
   assert.deepEqual(MIDNIGHT_COMMAND_KINDS.slice(0, 5), [
     "signData",
     "createCheckPayload",

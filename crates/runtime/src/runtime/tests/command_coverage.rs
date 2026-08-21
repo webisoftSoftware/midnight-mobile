@@ -149,7 +149,18 @@ fn transaction_command_families_cover_real_and_invalid_dispatch_paths() {
             "rawBase64": "",
             "ledgerParametersBase64": "",
             "feeBlocksMargin": 0,
-            "additionalFeeOverhead": "0"
+            "additionalFeeOverhead": "0",
+            "feeMode": "localDust",
+            "approvedManifest": approved_manifest()
+        }),
+        serde_json::json!({
+            "kind": "previewBalance",
+            "rawBase64": "",
+            "sealed": false,
+            "ledgerParametersBase64": "",
+            "feeBlocksMargin": 0,
+            "additionalFeeOverhead": "0",
+            "feeMode": "localDust"
         }),
     ] {
         assert_runtime_error(
@@ -199,14 +210,18 @@ fn transaction_command_families_cover_real_and_invalid_dispatch_paths() {
             "rawBase64": "",
             "ledgerParametersBase64": "not-base64",
             "feeBlocksMargin": 0,
-            "additionalFeeOverhead": "0"
+            "additionalFeeOverhead": "0",
+            "feeMode": "localDust",
+            "approvedManifest": approved_manifest()
         }),
         serde_json::json!({
             "kind": "balanceSealed",
             "rawBase64": "",
             "ledgerParametersBase64": "not-base64",
             "feeBlocksMargin": 0,
-            "additionalFeeOverhead": "0"
+            "additionalFeeOverhead": "0",
+            "feeMode": "localDust",
+            "approvedManifest": approved_manifest()
         }),
         serde_json::json!({"kind": "submitFinalized", "rawBase64": "not-base64"}),
     ] {
@@ -243,6 +258,85 @@ fn transaction_command_families_cover_real_and_invalid_dispatch_paths() {
 }
 
 #[test]
+fn a_balance_preview_completes_inline_with_an_approvable_manifest() {
+    let _runtime = isolated_runtime();
+    let handle = open_test_session("coverage-balance-preview", None);
+    mark_all_streams_caught_up(&handle);
+    let finalized = empty_finalized_transaction();
+
+    // Sponsored mode needs no DUST, so an empty wallet can still price a
+    // transaction that has nothing to fund.
+    let step = begin_command(
+        handle.id,
+        handle.generation,
+        serde_json::json!({
+            "kind": "previewBalance",
+            "rawBase64": encode_base64(&finalized.canonical),
+            "sealed": true,
+            "ledgerParametersBase64": encode_initial_parameters(),
+            "feeBlocksMargin": 0,
+            "additionalFeeOverhead": "0",
+            "feeMode": "sponsored"
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let step: serde_json::Value = serde_json::from_str(&step).unwrap();
+    // A preview has no network effects, so the host must see a completion step
+    // and never a pending operation to resume.
+    assert_eq!(step["kind"], "complete");
+    assert_eq!(step["operation"], serde_json::Value::Null);
+    let result = &step["result"];
+    assert_eq!(result["manifest"]["variant"], "sealed");
+    assert_eq!(result["manifest"]["dust"], "sponsored");
+    assert_eq!(result["manifest"]["contributions"], serde_json::json!([]));
+    assert_eq!(
+        result["manifestDigest"].as_str().map(str::len),
+        Some(64),
+        "the digest identifies exactly what was approved"
+    );
+
+    // Executing with that manifest must be accepted; a costlier one must not.
+    let execute = |manifest: serde_json::Value| {
+        begin_command(
+            handle.id,
+            handle.generation,
+            serde_json::json!({
+                "kind": "balanceSealed",
+                "rawBase64": encode_base64(&finalized.canonical),
+                "ledgerParametersBase64": encode_initial_parameters(),
+                "feeBlocksMargin": 0,
+                "additionalFeeOverhead": "0",
+                "feeMode": "sponsored",
+                "approvedManifest": manifest
+            })
+            .to_string(),
+        )
+    };
+    assert!(execute(result["manifest"].clone()).is_ok());
+    let mut tampered = result["manifest"].clone();
+    tampered["contributions"] = serde_json::json!([{
+        "walletType": "unshielded",
+        "tokenType": "00".repeat(32),
+        "amount": "1"
+    }]);
+    assert_runtime_error(execute(tampered), "BALANCE_APPROVAL_CHANGED");
+}
+
+/// A manifest that can never authorize a real plan: it is only here so the
+/// command decodes and the validation under test is the one that runs.
+fn approved_manifest() -> serde_json::Value {
+    serde_json::json!({
+        "transactionDigest": "00".repeat(32),
+        "variant": "unsealed",
+        "contributions": [],
+        "change": [],
+        "dust": "0",
+        "walletStateDigest": "00".repeat(32)
+    })
+}
+
+#[test]
 fn transaction_handlers_validate_canonical_inputs_before_wallet_mutation() {
     let _runtime = isolated_runtime();
     let handle = open_test_session("coverage-validated-commands", None);
@@ -251,13 +345,18 @@ fn transaction_handlers_validate_canonical_inputs_before_wallet_mutation() {
     let finalized = empty_finalized_transaction();
     let snapshot = get_wallet_snapshot(handle.id, handle.generation).unwrap();
 
-    for (kind, fee_blocks_margin, overhead) in [
-        ("balanceUnsealed", 65, "0"),
-        ("balanceSealed", 65, "0"),
-        ("balanceUnsealed", 0, "01"),
-        ("balanceSealed", 0, "01"),
-        ("balanceUnsealed", 0, "0"),
-        ("balanceSealed", 0, "0"),
+    // A margin above the ceiling and a non-canonical overhead are argument
+    // errors. The fixture is a sealed transaction, so asking for the unsealed
+    // variant is also an argument error. Only the sealed request with
+    // well-formed arguments reaches coin selection, where an empty wallet
+    // reports the DUST shortfall specifically rather than generically.
+    for (kind, fee_blocks_margin, overhead, expected) in [
+        ("balanceUnsealed", 65, "0", "INVALID_ARGUMENT"),
+        ("balanceSealed", 65, "0", "INVALID_ARGUMENT"),
+        ("balanceUnsealed", 0, "01", "INVALID_ARGUMENT"),
+        ("balanceSealed", 0, "01", "INVALID_ARGUMENT"),
+        ("balanceUnsealed", 0, "0", "INVALID_ARGUMENT"),
+        ("balanceSealed", 0, "0", "INSUFFICIENT_DUST"),
     ] {
         assert_runtime_error(
             begin_command(
@@ -268,11 +367,13 @@ fn transaction_handlers_validate_canonical_inputs_before_wallet_mutation() {
                     "rawBase64": encode_base64(&finalized.canonical),
                     "ledgerParametersBase64": parameters,
                     "feeBlocksMargin": fee_blocks_margin,
-                    "additionalFeeOverhead": overhead
+                    "additionalFeeOverhead": overhead,
+                    "feeMode": "localDust",
+                    "approvedManifest": approved_manifest()
                 })
                 .to_string(),
             ),
-            "INVALID_ARGUMENT",
+            expected,
         );
     }
 

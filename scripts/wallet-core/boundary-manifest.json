@@ -23,6 +23,7 @@
     "dappTransfer",
     "dappIntent",
     "generateDust",
+    "previewBalance",
     "balanceUnsealed",
     "balanceSealed",
     "finalizeUnprovenTransaction",

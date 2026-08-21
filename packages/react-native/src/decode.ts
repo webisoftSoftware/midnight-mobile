@@ -1,9 +1,12 @@
 import type {
+  MidnightBalanceManifest,
+  MidnightBalancePreviewResult,
   MidnightCommandKind,
   MidnightCommandResultMap,
   MidnightDustCommitmentResult,
   MidnightFinalizedTransactionResult,
   MidnightSyncStream,
+  MidnightWalletContribution,
 } from "./commands.js";
 import { decodeBase64 } from "./base64.js";
 import { MidnightRuntimeError } from "./errors.js";
@@ -203,6 +206,48 @@ export function decodeWalletSnapshot(value: unknown): MidnightWalletSnapshot {
   };
 }
 
+function decodeContributions(value: unknown): MidnightWalletContribution[] {
+  if (!Array.isArray(value)) return invalid();
+  return value.map((entry) => {
+    const source = record(entry);
+    const walletType = text(source.walletType);
+    if (walletType !== "shielded" && walletType !== "unshielded") {
+      return invalid();
+    }
+    return {
+      walletType,
+      tokenType: lowercaseHex(source.tokenType, 32),
+      amount: canonicalDecimal(source.amount),
+    };
+  });
+}
+
+function decodeManifest(value: unknown): MidnightBalanceManifest {
+  const source = record(value);
+  const variant = text(source.variant);
+  if (variant !== "sealed" && variant !== "unsealed") return invalid();
+  const dust = text(source.dust);
+  if (dust !== "sponsored" && !/^(?:0|[1-9][0-9]*)$/.test(dust)) {
+    return invalid();
+  }
+  return {
+    transactionDigest: lowercaseHex(source.transactionDigest, 32),
+    variant,
+    contributions: decodeContributions(source.contributions),
+    change: decodeContributions(source.change),
+    dust,
+    walletStateDigest: lowercaseHex(source.walletStateDigest, 32),
+  };
+}
+
+function decodeBalancePreview(value: unknown): MidnightBalancePreviewResult {
+  const source = record(value);
+  return {
+    manifest: decodeManifest(source.manifest),
+    manifestDigest: lowercaseHex(source.manifestDigest, 32),
+  };
+}
+
 function decodeFinalized(value: unknown): MidnightFinalizedTransactionResult {
   const source = record(value);
   const expiresAt = optionalInteger(source, "expiresAt");
@@ -302,6 +347,7 @@ const RESULT_DECODERS: {
   dappTransfer: decodeFinalized,
   dappIntent: decodeFinalized,
   generateDust: decodeFinalized,
+  previewBalance: decodeBalancePreview,
   balanceUnsealed: decodeFinalized,
   balanceSealed: decodeFinalized,
   finalizeUnprovenTransaction: decodeFinalized,

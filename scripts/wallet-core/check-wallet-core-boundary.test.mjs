@@ -18,6 +18,7 @@ import {
   findForbiddenContent,
   runBoundaryCheck,
   validateCommandContracts,
+  validateErrorSurfaces,
   validatePolicyManifest,
 } from "./check-wallet-core-boundary.mjs";
 
@@ -163,6 +164,89 @@ test("detects excluded capability text without rejecting generic asset paths", (
   );
 });
 
+/**
+ * The error-surface check reads fixed paths relative to the repository root, so
+ * a fixture root has to provide the enum and both bridges to be checkable.
+ */
+function writeErrorSurfaceFixtures(
+  root,
+  variants = ["Unavailable", "SyncGap"],
+) {
+  mkdirSync(join(root, "crates/runtime/src"), { recursive: true });
+  writeFileSync(
+    join(root, "crates/runtime/src/lib.rs"),
+    `pub enum MidnightRuntimeError {\n${variants
+      .map((variant) => `    ${variant},`)
+      .join("\n")}\n}\n`,
+  );
+  const bridges = [
+    "packages/react-native/ios/MidnightMobileRuntimeModule.swift",
+    "packages/react-native/android/src/main/java/dev/oneam/midnightmobile/MidnightMobileRuntimeModule.kt",
+  ];
+  for (const bridge of bridges) {
+    mkdirSync(join(root, bridge, ".."), { recursive: true });
+    const source = bridge.endsWith(".swift")
+      ? variants
+          .map((variant) => `case MidnightRuntimeError.${variant}:`)
+          .join("\n")
+      : variants
+          .map((variant) => `is MidnightRuntimeException.${variant} ->`)
+          .join("\n");
+    writeFileSync(join(root, bridge), source);
+  }
+  return bridges;
+}
+
+test("every runtime error variant must be named in both platform bridges", () => {
+  const enumSource =
+    "pub enum MidnightRuntimeError {\n    Unavailable,\n    SyncGap,\n}\n";
+  assert.deepEqual(
+    validateErrorSurfaces({
+      errorEnumSource: enumSource,
+      surfaces: {
+        "ios.swift":
+          "case MidnightRuntimeError.Unavailable:\ncase MidnightRuntimeError.SyncGap:",
+        "android.kt":
+          "is MidnightRuntimeException.Unavailable ->\nis MidnightRuntimeException.SyncGap ->",
+      },
+    }),
+    [],
+  );
+  // A bridge that omits a variant reports it as NATIVE_INTERNAL, which is the
+  // failure this check exists to prevent.
+  includesError(
+    validateErrorSurfaces({
+      errorEnumSource: enumSource,
+      surfaces: {
+        "ios.swift": "case MidnightRuntimeError.Unavailable:",
+        "android.kt":
+          "is MidnightRuntimeException.Unavailable ->\nis MidnightRuntimeException.SyncGap ->",
+      },
+    }),
+    "ios.swift does not surface the SyncGap runtime error",
+  );
+  // Do not count text in comments or strings as switch arms.
+  includesError(
+    validateErrorSurfaces({
+      errorEnumSource: enumSource,
+      surfaces: {
+        "ios.swift":
+          '/*\ncase MidnightRuntimeError.Unavailable:\n*/\nlet value = "case MidnightRuntimeError.SyncGap:"',
+        "android.kt":
+          '// is MidnightRuntimeException.Unavailable ->\nval value = "is MidnightRuntimeException.SyncGap ->"',
+      },
+    }),
+    "ios.swift does not surface the Unavailable runtime error",
+  );
+  includesError(
+    validateErrorSurfaces({
+      errorEnumSource: "pub enum Other {}",
+      surfaces: {},
+    }),
+    "MidnightRuntimeError enum was not found",
+  );
+});
+
 test("boundary scans configured source trees without inventorying every file", () => {
   const root = mkdtempSync(join(tmpdir(), "midnight-boundary-test-"));
   try {
@@ -171,6 +255,7 @@ test("boundary scans configured source trees without inventorying every file", (
     writeFileSync(join(source, "commands.ts"), typescriptFixture());
     writeFileSync(join(source, "types.rs"), rustFixture());
     writeFileSync(join(source, "new-helper.ts"), "export const value = 1;\n");
+    writeErrorSurfaceFixtures(root);
     mkdirSync(join(root, "examples/assets"), { recursive: true });
     writeFileSync(
       join(root, "examples/assets/ignored.json"),

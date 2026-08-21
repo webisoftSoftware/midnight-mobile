@@ -20,6 +20,12 @@ private func runtimeException(_ error: Error) -> Exception {
     code = "PROOF_FAILED"
   case MidnightRuntimeError.InsufficientDust:
     code = "INSUFFICIENT_DUST"
+  case MidnightRuntimeError.InsufficientFunds:
+    code = "INSUFFICIENT_FUNDS"
+  case MidnightRuntimeError.BalanceApprovalChanged:
+    code = "BALANCE_APPROVAL_CHANGED"
+  case MidnightRuntimeError.UnsupportedTransaction:
+    code = "UNSUPPORTED_TRANSACTION"
   case MidnightRuntimeError.SubmissionStatusUnknown:
     code = "SUBMISSION_STATUS_UNKNOWN"
   case MidnightRuntimeError.InvalidLength:
