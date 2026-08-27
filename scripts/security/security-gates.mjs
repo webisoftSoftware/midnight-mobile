@@ -1,10 +1,14 @@
 import { isDeepStrictEqual } from "node:util";
 
-const EXPECTED_BRACE_VERSIONS = Object.freeze(["1.1.17", "5.0.8"]);
+const EXPECTED_BRACE_VERSIONS = Object.freeze(["1.1.18", "5.0.9"]);
 const EXPECTED_OVERRIDES = Object.freeze({
-  "brace-expansion@<2": "1.1.17",
-  "brace-expansion@>=2 <3": "2.1.3",
-  "brace-expansion@>=5 <6": "5.0.8",
+  "@expo/metro": "55.1.2",
+  "brace-expansion@<2": "1.1.18",
+  "brace-expansion@>=2 <3": "2.1.4",
+  "brace-expansion@>=5 <6": "5.0.9",
+  "js-yaml@<4": "3.15.1",
+  "js-yaml@>=4 <5": "4.3.1",
+  metro: "0.83.8",
   uuid: "11.1.1",
 });
 const EXPECTED_RUSTSEC_INFORMATIONAL_ALLOWLIST = Object.freeze([
@@ -101,48 +105,6 @@ export function validateSecurityPolicy(policy) {
     "rustSecInformationalAllowlist",
     errors,
   );
-  const advisory = policy.braceExpansionAdvisory;
-  exact(advisory?.advisory, "GHSA-mh99-v99m-4gvg", "advisory", errors);
-  exact(advisory?.cve, "CVE-2026-14257", "cve", errors);
-  exact(advisory?.source, 1_124_334, "source", errors);
-  exact(
-    advisory?.url,
-    "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
-    "url",
-    errors,
-  );
-  exact(advisory?.severity, "high", "severity", errors);
-  exact(advisory?.vulnerableRange, "<=5.0.7", "vulnerableRange", errors);
-  exact(
-    advisory?.acceptedVersions,
-    EXPECTED_BRACE_VERSIONS,
-    "acceptedVersions",
-    errors,
-  );
-  exact(
-    advisory?.maximumExpandedCharacters,
-    4_000_000,
-    "maximumExpandedCharacters",
-    errors,
-  );
-  exact(
-    advisory?.trackingIssue,
-    "https://github.com/ADGLx/midnight-mobile/issues/35",
-    "trackingIssue",
-    errors,
-  );
-  exact(
-    advisory?.status,
-    "upstream-advisory-metadata-blocked",
-    "status",
-    errors,
-  );
-  if (
-    typeof advisory?.removalCondition !== "string" ||
-    advisory.removalCondition.length < 80
-  ) {
-    errors.push("brace-expansion removalCondition must be concrete");
-  }
   return errors;
 }
 
@@ -159,19 +121,11 @@ export function findSecretErrors(entries) {
   return errors;
 }
 
-function validateBracePackages(lockfile, sourceEvidence, policy, errors) {
+function validateBracePackages(lockfile, errors) {
   const versions = [];
   for (const [path, metadata] of Object.entries(lockfile.packages ?? {})) {
     if (!path.endsWith("/brace-expansion")) continue;
     versions.push(metadata.version);
-    const evidence = sourceEvidence.get(path) ?? "";
-    const normalized = evidence.replaceAll("_", "");
-    if (
-      !evidence.includes(policy.braceExpansionAdvisory.cve) ||
-      !normalized.includes("4000000")
-    ) {
-      errors.push(`${path}: patched expansion-length bound is missing`);
-    }
   }
   exact(
     [...new Set(versions)].sort(),
@@ -196,12 +150,7 @@ function validateUuidPackages(packageMetadata, lockfile, errors) {
   exact([...new Set(versions)].sort(), ["11.1.1"], "uuid versions", errors);
 }
 
-export function validateNpmDependencies(
-  packageMetadata,
-  lockfile,
-  sourceEvidence,
-  policy,
-) {
+export function validateNpmDependencies(packageMetadata, lockfile) {
   const errors = [];
   exact(packageMetadata.overrides, EXPECTED_OVERRIDES, "npm overrides", errors);
   for (const [path, metadata] of Object.entries(lockfile.packages ?? {})) {
@@ -224,7 +173,7 @@ export function validateNpmDependencies(
       errors.push(`${path}: dependency license is missing`);
     }
   }
-  validateBracePackages(lockfile, sourceEvidence, policy, errors);
+  validateBracePackages(lockfile, errors);
   validateUuidPackages(packageMetadata, lockfile, errors);
   return errors;
 }

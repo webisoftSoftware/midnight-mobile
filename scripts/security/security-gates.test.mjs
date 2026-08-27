@@ -13,7 +13,7 @@ const policy = JSON.parse(
   readFileSync(new URL("./security-policy.json", import.meta.url), "utf8"),
 );
 
-function npmFixture(version = "1.1.17") {
+function npmFixture(version = "1.1.18") {
   return {
     packages: {
       "node_modules/brace-expansion": {
@@ -33,9 +33,13 @@ function npmFixture(version = "1.1.17") {
 }
 
 const overrides = {
-  "brace-expansion@<2": "1.1.17",
-  "brace-expansion@>=2 <3": "2.1.3",
-  "brace-expansion@>=5 <6": "5.0.8",
+  "@expo/metro": "55.1.2",
+  "brace-expansion@<2": "1.1.18",
+  "brace-expansion@>=2 <3": "2.1.4",
+  "brace-expansion@>=5 <6": "5.0.9",
+  "js-yaml@<4": "3.15.1",
+  "js-yaml@>=4 <5": "4.3.1",
+  metro: "0.83.8",
   uuid: "11.1.1",
 };
 
@@ -84,64 +88,35 @@ await test("secret scanning recognizes supported credential families", () => {
   );
 });
 
-await test("npm dependency gate requires patched brace evidence", () => {
+await test("npm dependency gate pins remediated brace versions", () => {
   const lockfile = npmFixture();
   lockfile.packages["node_modules/a/brace-expansion"] = {
     ...lockfile.packages["node_modules/brace-expansion"],
-    version: "5.0.8",
+    version: "5.0.9",
   };
-  lockfile.packages["node_modules/b/brace-expansion"] = {
-    ...lockfile.packages["node_modules/brace-expansion"],
-    version: "5.0.8",
-  };
-  const evidence = new Map(
-    Object.keys(lockfile.packages).map((path) => [
-      path,
-      `${policy.braceExpansionAdvisory.cve} 4_000_000`,
-    ]),
-  );
   assert.deepEqual(
     validateNpmDependencies(
       { overrides, devDependencies: { xcode: "3.0.1" } },
       lockfile,
-      evidence,
-      policy,
     ),
     [],
   );
-  evidence.set("node_modules/brace-expansion", "");
+  lockfile.packages["node_modules/brace-expansion"].version = "1.1.17";
   assert.match(
     validateNpmDependencies(
       { overrides, devDependencies: { xcode: "3.0.1" } },
       lockfile,
-      evidence,
-      policy,
     ).join("\n"),
-    /patched expansion-length bound/u,
+    /brace versions/u,
   );
 });
 
 await test("npm dependency gate rejects the vulnerable workspace uuid tree", () => {
   const lockfile = npmFixture();
-  lockfile.packages["node_modules/a/brace-expansion"] = {
-    ...lockfile.packages["node_modules/brace-expansion"],
-    version: "2.1.3",
-  };
-  lockfile.packages["node_modules/b/brace-expansion"] = {
-    ...lockfile.packages["node_modules/brace-expansion"],
-    version: "5.0.8",
-  };
   lockfile.packages["node_modules/uuid"].version = "7.0.3";
-  const evidence = new Map(
-    Object.keys(lockfile.packages)
-      .filter((path) => path.endsWith("/brace-expansion"))
-      .map((path) => [path, `${policy.braceExpansionAdvisory.cve} 4_000_000`]),
-  );
   const errors = validateNpmDependencies(
     { overrides, devDependencies: {} },
     lockfile,
-    evidence,
-    policy,
   );
   assert.ok(errors.some((error) => error.includes("xcode security pin")));
   assert.ok(errors.some((error) => error.includes("uuid versions")));

@@ -106,20 +106,6 @@ function packedEntries(temporaryRoot) {
   return collectFiles(extracted);
 }
 
-function braceEvidence(lockfile) {
-  const evidence = new Map();
-  for (const path of Object.keys(lockfile.packages ?? {})) {
-    if (!path.endsWith("/brace-expansion")) continue;
-    const root = join(REPOSITORY_ROOT, path);
-    const sources = collectFiles(root)
-      .filter((entry) => entry.path.endsWith(".js"))
-      .map((entry) => entry.contents)
-      .join("\n");
-    evidence.set(path, sources);
-  }
-  return evidence;
-}
-
 function cargoMetadata() {
   return JSON.parse(
     run("cargo", [
@@ -153,12 +139,7 @@ export function checkSecurity(arguments_ = process.argv.slice(2)) {
     const scanned = [...repositoryEntries(), historyEntry(), ...packed];
     const errors = [
       ...validateSecurityPolicy(policy),
-      ...validateNpmDependencies(
-        packageMetadata,
-        lockfile,
-        braceEvidence(lockfile),
-        policy,
-      ),
+      ...validateNpmDependencies(packageMetadata, lockfile),
       ...validateCargoDependencies(cargoMetadata(), policy),
       ...findSecretErrors(scanned),
     ];

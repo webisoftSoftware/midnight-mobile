@@ -2,27 +2,7 @@ function isObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function exactBraceFinding(package_, vulnerability, policy) {
-  const advisory = policy.braceExpansionAdvisory;
-  const identities = new Set([
-    vulnerability.id,
-    ...(Array.isArray(vulnerability.aliases) ? vulnerability.aliases : []),
-  ]);
-  return (
-    package_.name === "brace-expansion" &&
-    package_.ecosystem === "npm" &&
-    advisory.acceptedVersions.includes(package_.version) &&
-    identities.size === 2 &&
-    identities.has(advisory.advisory) &&
-    identities.has(advisory.cve)
-  );
-}
-
-export function validateOsvReport(
-  report,
-  policy,
-  dependencyVerificationErrors = [],
-) {
+export function validateOsvReport(report, dependencyVerificationErrors = []) {
   const errors = [...dependencyVerificationErrors];
   if (!isObject(report) || !Array.isArray(report.results)) {
     return [...errors, "OSV report must contain a results array"];
@@ -42,14 +22,13 @@ export function validateOsvReport(
         continue;
       }
       for (const vulnerability of affected.vulnerabilities) {
-        if (
-          !isObject(vulnerability) ||
-          !exactBraceFinding(affected.package, vulnerability, policy)
-        ) {
+        if (!isObject(vulnerability)) {
+          errors.push("OSV vulnerability entry is invalid");
+        } else {
           errors.push(
             `${String(affected.package.name)}@${String(
               affected.package.version,
-            )}: unapproved OSV finding ${String(vulnerability?.id)}`,
+            )}: OSV finding ${String(vulnerability.id)}`,
           );
         }
       }
