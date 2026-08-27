@@ -47,7 +47,7 @@
     "@types/node": "24.10.1",
     "@types/react": "19.2.14",
     "expo": "55.0.28",
-    "expo-modules-core": "55.0.25",
+    "expo-modules-core": "57.0.13",
     "react": "19.2.0",
     "react-native": "0.83.6",
     "typescript": "5.9.3"
