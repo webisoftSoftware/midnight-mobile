@@ -105,7 +105,8 @@ pub(super) fn resume(
                 Err(MidnightRuntimeError::InvalidArgument)
             }
         },
-        PendingOperationKind::Balance { .. }
+        PendingOperationKind::Extension(_)
+        | PendingOperationKind::Balance { .. }
         | PendingOperationKind::FinalizeTransactionProof { .. }
         | PendingOperationKind::DappIntentProof { .. }
         | PendingOperationKind::GenerateDustProof { .. } => {

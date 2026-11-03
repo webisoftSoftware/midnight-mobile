@@ -44,7 +44,7 @@ pub(super) fn proof_effect(kind: transaction::RemoteProofKind) -> &'static str {
     }
 }
 
-pub(super) fn take_proving_key_material(
+pub fn take_proving_key_material(
     key_material: &mut Option<RuntimeProvingKeyMaterial>,
 ) -> Result<Option<ProvingKeyMaterial>, MidnightRuntimeError> {
     let Some(mut material) = key_material.take() else {
@@ -123,30 +123,7 @@ pub(super) fn proof_step_from_bodies(
     effect_id: &str,
     bodies: Vec<(&'static str, String)>,
 ) -> Result<OperationStep, MidnightRuntimeError> {
-    let total = bodies.len();
-    let (first_effect, first_body) = bodies.first().ok_or(MidnightRuntimeError::ProofFailed)?;
-    let effects = (total > 1).then(|| {
-        bodies
-            .iter()
-            .enumerate()
-            .map(|(index, (effect, body))| OperationEffect {
-                effect_id: proof_effect_id(effect_id, index, total),
-                effect,
-                endpoint_role: "proof",
-                body_base64: body.clone(),
-            })
-            .collect()
-    });
-    Ok(OperationStep {
-        kind: "network",
-        operation: Some(handle),
-        effect_id: Some(proof_effect_id(effect_id, 0, total)),
-        effect: Some(first_effect),
-        endpoint_role: Some("proof"),
-        body_base64: Some(first_body.clone()),
-        effects,
-        result_json: None,
-    })
+    extension::effects_step(handle, effect_id, extension::bodies_to_effects(bodies))
 }
 
 /// Builds the next network step from the requests already stored on the operation,
@@ -179,7 +156,7 @@ pub(super) fn pending_proof_step(
 /// missing, extra, or duplicated entries, so a partial batch can never silently
 /// under-fill the response map. `InvalidArgument` leaves the operation resumable; every
 /// other error retires it, matching the pre-batching single-effect semantics.
-pub(super) fn decode_proof_batch(
+pub fn decode_proof_batch(
     results: &[NetworkResult],
     pending: &[transaction::RemoteProofRequest],
     effect_id: &str,
@@ -220,7 +197,7 @@ pub(super) fn decode_proof_batch(
 }
 
 /// Memoizes one decoded body per outstanding request before the single replay pass.
-pub(super) fn accept_proof_batch(
+pub fn accept_proof_batch(
     responses: &mut transaction::RemoteProofResponses,
     pending: &[transaction::RemoteProofRequest],
     bodies: Vec<Vec<u8>>,

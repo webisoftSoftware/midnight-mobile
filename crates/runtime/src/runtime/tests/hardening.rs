@@ -121,10 +121,16 @@ fn begin_command_rejects_removed_unknown_and_malformed_commands_before_execution
         "{".to_owned(),
     ];
 
-    for command in commands {
+    for (index, command) in commands.into_iter().enumerate() {
+        // The first two kinds are unknown, so they would go to a host extension.
+        let expected = if index < 2 {
+            "UNSUPPORTED_COMMAND"
+        } else {
+            "INVALID_ARGUMENT"
+        };
         assert_runtime_error(
             begin_command(handle.id, handle.generation, command),
-            "INVALID_ARGUMENT",
+            expected,
         );
     }
     assert_eq!(

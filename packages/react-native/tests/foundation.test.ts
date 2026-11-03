@@ -59,6 +59,10 @@ await test("native errors normalize every supported carrier", () => {
     normalizeMidnightError("unsupported-transaction").code,
     "UNSUPPORTED_TRANSACTION",
   );
+  assert.equal(
+    normalizeMidnightError("unsupported-command").code,
+    "UNSUPPORTED_COMMAND",
+  );
   assert.equal(normalizeMidnightError(4).code, "NATIVE_INTERNAL");
   assert.equal(
     normalizeMidnightError({ code: "not-real" }).code,

@@ -15,13 +15,13 @@ use super::{MAX_TRANSACTION_BYTES, MidnightRuntimeError};
 use crate::codec;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RemoteProofKind {
+pub enum RemoteProofKind {
     Check,
     Prove,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct RemoteProofRequest {
+pub struct RemoteProofRequest {
     pub key: String,
     pub kind: RemoteProofKind,
     pub body: Vec<u8>,
@@ -34,12 +34,12 @@ impl Drop for RemoteProofRequest {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct RemoteProofResponses {
+pub struct RemoteProofResponses {
     values: HashMap<String, Vec<u8>>,
 }
 
 #[derive(Default)]
-pub(crate) struct RemoteProofKeyMaterials {
+pub struct RemoteProofKeyMaterials {
     values: BTreeMap<String, ProvingKeyMaterial>,
 }
 
@@ -194,7 +194,7 @@ impl ProvingProvider for PausingProver<'_> {
 }
 
 impl RemoteProofResponses {
-    pub(crate) fn accept(
+    pub fn accept(
         &mut self,
         request: &RemoteProofRequest,
         response: Vec<u8>,
@@ -217,7 +217,7 @@ impl RemoteProofResponses {
 }
 
 impl RemoteProofKeyMaterials {
-    pub(crate) fn insert(
+    pub fn insert(
         &mut self,
         location: String,
         mut material: ProvingKeyMaterial,

@@ -12,6 +12,7 @@ export {
   type MidnightDustCommitmentResult,
   type MidnightDustResolutionResult,
   type MidnightDustSpendRequestResult,
+  type MidnightExtensionCommand,
   type MidnightFinalizedTransactionResult,
   type MidnightNetworkId,
   type MidnightPayloadResult,

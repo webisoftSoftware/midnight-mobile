@@ -184,6 +184,15 @@ export interface MidnightBalancePreviewResult {
   readonly manifestDigest: string;
 }
 
+/**
+ * A command the SDK does not know. A host extension handles it; without one the
+ * runtime fails with UNSUPPORTED_COMMAND. Not part of `MidnightCommandMap`.
+ */
+export interface MidnightExtensionCommand {
+  readonly kind: string;
+  readonly [field: string]: unknown;
+}
+
 export type MidnightCommandKind = keyof MidnightCommandMap;
 export type MidnightCommand<K extends MidnightCommandKind> =
   MidnightCommandMap[K] & { readonly kind: K };

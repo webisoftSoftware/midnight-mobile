@@ -248,12 +248,12 @@ pub(super) struct RuntimeDappOutput {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct RuntimeProvingKeyMaterial {
-    pub(super) prover_key_base64: String,
-    pub(super) verifier_key_base64: String,
-    pub(super) ir_base64: String,
+pub struct RuntimeProvingKeyMaterial {
+    pub prover_key_base64: String,
+    pub verifier_key_base64: String,
+    pub ir_base64: String,
     #[serde(default)]
-    pub(super) compression: Option<String>,
+    pub compression: Option<String>,
 }
 
 impl Drop for RuntimeProvingKeyMaterial {
@@ -269,23 +269,23 @@ impl Drop for RuntimeProvingKeyMaterial {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct NetworkResult {
-    pub(super) effect_id: String,
-    pub(super) outcome: String,
+pub struct NetworkResult {
+    pub effect_id: String,
+    pub outcome: String,
     #[serde(default)]
-    pub(super) body_base64: Option<String>,
+    pub body_base64: Option<String>,
     #[serde(default)]
-    pub(super) error: Option<NetworkError>,
+    pub error: Option<NetworkError>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct NetworkError {
-    pub(super) message: String,
+pub struct NetworkError {
+    pub message: String,
     #[serde(default)]
-    pub(super) rpc_code: Option<i64>,
+    pub rpc_code: Option<i64>,
     #[serde(default)]
-    pub(super) custom_code: Option<u64>,
+    pub custom_code: Option<u64>,
 }
 
 /// A resume payload carries either one result (every effect except a batched proof
@@ -328,9 +328,9 @@ pub(super) struct BalancePreviewResult {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct OperationHandle {
-    pub(super) id: u64,
-    pub(super) generation: u64,
+pub struct OperationHandle {
+    pub id: u64,
+    pub generation: u64,
 }
 
 /// One effect of a multi-effect round. Emitted only alongside the singular fields, so

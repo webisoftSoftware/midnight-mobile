@@ -52,6 +52,7 @@ private fun runtimeException(error: Throwable): CodedException {
     is MidnightRuntimeException.SubmissionStatusUnknown -> "SUBMISSION_STATUS_UNKNOWN"
     is MidnightRuntimeException.InvalidLength -> "INVALID_LENGTH"
     is MidnightRuntimeException.DecodeFailed -> "DECODE_FAILED"
+    is MidnightRuntimeException.UnsupportedCommand -> "UNSUPPORTED_COMMAND"
     is MidnightRuntimeException.NativeInternal -> "NATIVE_INTERNAL"
     else -> "NATIVE_INTERNAL"
   }

@@ -66,6 +66,8 @@ pub(super) enum PendingOperationKind {
         responses: transaction::RemoteProofResponses,
         pending_requests: Vec<transaction::RemoteProofRequest>,
     },
+    /// State owned by the host extension.
+    Extension(super::extension::ExtensionOp),
     Balance {
         original_raw: Vec<u8>,
         original_sealed: bool,
@@ -96,6 +98,7 @@ impl PendingOperationKind {
             | Self::Balance {
                 pending_requests, ..
             } => Some(pending_requests),
+            Self::Extension(op) => super::extension::pending_requests(op.as_ref()),
             Self::SubmitFinalized { .. } | Self::FinalizeTransactionBalance { .. } => None,
         }
     }
@@ -116,7 +119,9 @@ impl PendingOperationKind {
             | Self::Balance {
                 pending_requests, ..
             } => *pending_requests = requests,
-            Self::SubmitFinalized { .. } | Self::FinalizeTransactionBalance { .. } => {}
+            Self::SubmitFinalized { .. }
+            | Self::FinalizeTransactionBalance { .. }
+            | Self::Extension(_) => {}
         }
     }
 }

@@ -33,6 +33,7 @@ pub struct RuntimeSessionHandle {
 mod checkpoint;
 mod commands;
 mod dust_balance;
+pub mod extension;
 mod operation_helpers;
 mod registry;
 mod registry_types;
@@ -120,6 +121,18 @@ pub fn begin_command(
     mut command_json: String,
 ) -> Result<String, MidnightRuntimeError> {
     let result = (|| {
+        if let Some(kind) = extension::host_kind(&command_json) {
+            let session = session_for_handle(session_id, generation)?;
+            let state = lock_session(&session)?;
+            return extension::begin(
+                session_id,
+                generation,
+                &session,
+                state,
+                &kind,
+                &command_json,
+            );
+        }
         let command: RuntimeCommand = serde_json::from_str(&command_json)
             .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
         let session = session_for_handle(session_id, generation)?;
@@ -233,6 +246,7 @@ pub fn cancel_operation(operation_id: u64, generation: u64) -> Result<(), Midnig
         | PendingOperationKind::FinalizeTransactionBalance { .. }
         | PendingOperationKind::DappIntentProof { .. }
         | PendingOperationKind::GenerateDustProof { .. }
+        | PendingOperationKind::Extension(_)
         | PendingOperationKind::Balance { .. } => None,
     };
     runtime.remember_cancelled((operation_id, generation));

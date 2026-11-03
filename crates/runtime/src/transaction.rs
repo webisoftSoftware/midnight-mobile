@@ -18,7 +18,7 @@ use super::executor::block_on;
 mod remote_proof;
 
 use remote_proof::PausingProver;
-pub(crate) use remote_proof::{
+pub use remote_proof::{
     RemoteProofKeyMaterials, RemoteProofKind, RemoteProofRequest, RemoteProofResponses,
 };
 
@@ -29,24 +29,22 @@ const MAX_TRANSACTION_BYTES: usize = 64 * 1024 * 1024;
 /// Upper bound on the proof requests handed out in one round. Emitting a subset is
 /// always correct — the next replay re-derives whatever was left — so this caps peak
 /// live secret bodies and concurrent prover work without affecting the outcome.
-pub(crate) const MAX_PROOF_BATCH: usize = 64;
+pub const MAX_PROOF_BATCH: usize = 64;
 
-pub(crate) struct FinalizedTransaction {
+pub struct FinalizedTransaction {
     pub canonical: Vec<u8>,
     pub transaction_hash: String,
     pub identifiers: Vec<String>,
 }
 
-pub(crate) enum BalanceProgress {
+pub enum BalanceProgress {
     Network(Vec<RemoteProofRequest>),
     Complete(FinalizedTransaction),
 }
 
 /// Contract calls that must still receive wallet-owned token inputs before
 /// binding need their proofs without the final Pedersen binding step.
-// Used by app asset flows; unused in the SDK until they re-attach.
-#[allow(dead_code)]
-pub(crate) enum UnsealedProofProgress {
+pub enum UnsealedProofProgress {
     Network(Vec<RemoteProofRequest>),
     Complete(Vec<u8>),
 }
@@ -86,7 +84,7 @@ pub(crate) fn advance_unproven_transaction(
     )
 }
 
-pub(crate) fn advance_unproven_transaction_with_materials(
+pub fn advance_unproven_transaction_with_materials(
     raw: &[u8],
     expected_network_id: &str,
     responses: &RemoteProofResponses,
@@ -131,8 +129,7 @@ pub(crate) fn advance_unproven_transaction_with_materials(
 
 /// Proves a contract transaction up to, but not including, the Pedersen binding.
 /// Wallet token inputs can still be added before it is sealed.
-#[allow(dead_code)]
-pub(crate) fn advance_unproven_transaction_unsealed_with_materials(
+pub fn advance_unproven_transaction_unsealed_with_materials(
     raw: &[u8],
     expected_network_id: &str,
     responses: &RemoteProofResponses,
@@ -171,9 +168,7 @@ pub(crate) fn advance_unproven_transaction_unsealed_with_materials(
     }
 }
 
-pub(crate) fn decode_ledger_parameters(
-    raw: &[u8],
-) -> Result<LedgerParameters, MidnightRuntimeError> {
+pub fn decode_ledger_parameters(raw: &[u8]) -> Result<LedgerParameters, MidnightRuntimeError> {
     if raw.is_empty() || raw.len() > MAX_TRANSACTION_BYTES {
         return Err(MidnightRuntimeError::InvalidArgument);
     }
@@ -389,7 +384,7 @@ pub(crate) fn finalize_balance_original(
     validate_finalized_transaction(&raw, expected_network_id)
 }
 
-pub(crate) fn validate_unproven_transaction(
+pub fn validate_unproven_transaction(
     raw: &[u8],
     expected_network_id: &str,
 ) -> Result<Vec<String>, MidnightRuntimeError> {

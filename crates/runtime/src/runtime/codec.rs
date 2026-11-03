@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn to_json<T: Serialize>(value: &T) -> Result<String, MidnightRuntimeError> {
+pub fn to_json<T: Serialize>(value: &T) -> Result<String, MidnightRuntimeError> {
     serde_json::to_string(value).map_err(|_| MidnightRuntimeError::NativeInternal)
 }
 
@@ -19,7 +19,7 @@ where
     }
 }
 
-pub(crate) fn decode_base64(value: &str) -> Result<Vec<u8>, MidnightRuntimeError> {
+pub fn decode_base64(value: &str) -> Result<Vec<u8>, MidnightRuntimeError> {
     // The Expo boundary already transports bytes as base64. Decode the narrow
     // command field here without adding a second platform-specific codec.
     let mut output = Vec::with_capacity(value.len().saturating_mul(3) / 4);
@@ -67,7 +67,7 @@ pub(crate) fn decode_base64(value: &str) -> Result<Vec<u8>, MidnightRuntimeError
     Ok(output)
 }
 
-pub(super) fn encode_base64(bytes: &[u8]) -> String {
+pub fn encode_base64(bytes: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut output = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {

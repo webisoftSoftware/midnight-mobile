@@ -13,7 +13,7 @@ use super::MidnightRuntimeError;
 
 const MAX_CODEC_INPUT_BYTES: usize = 64 * 1024 * 1024;
 
-pub(crate) fn decompress_gzip(serialized: &[u8]) -> Result<Vec<u8>, MidnightRuntimeError> {
+pub fn decompress_gzip(serialized: &[u8]) -> Result<Vec<u8>, MidnightRuntimeError> {
     if serialized.is_empty() || serialized.len() > MAX_CODEC_INPUT_BYTES {
         return Err(MidnightRuntimeError::InvalidArgument);
     }

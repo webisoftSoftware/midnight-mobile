@@ -58,8 +58,9 @@ mod spend_builders;
 mod sync;
 mod types;
 
+pub use types::WalletBalanceSnapshot;
 use types::*;
-pub(crate) use types::{DustCommitmentRequest, LegacyWalletState, WalletBalanceSnapshot};
+pub(crate) use types::{DustCommitmentRequest, LegacyWalletState};
 
 const MAX_LEGACY_STATE_BYTES: usize = 64 * 1024 * 1024;
 const MAX_SYNC_ENTRIES: usize = 1_000_000;
@@ -110,7 +111,7 @@ fn to_snapshot_json<T: Serialize>(value: &T) -> Result<String, MidnightRuntimeEr
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct NativeWalletState {
+pub struct NativeWalletState {
     shielded: midnight_zswap::local::State<InMemoryDB>,
     dust: DustLocalState<InMemoryDB>,
     unshielded: UnshieldedCollections,
@@ -118,10 +119,10 @@ pub(crate) struct NativeWalletState {
     protocol_version: String,
 }
 
-pub(crate) struct ShieldedMintContext {
-    pub(crate) coin_public_key: ShieldedCoinPublicKey,
-    pub(crate) encryption_public_key: encryption::PublicKey,
-    pub(crate) output_index: u64,
+pub struct ShieldedMintContext {
+    pub coin_public_key: ShieldedCoinPublicKey,
+    pub encryption_public_key: encryption::PublicKey,
+    pub output_index: u64,
 }
 
 pub(crate) struct RestoreContext<'a> {

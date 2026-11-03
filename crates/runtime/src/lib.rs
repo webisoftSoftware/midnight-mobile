@@ -18,6 +18,8 @@ pub use local_prover::{
     deterministic_zswap_output_request, deterministic_zswap_spend_check_request,
     deterministic_zswap_spend_request,
 };
+#[doc(hidden)]
+pub use runtime::extension;
 pub use runtime::{
     RuntimeSessionHandle, apply_sync_batch, begin_command, cancel_operation, close_wallet_session,
     export_wallet_checkpoint, get_wallet_snapshot, open_wallet_session, resume_operation,
@@ -77,6 +79,8 @@ pub enum MidnightRuntimeError {
     DecodeFailed,
     #[error("NATIVE_INTERNAL")]
     NativeInternal,
+    #[error("UNSUPPORTED_COMMAND")]
+    UnsupportedCommand,
 }
 
 pub fn parse_check_result(data: Vec<u8>) -> Result<Vec<Option<String>>, MidnightRuntimeError> {
