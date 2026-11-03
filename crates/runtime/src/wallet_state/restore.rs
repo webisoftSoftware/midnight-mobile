@@ -66,7 +66,6 @@ impl NativeWalletState {
         Ok(result)
     }
 
-    #[cfg(test)]
     pub(crate) fn state_count(&self) -> u64 {
         let count = self.shielded.coins.iter().count()
             + self.dust.dust_utxos.values().count()

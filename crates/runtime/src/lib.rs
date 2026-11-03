@@ -51,7 +51,10 @@ pub struct WalletAddressMaterial {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(not(feature = "ledger-v9"), derive(uniffi::Error))]
+#[cfg_attr(
+    all(feature = "ffi", not(feature = "ledger-v9")),
+    derive(uniffi::Error)
+)]
 pub enum MidnightRuntimeError {
     #[error("UNAVAILABLE")]
     Unavailable,
@@ -157,7 +160,8 @@ fn serializable_hex<T: Serializable + ?Sized>(value: &T) -> Result<String, Midni
 }
 
 // The Ledger 9 build is a library of the Ledger 8 crate and exports no FFI of its own.
-#[cfg(not(feature = "ledger-v9"))]
+// A host with its own UniFFI surface turns `ffi` off.
+#[cfg(all(feature = "ffi", not(feature = "ledger-v9")))]
 uniffi::setup_scaffolding!();
 
 #[cfg(test)]

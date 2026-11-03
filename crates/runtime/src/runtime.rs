@@ -23,7 +23,10 @@ use midnight_transient_crypto::proofs::ProvingKeyMaterial;
 // This UniFFI record stays at the runtime module boundary so its stable public
 // type identity is independent of the private implementation layout.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[cfg_attr(not(feature = "ledger-v9"), derive(uniffi::Record))]
+#[cfg_attr(
+    all(feature = "ffi", not(feature = "ledger-v9")),
+    derive(uniffi::Record)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeSessionHandle {
     pub id: u64,
@@ -53,7 +56,7 @@ use wire_codec::*;
 
 // Keep the exported functions in this module so UniFFI's public metadata remains
 // stable while the session implementation lives in its focused submodule.
-#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
+#[cfg_attr(all(feature = "ffi", not(feature = "ledger-v9")), uniffi::export)]
 pub fn open_wallet_session(
     config_json: String,
     night_external_key: Vec<u8>,
@@ -80,7 +83,7 @@ pub fn open_wallet_session(
     )
 }
 
-#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
+#[cfg_attr(all(feature = "ffi", not(feature = "ledger-v9")), uniffi::export)]
 pub fn apply_sync_batch(
     session_id: u64,
     generation: u64,
@@ -110,7 +113,7 @@ pub fn apply_sync_batch(
     )
 }
 
-#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
+#[cfg_attr(all(feature = "ffi", not(feature = "ledger-v9")), uniffi::export)]
 pub fn get_wallet_snapshot(
     session_id: u64,
     generation: u64,
@@ -122,7 +125,7 @@ pub fn get_wallet_snapshot(
     session::get_wallet_snapshot(session_id, generation)
 }
 
-#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
+#[cfg_attr(all(feature = "ffi", not(feature = "ledger-v9")), uniffi::export)]
 pub fn export_wallet_checkpoint(
     session_id: u64,
     generation: u64,
@@ -147,7 +150,7 @@ pub fn sign_gateway_challenge(
     session::sign_gateway_challenge(session_id, generation, challenge)
 }
 
-#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
+#[cfg_attr(all(feature = "ffi", not(feature = "ledger-v9")), uniffi::export)]
 pub fn begin_command(
     session_id: u64,
     generation: u64,
@@ -180,7 +183,7 @@ pub fn begin_command(
     result
 }
 
-#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
+#[cfg_attr(all(feature = "ffi", not(feature = "ledger-v9")), uniffi::export)]
 pub fn resume_operation(
     operation_id: u64,
     generation: u64,
@@ -268,7 +271,7 @@ pub fn resume_operation(
     resumed
 }
 
-#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
+#[cfg_attr(all(feature = "ffi", not(feature = "ledger-v9")), uniffi::export)]
 pub fn cancel_operation(operation_id: u64, generation: u64) -> Result<(), MidnightRuntimeError> {
     #[cfg(not(feature = "ledger-v9"))]
     if crate::dispatch::is_v9(operation_id) {
@@ -311,7 +314,7 @@ pub fn cancel_operation(operation_id: u64, generation: u64) -> Result<(), Midnig
     Ok(())
 }
 
-#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
+#[cfg_attr(all(feature = "ffi", not(feature = "ledger-v9")), uniffi::export)]
 pub fn close_wallet_session(session_id: u64, generation: u64) -> Result<(), MidnightRuntimeError> {
     #[cfg(not(feature = "ledger-v9"))]
     if crate::dispatch::is_v9(session_id) {

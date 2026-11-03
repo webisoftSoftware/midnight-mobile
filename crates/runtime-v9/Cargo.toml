@@ -13,6 +13,8 @@ crate-type = ["rlib"]
 [features]
 default = ["ledger-v9"]
 ledger-v9 = []
+# Declared so the shared sources compile; the Ledger 9 build exports no FFI.
+ffi = []
 
 [dependencies]
 anyhow = "=1.0.103"

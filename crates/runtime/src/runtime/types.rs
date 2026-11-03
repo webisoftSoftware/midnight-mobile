@@ -78,6 +78,7 @@ pub(super) struct WalletSnapshot {
     pub(super) network_id: String,
     pub(super) status: &'static str,
     pub(super) generation: u64,
+    pub(super) state_count: u64,
     pub(super) stream_offsets: Vec<StreamOffset>,
     pub(super) unshielded_address: String,
     pub(super) shielded_coin_public_key_hex: String,
