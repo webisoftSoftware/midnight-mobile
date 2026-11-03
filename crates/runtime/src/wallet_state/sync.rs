@@ -13,9 +13,9 @@ impl NativeWalletState {
         if payloads.is_empty() {
             return Err(MidnightRuntimeError::SyncGap);
         }
-        let mut expected = from_offset
-            .checked_add(1)
-            .ok_or(MidnightRuntimeError::SyncGap)?;
+        // Shielded and DUST events share one id sequence, so a stream's ids
+        // only increase; they are not contiguous.
+        let mut last = from_offset;
         for payload in payloads {
             let value: serde_json::Value = serde_json::from_slice(payload)
                 .map_err(|_| MidnightRuntimeError::InvalidArgument)?;
@@ -24,14 +24,12 @@ impl NativeWalletState {
                 .and_then(|record| record.get("id"))
                 .and_then(serde_json::Value::as_u64)
                 .ok_or(MidnightRuntimeError::InvalidArgument)?;
-            if id != expected {
+            if id <= last {
                 return Err(MidnightRuntimeError::SyncGap);
             }
-            expected = expected
-                .checked_add(1)
-                .ok_or(MidnightRuntimeError::SyncGap)?;
+            last = id;
         }
-        if expected.saturating_sub(1) != to_offset {
+        if last != to_offset {
             return Err(MidnightRuntimeError::SyncGap);
         }
         Ok(())

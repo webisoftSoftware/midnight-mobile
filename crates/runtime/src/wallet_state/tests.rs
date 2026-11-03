@@ -286,6 +286,20 @@ fn wire_offsets_and_unshielded_updates_cover_success_failure_and_validation() {
     assert!(
         NativeWalletState::validate_wire_offsets("shielded-wire", &[b"{}".to_vec()], 0, 1).is_err()
     );
+    let skipped = serde_json::to_vec(&serde_json::json!({"id": 5})).unwrap();
+    assert!(
+        NativeWalletState::validate_wire_offsets("dust-wire", &[first.clone(), skipped], 0, 5)
+            .is_ok()
+    );
+    assert!(
+        NativeWalletState::validate_wire_offsets(
+            "dust-wire",
+            &[first.clone(), first.clone()],
+            0,
+            1
+        )
+        .is_err()
+    );
 
     let mut state = empty_state();
     add_unshielded(&mut state, "20", NIGHT, 0);
