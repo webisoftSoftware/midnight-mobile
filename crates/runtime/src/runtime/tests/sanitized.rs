@@ -116,16 +116,17 @@ fn sign_data_result_matches_the_typescript_hex_contract() {
         64
     );
     // Signature verifies over the raw data, not a transcript.
-    let signature = crate::compat::Signature::deserialize(
+    let signature = midnight_base_crypto::schnorr::Signature::deserialize(
         &mut &hex::decode(step["result"]["signatureHex"].as_str().unwrap()).unwrap()[..],
         0,
     )
     .unwrap();
-    assert!(crate::compat::verify(
-        &SigningKey::from_bytes(&[1; 32]).unwrap(),
-        &[0],
-        &signature
-    ));
+    assert!(
+        SigningKey::from_bytes(&[1; 32])
+            .unwrap()
+            .verifying_key()
+            .verify(&[0], &signature)
+    );
     let oversized = encode_base64(&vec![0; MAX_DAPP_SIGN_DATA_BYTES + 1]);
     assert_runtime_error(
         begin_command(

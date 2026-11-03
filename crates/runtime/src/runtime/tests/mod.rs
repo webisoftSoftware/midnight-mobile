@@ -2,6 +2,7 @@ use super::*;
 
 mod command_coverage;
 mod coverage;
+mod dispatch;
 mod hardening;
 mod legacy_checkpoint;
 mod operations;

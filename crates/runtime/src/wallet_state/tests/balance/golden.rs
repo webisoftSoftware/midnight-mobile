@@ -62,7 +62,7 @@ fn golden_case(scenario: &serde_json::Value) -> (NativeWalletState, Vec<u8>) {
             .expect("a surplus scenario must declare the coin it over-collects");
         inputs.push(UtxoSpend {
             value: amount.unsigned_abs(),
-            owner: SigningKey::from_bytes(&[1; 32]).unwrap().verifying_key(),
+            owner: crate::compat::owner_key(&SigningKey::from_bytes(&[1; 32]).unwrap()),
             type_: token,
             intent_hash: IntentHash(decode_hash(coin["intentHash"].as_str().unwrap()).unwrap()),
             output_no: coin["outputNo"].as_u64().unwrap() as u32,

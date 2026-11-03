@@ -13,7 +13,7 @@ fn encode_initial_parameters() -> String {
 
 fn empty_unproven_transaction() -> Vec<u8> {
     let transaction = midnight_ledger::structure::Transaction::<
-        midnight_base_crypto::schnorr::Signature,
+        crate::compat::Signature,
         midnight_ledger::structure::ProofPreimageMarker,
         midnight_transient_crypto::commitment::PedersenRandomness,
         midnight_storage::db::InMemoryDB,

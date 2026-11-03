@@ -67,7 +67,7 @@ fn signed_intent(intent: UnsealedIntent, segment: u16, signing_key: &SigningKey)
         .erase_proofs()
         .erase_signatures()
         .data_to_sign(segment);
-    let signature = signing_key.sign(&mut rng, &data_to_sign);
+    let signature = crate::compat::sign(signing_key, &mut rng, &data_to_sign);
     let mut signed = intent;
     for offer in [
         signed.guaranteed_unshielded_offer.as_mut(),
@@ -469,7 +469,7 @@ fn a_surplus_is_returned_to_the_wallet() {
             Some(offer(
                 vec![UtxoSpend {
                     value: 500,
-                    owner: SigningKey::from_bytes(&[1; 32]).unwrap().verifying_key(),
+                    owner: crate::compat::owner_key(&SigningKey::from_bytes(&[1; 32]).unwrap()),
                     type_: token(OTHER_TOKEN),
                     intent_hash: IntentHash(decode_hash(&format!("{:064x}", 2)).unwrap()),
                     output_no: 1,
@@ -502,7 +502,7 @@ fn an_offer_carrying_an_unsigned_counterparty_input_is_unsupported() {
             Some(offer(
                 vec![UtxoSpend {
                     value: 900,
-                    owner: SigningKey::from_bytes(&[9; 32]).unwrap().verifying_key(),
+                    owner: crate::compat::owner_key(&SigningKey::from_bytes(&[9; 32]).unwrap()),
                     type_: token(OTHER_TOKEN),
                     intent_hash: IntentHash(decode_hash(&"aa".repeat(32)).unwrap()),
                     output_no: 0,
@@ -530,7 +530,7 @@ fn an_offer_carrying_a_signed_counterparty_input_is_unsupported() {
                 Some(offer(
                     vec![UtxoSpend {
                         value: 900,
-                        owner: foreign.verifying_key(),
+                        owner: crate::compat::owner_key(&foreign),
                         type_: token(OTHER_TOKEN),
                         intent_hash: IntentHash(decode_hash(&"aa".repeat(32)).unwrap()),
                         output_no: 0,
@@ -569,7 +569,7 @@ fn wallet_owned_signatures_are_refreshed_across_both_offer_sections() {
                 Some(offer(
                     vec![UtxoSpend {
                         value: 500,
-                        owner: wallet.verifying_key(),
+                        owner: crate::compat::owner_key(&wallet),
                         type_: token(OTHER_TOKEN),
                         intent_hash: IntentHash(decode_hash(&"bb".repeat(32)).unwrap()),
                         output_no: 0,
@@ -756,7 +756,7 @@ fn a_wallet_with_no_imbalance_to_cover_needs_no_counterpart() {
             Some(offer(
                 vec![UtxoSpend {
                     value: 700,
-                    owner: SigningKey::from_bytes(&[9; 32]).unwrap().verifying_key(),
+                    owner: crate::compat::owner_key(&SigningKey::from_bytes(&[9; 32]).unwrap()),
                     type_: token(OTHER_TOKEN),
                     intent_hash: IntentHash(decode_hash(&"bb".repeat(32)).unwrap()),
                     output_no: 3,
