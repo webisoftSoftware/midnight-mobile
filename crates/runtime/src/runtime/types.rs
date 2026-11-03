@@ -5,7 +5,7 @@ pub(super) const CHECKPOINT_MAGIC: &[u8; 4] = b"MMCP";
 pub(super) const MAX_OPEN_SESSIONS: usize = 2;
 pub(super) const MAX_SYNC_PAYLOAD_BYTES: usize = 64 * 1024 * 1024;
 pub(super) const MAX_CHECKPOINT_BYTES: usize = 64 * 1024 * 1024;
-pub(super) const MAX_SIGNING_DOMAIN_BYTES: usize = 1024;
+pub(super) const MAX_AUTH_CHALLENGE_BYTES: usize = 4 * 1024;
 pub(super) const MAX_DAPP_SIGN_DATA_BYTES: usize = 1024 * 1024;
 pub(super) const MAX_SYNC_BATCH_RECEIPTS: usize = 4096;
 pub(super) const MAX_CANCELLED_OPERATION_TOMBSTONES: usize = 1024;
@@ -111,7 +111,6 @@ pub(super) enum SyncRequestMode {
 )]
 pub(super) enum RuntimeCommand {
     SignData {
-        domain: String,
         data_base64: String,
     },
     CreateCheckPayload {
@@ -171,9 +170,21 @@ pub(super) enum RuntimeCommand {
         amount: String,
         token_type: String,
         wallet_type: String,
+        #[serde(default)]
+        ledger_parameters_base64: Option<String>,
+        #[serde(default)]
+        fee_blocks_margin: Option<u64>,
+        #[serde(default)]
+        additional_fee_overhead: Option<String>,
     },
     DappTransfer {
         outputs: Vec<RuntimeDappOutput>,
+        #[serde(default)]
+        ledger_parameters_base64: Option<String>,
+        #[serde(default)]
+        fee_blocks_margin: Option<u64>,
+        #[serde(default)]
+        additional_fee_overhead: Option<String>,
     },
     DappIntent {
         inputs: Vec<RuntimeDappInput>,
@@ -263,6 +274,18 @@ pub(super) struct NetworkResult {
     pub(super) outcome: String,
     #[serde(default)]
     pub(super) body_base64: Option<String>,
+    #[serde(default)]
+    pub(super) error: Option<NetworkError>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct NetworkError {
+    pub(super) message: String,
+    #[serde(default)]
+    pub(super) rpc_code: Option<i64>,
+    #[serde(default)]
+    pub(super) custom_code: Option<u64>,
 }
 
 /// A resume payload carries either one result (every effect except a batched proof

@@ -239,7 +239,7 @@ fn build_unshielded_intent<R: Rng + CryptoRng>(
                 .ok_or(MidnightRuntimeError::InvalidArgument)?;
             ledger_inputs.push(UtxoSpend {
                 value,
-                owner: signing_key.verifying_key(),
+                owner: crate::compat::owner_key(&signing_key),
                 type_: token_type,
                 intent_hash: IntentHash(decode_hash(&coin.utxo.intent_hash)?),
                 output_no: coin.utxo.output_no,
@@ -280,7 +280,7 @@ fn build_unshielded_intent<R: Rng + CryptoRng>(
         midnight_base_crypto::time::Timestamp::from_secs(ttl_seconds),
     );
     let data_to_sign = intent.erase_proofs().erase_signatures().data_to_sign(1);
-    let signature = signing_key.sign(rng, &data_to_sign);
+    let signature = crate::compat::sign(&signing_key, rng, &data_to_sign);
     let target_offer = if fallible {
         &mut intent.fallible_unshielded_offer
     } else {

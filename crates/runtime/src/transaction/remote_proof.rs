@@ -106,7 +106,23 @@ impl PausingProver<'_> {
     }
 }
 
+/// Ledger 9 reads the verifier key tag of a contract call through the resolver.
+#[cfg(feature = "ledger-v9")]
+impl midnight_transient_crypto::proofs::Resolver for PausingProver<'_> {
+    async fn resolve_key(
+        &self,
+        key: midnight_transient_crypto::proofs::KeyLocation,
+    ) -> std::io::Result<Option<ProvingKeyMaterial>> {
+        Ok(self.key_material.values.get(key.0.as_ref()).cloned())
+    }
+}
+
 impl ProvingProvider for PausingProver<'_> {
+    #[cfg(feature = "ledger-v9")]
+    fn resolver(&self) -> &impl midnight_transient_crypto::proofs::Resolver {
+        self
+    }
+
     async fn check(&self, preimage: &ProofPreimage) -> Result<Vec<Option<usize>>, anyhow::Error> {
         let mut raw = serialize_preimage(preimage)?;
         let ir = self

@@ -1,0 +1,142 @@
+{
+  "comment": "Golden balancing scenarios shared by the native planner and the pinned extension Wallet SDK balancer. `imbalances` uses the ledger's own sign convention: negative means the transaction spends more of the token than it supplies, so the wallet must add inputs. `contributions` is the net debit (inputs minus change) the user is asked to approve.",
+  "walletOwner": "1111111111111111111111111111111111111111111111111111111111111111",
+  "scenarios": [
+    {
+      "name": "via-unshielded-night-payment",
+      "note": "The reproduced Via transaction: a 1,000,000 NIGHT payment funded from one large UTXO.",
+      "coins": [
+        {
+          "type": "0000000000000000000000000000000000000000000000000000000000000000",
+          "value": "1000000000000",
+          "intentHash": "0101010101010101010101010101010101010101010101010101010101010101",
+          "outputNo": 1
+        },
+        {
+          "type": "0909090909090909090909090909090909090909090909090909090909090909",
+          "value": "500",
+          "intentHash": "0202020202020202020202020202020202020202020202020202020202020202",
+          "outputNo": 2
+        }
+      ],
+      "imbalances": {
+        "0000000000000000000000000000000000000000000000000000000000000000": "-1000000"
+      },
+      "contributions": [
+        {
+          "tokenType": "0000000000000000000000000000000000000000000000000000000000000000",
+          "amount": "1000000"
+        }
+      ],
+      "change": [
+        {
+          "tokenType": "0000000000000000000000000000000000000000000000000000000000000000",
+          "amount": "999999000000"
+        }
+      ]
+    },
+    {
+      "name": "two-tokens-in-one-segment",
+      "note": "Both deficits are funded, and only the second token needs change.",
+      "coins": [
+        {
+          "type": "0000000000000000000000000000000000000000000000000000000000000000",
+          "value": "1000000000000",
+          "intentHash": "0101010101010101010101010101010101010101010101010101010101010101",
+          "outputNo": 1
+        },
+        {
+          "type": "0909090909090909090909090909090909090909090909090909090909090909",
+          "value": "500",
+          "intentHash": "0202020202020202020202020202020202020202020202020202020202020202",
+          "outputNo": 2
+        }
+      ],
+      "imbalances": {
+        "0000000000000000000000000000000000000000000000000000000000000000": "-1000000",
+        "0909090909090909090909090909090909090909090909090909090909090909": "-120"
+      },
+      "contributions": [
+        {
+          "tokenType": "0000000000000000000000000000000000000000000000000000000000000000",
+          "amount": "1000000"
+        },
+        {
+          "tokenType": "0909090909090909090909090909090909090909090909090909090909090909",
+          "amount": "120"
+        }
+      ],
+      "change": [
+        {
+          "tokenType": "0000000000000000000000000000000000000000000000000000000000000000",
+          "amount": "999999000000"
+        },
+        {
+          "tokenType": "0909090909090909090909090909090909090909090909090909090909090909",
+          "amount": "380"
+        }
+      ]
+    },
+    {
+      "name": "smallest-coin-first-selection",
+      "note": "Selection is smallest-first, so two small coins are consumed before the large one.",
+      "coins": [
+        {
+          "type": "0909090909090909090909090909090909090909090909090909090909090909",
+          "value": "1000",
+          "intentHash": "0303030303030303030303030303030303030303030303030303030303030303",
+          "outputNo": 3
+        },
+        {
+          "type": "0909090909090909090909090909090909090909090909090909090909090909",
+          "value": "10",
+          "intentHash": "0404040404040404040404040404040404040404040404040404040404040404",
+          "outputNo": 4
+        },
+        {
+          "type": "0909090909090909090909090909090909090909090909090909090909090909",
+          "value": "20",
+          "intentHash": "0505050505050505050505050505050505050505050505050505050505050505",
+          "outputNo": 5
+        }
+      ],
+      "imbalances": {
+        "0909090909090909090909090909090909090909090909090909090909090909": "-25"
+      },
+      "contributions": [
+        {
+          "tokenType": "0909090909090909090909090909090909090909090909090909090909090909",
+          "amount": "25"
+        }
+      ],
+      "change": [
+        {
+          "tokenType": "0909090909090909090909090909090909090909090909090909090909090909",
+          "amount": "5"
+        }
+      ]
+    },
+    {
+      "name": "surplus-is-returned-to-the-wallet",
+      "note": "The dApp declares spending the wallet's own 500 UTXO but produces no output for it, so the wallet takes the whole surplus back and contributes nothing.",
+      "coins": [
+        {
+          "type": "0909090909090909090909090909090909090909090909090909090909090909",
+          "value": "500",
+          "intentHash": "0202020202020202020202020202020202020202020202020202020202020202",
+          "outputNo": 2
+        }
+      ],
+      "imbalances": {
+        "0909090909090909090909090909090909090909090909090909090909090909": "500"
+      },
+      "contributions": [],
+      "change": [
+        {
+          "tokenType": "0909090909090909090909090909090909090909090909090909090909090909",
+          "amount": "500"
+        }
+      ]
+    }
+  ]
+}

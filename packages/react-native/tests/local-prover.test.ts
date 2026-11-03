@@ -250,7 +250,6 @@ await test("transport keeps only check and prove local", async () => {
   );
   const command = {
     kind: "signData",
-    domain: "test",
     dataBase64: "AA==",
   } as const;
   await transport.runCommand(
@@ -410,7 +409,6 @@ await test("createLocalProverMidnightTransport uses the native batch entrypoint 
   );
   await transport.runCommand(api, { id: 1, generation: 1 }, {
     kind: "signData",
-    domain: "test",
     dataBase64: "AA==",
   } as const);
   assert.equal(batchCalls.length, 1);
@@ -448,7 +446,6 @@ await test("createLocalProverMidnightTransport falls back to individual prove ca
   );
   await transport.runCommand(api, { id: 1, generation: 1 }, {
     kind: "signData",
-    domain: "test",
     dataBase64: "AA==",
   } as const);
   assert.equal(
@@ -475,7 +472,6 @@ await test("standard transport routes proof effects to exact service paths", asy
   const transport = createStandardMidnightTransport(transportConfig(fetch));
   const command = {
     kind: "signData",
-    domain: "test",
     dataBase64: "AA==",
   } as const;
   for (const effect of [

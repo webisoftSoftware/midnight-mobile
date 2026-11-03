@@ -17,6 +17,10 @@ const TTL: u64 = 20_000;
 
 type UnsealedIntent = Intent<Signature, ProofMarker, PedersenRandomness, InMemoryDB>;
 type SealedTransaction = Transaction<Signature, ProofMarker, PureGeneratorPedersen, InMemoryDB>;
+mod dust;
+mod golden;
+mod manifest;
+use dust::dust_funded_state;
 
 fn counterparty() -> UserAddress {
     UserAddress::from(SigningKey::from_bytes(&[9; 32]).unwrap().verifying_key())
@@ -744,83 +748,6 @@ fn sponsored_fee_mode_reports_no_local_dust() {
 }
 
 #[test]
-fn an_approved_manifest_only_authorizes_an_equal_or_cheaper_plan() {
-    let (state, _keys, _address) = funded_state();
-    let plan = plan(&state, &via_transaction(), false, FeeMode::Sponsored);
-    let approved = plan.manifest.clone();
-    assert!(approved.authorizes(&approved).is_ok());
-
-    let mut cheaper = approved.clone();
-    cheaper.dust = "5".to_owned();
-    let mut costlier = approved.clone();
-    costlier.dust = "500".to_owned();
-    let mut local = approved.clone();
-    local.dust = "100".to_owned();
-    assert!(
-        local.authorizes(&cheaper).is_ok(),
-        "a cheaper fee is allowed"
-    );
-    assert_eq!(
-        local.authorizes(&costlier).unwrap_err().to_string(),
-        "BALANCE_APPROVAL_CHANGED"
-    );
-    assert_eq!(
-        approved.authorizes(&local).unwrap_err().to_string(),
-        "BALANCE_APPROVAL_CHANGED",
-        "sponsorship must not silently become a local DUST spend"
-    );
-
-    let mut moved = approved.clone();
-    moved.contributions[0].amount = "2000000".to_owned();
-    assert_eq!(
-        approved.authorizes(&moved).unwrap_err().to_string(),
-        "BALANCE_APPROVAL_CHANGED"
-    );
-
-    let mut other_transaction = approved.clone();
-    other_transaction.transaction_digest = "ff".repeat(32);
-    assert_eq!(
-        approved
-            .authorizes(&other_transaction)
-            .unwrap_err()
-            .to_string(),
-        "BALANCE_APPROVAL_CHANGED"
-    );
-
-    let mut stale = approved.clone();
-    stale.wallet_state_digest = "ee".repeat(32);
-    assert_eq!(
-        approved.authorizes(&stale).unwrap_err().to_string(),
-        "BALANCE_APPROVAL_CHANGED",
-        "a wallet whose coin set moved must be re-approved"
-    );
-}
-
-#[test]
-fn the_manifest_digest_changes_with_every_field() {
-    let (state, _keys, _address) = funded_state();
-    let manifest = plan(&state, &via_transaction(), false, FeeMode::Sponsored).manifest;
-    let baseline = manifest.digest();
-    assert_eq!(baseline.len(), 64);
-    assert_eq!(manifest.digest(), baseline, "the digest is deterministic");
-
-    type Mutation = Box<dyn Fn(&mut BalanceManifest)>;
-    let mutate: Vec<Mutation> = vec![
-        Box::new(|value| value.transaction_digest = "00".repeat(32)),
-        Box::new(|value| value.variant = "sealed".to_owned()),
-        Box::new(|value| value.dust = "7".to_owned()),
-        Box::new(|value| value.wallet_state_digest = "00".repeat(32)),
-        Box::new(|value| value.contributions.clear()),
-        Box::new(|value| value.change.clear()),
-    ];
-    for apply in mutate {
-        let mut changed = manifest.clone();
-        apply(&mut changed);
-        assert_ne!(changed.digest(), baseline);
-    }
-}
-
-#[test]
 fn a_wallet_with_no_imbalance_to_cover_needs_no_counterpart() {
     let (state, _keys, _address) = funded_state();
     let raw = unsealed(vec![(
@@ -847,92 +774,4 @@ fn a_wallet_with_no_imbalance_to_cover_needs_no_counterpart() {
     assert!(plan.base_raw.is_none() && plan.balancing_raw.is_none());
     assert!(plan.manifest.contributions.is_empty());
     assert!(plan.manifest.change.is_empty());
-}
-
-/// A wallet holding one fully generated DUST output, built directly from the
-/// ledger's local-state primitives. Replaying real DUST events would need a
-/// node; what these tests need is a spendable output with a known value.
-fn dust_funded_state() -> NativeWalletState {
-    let (mut state, _keys, _address) = funded_state();
-    let secret = DustSecretKey::derive_secret_key(&[3; 32]);
-    let owner = DustPublicKey::from(secret.clone());
-    let backing_night =
-        midnight_ledger::dust::initial_nonce(0, IntentHash(decode_hash(&"cc".repeat(32)).unwrap()));
-    let generation = DustGenerationInfo {
-        // One NIGHT backs the output, which caps it at five DUST.
-        value: 1_000_000,
-        owner,
-        nonce: backing_night,
-        // Decay starts far beyond the window these tests run in.
-        dtime: Timestamp::from_secs(1_000_000_000),
-    };
-    let utxo = QualifiedDustOutput {
-        initial_value: 5_000_000_000_000_000,
-        owner,
-        nonce: midnight_ledger::dust::dust_first_nonce(&backing_night, &owner),
-        seq: 0,
-        ctime: Timestamp::from_secs(0),
-        backing_night,
-        mt_index: 0,
-    };
-    state.dust = state
-        .dust
-        .insert_generation_info(0, generation, Some(backing_night))
-        .unwrap()
-        .insert_commitment(0, utxo, true)
-        .unwrap()
-        .add_utxo(&utxo.nullifier(&secret), &utxo, None)
-        .unwrap();
-    state
-}
-
-#[test]
-fn local_dust_pays_the_complete_fee_of_the_balanced_transaction() {
-    let state = dust_funded_state();
-    let raw = via_transaction();
-    let local = plan(&state, &raw, false, FeeMode::LocalDust);
-
-    let spent = local
-        .manifest
-        .dust
-        .parse::<u128>()
-        .expect("local mode reports a decimal DUST ceiling");
-    assert!(spent > 0, "a real transaction always costs some DUST");
-
-    // The token legs and the DUST leg must both come out at zero once the
-    // wallet's own counterpart is merged in.
-    let base = local.base_raw.clone().unwrap();
-    let mut merged = crate::transaction::decode_balance_original(&base, false, "preview").unwrap();
-    let balancing: Transaction<Signature, ProofPreimageMarker, PedersenRandomness, InMemoryDB> =
-        tagged_deserialize(&mut &local.balancing_raw.clone().unwrap()[..]).unwrap();
-    let Transaction::Standard(standard) = &balancing else {
-        unreachable!()
-    };
-    let ctime = match standard.intents.get(&2) {
-        Some(intent) => intent.dust_actions.as_ref().map(|actions| actions.ctime),
-        None => None,
-    };
-    assert_eq!(
-        ctime,
-        Some(Timestamp::from_secs(CURRENT_TIME - 30)),
-        "DUST spend time must be before the wall-clock time"
-    );
-    merged = merged.merge(&balancing.erase_proofs()).unwrap();
-    let fees = merged.fees_with_margin(&INITIAL_PARAMETERS, 0).unwrap();
-    for ((token_type, segment), value) in merged.balance(Some(fees)).unwrap() {
-        assert_eq!(
-            value, 0,
-            "token {token_type:?} segment {segment} left unbalanced"
-        );
-    }
-    assert_eq!(fees, spent, "the manifest must quote the fee actually paid");
-    assert_signatures_valid(&base);
-
-    // The same wallet under sponsorship spends no DUST at all.
-    let sponsored = plan(&state, &raw, false, FeeMode::Sponsored);
-    assert_eq!(sponsored.manifest.dust, "sponsored");
-    assert_eq!(
-        sponsored.manifest.contributions, local.manifest.contributions,
-        "fee routing must not change what the user pays in tokens"
-    );
 }

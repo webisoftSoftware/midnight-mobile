@@ -90,44 +90,37 @@ pub(super) fn encode_base64(bytes: &[u8]) -> String {
     output
 }
 
-pub(super) fn signing_transcript(
-    domain: &str,
+pub(super) fn sign_data_locked(
+    state: &SessionState,
     data: &[u8],
-) -> Result<Vec<u8>, MidnightRuntimeError> {
-    let domain = domain.as_bytes();
-    if domain.is_empty() || domain.len() > MAX_SIGNING_DOMAIN_BYTES {
-        return Err(MidnightRuntimeError::InvalidArgument);
-    }
+) -> Result<String, MidnightRuntimeError> {
     if data.len() > MAX_DAPP_SIGN_DATA_BYTES {
         return Err(MidnightRuntimeError::InvalidArgument);
     }
-    let domain_len =
-        u64::try_from(domain.len()).map_err(|_| MidnightRuntimeError::InvalidArgument)?;
-    let data_len = u64::try_from(data.len()).map_err(|_| MidnightRuntimeError::InvalidArgument)?;
-    let mut transcript = Vec::with_capacity(
-        b"midnight-mobile/sign-data".len() + 1 + 8 + domain.len() + 8 + data.len(),
-    );
-    transcript.extend_from_slice(b"midnight-mobile/sign-data");
-    transcript.push(1);
-    transcript.extend_from_slice(&domain_len.to_be_bytes());
-    transcript.extend_from_slice(domain);
-    transcript.extend_from_slice(&data_len.to_be_bytes());
-    transcript.extend_from_slice(data);
-    Ok(transcript)
-}
-
-pub(super) fn sign_data_locked(
-    state: &SessionState,
-    domain: &str,
-    data: &[u8],
-) -> Result<String, MidnightRuntimeError> {
     let signing_key = SigningKey::from_bytes(&state.secrets.night_external_key)
         .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
-    let transcript = signing_transcript(domain, data)?;
-    let signature = signing_key.sign(&mut OsRng, &transcript);
+    // The Ledger signer hashes internally; pass the raw data once (as ledger.signData).
+    let signature = signing_key.sign(&mut OsRng, data);
     to_json(&serde_json::json!({
         "signatureHex": serializable_hex(&signature)?,
         "verifyingKeyHex": serializable_hex(&signing_key.verifying_key())?,
+    }))
+}
+
+pub(super) fn sign_challenge_locked(
+    state: &SessionState,
+    challenge: &[u8],
+) -> Result<String, MidnightRuntimeError> {
+    if challenge.is_empty() || challenge.len() > MAX_AUTH_CHALLENGE_BYTES {
+        return Err(MidnightRuntimeError::InvalidArgument);
+    }
+    let signing_key = SigningKey::from_bytes(&state.secrets.night_external_key)
+        .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
+    let signature = signing_key.sign(&mut OsRng, challenge);
+    to_json(&serde_json::json!({
+        "signatureHex": serializable_hex(&signature)?,
+        "pubkeyHex": serializable_hex(&signing_key.verifying_key())?,
+        "address": state.config.unshielded_address,
     }))
 }
 

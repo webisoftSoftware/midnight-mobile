@@ -3,8 +3,10 @@ use super::*;
 mod command_coverage;
 mod coverage;
 mod hardening;
+mod legacy_checkpoint;
 mod operations;
 mod sanitized;
+mod transfer_finalization;
 
 fn run_command(
     handle: &RuntimeSessionHandle,

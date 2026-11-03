@@ -116,8 +116,8 @@ fn begin_command_rejects_removed_unknown_and_malformed_commands_before_execution
     let commands = [
         serde_json::json!({"kind": removed_kind, "dataBase64": ""}).to_string(),
         r#"{"kind":"futureCommand"}"#.to_owned(),
-        r#"{"kind":"signData","dataBase64":""}"#.to_owned(),
-        r#"{"kind":"signData","domain":"test","dataBase64":"","extra":true}"#.to_owned(),
+        r#"{"kind":"signData","domain":"test","dataBase64":""}"#.to_owned(),
+        r#"{"kind":"signData","dataBase64":"","extra":true}"#.to_owned(),
         "{".to_owned(),
     ];
 
@@ -304,35 +304,6 @@ fn shielded_mint_commands_are_fenced_and_commit_only_valid_current_coins() {
             .to_string(),
         ),
         "SYNC_GAP",
-    );
-}
-
-#[test]
-fn signing_transcript_separates_version_domain_and_length_boundaries() {
-    let transcript = signing_transcript("ab", b"c").unwrap();
-    let mut expected = b"midnight-mobile/sign-data".to_vec();
-    expected.push(1);
-    expected.extend_from_slice(&2_u64.to_be_bytes());
-    expected.extend_from_slice(b"ab");
-    expected.extend_from_slice(&1_u64.to_be_bytes());
-    expected.extend_from_slice(b"c");
-    assert_eq!(transcript, expected);
-    assert_ne!(
-        signing_transcript("ab", b"c").unwrap(),
-        signing_transcript("a", b"bc").unwrap()
-    );
-    assert_ne!(
-        signing_transcript("domain-a", b"payload").unwrap(),
-        signing_transcript("domain-b", b"payload").unwrap()
-    );
-    assert_runtime_error(signing_transcript("", b"payload"), "INVALID_ARGUMENT");
-    assert_runtime_error(
-        signing_transcript(&"d".repeat(MAX_SIGNING_DOMAIN_BYTES + 1), b"payload"),
-        "INVALID_ARGUMENT",
-    );
-    assert_runtime_error(
-        signing_transcript("domain", &vec![0; MAX_DAPP_SIGN_DATA_BYTES + 1]),
-        "INVALID_ARGUMENT",
     );
 }
 

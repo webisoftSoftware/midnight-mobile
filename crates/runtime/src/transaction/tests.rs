@@ -359,3 +359,65 @@ fn drives_an_empty_transaction_to_a_terminal_state() {
         Ok(BalanceProgress::Complete(_)) | Ok(BalanceProgress::Network(_))
     ));
 }
+
+#[test]
+fn unsealed_proving_stops_before_binding() {
+    let raw = serialized(&empty_unproven("preview"));
+    let progress = advance_unproven_transaction_unsealed_with_materials(
+        &raw,
+        "preview",
+        &RemoteProofResponses::default(),
+        &RemoteProofKeyMaterials::default(),
+    )
+    .unwrap();
+    let UnsealedProofProgress::Complete(proven) = progress else {
+        unreachable!("an empty transaction needs no proof")
+    };
+    assert!(decode_unsealed_original(&proven, "preview").is_ok());
+}
+
+#[cfg(feature = "ledger-v9")]
+#[test]
+fn resolver_answers_only_for_the_held_key_location() {
+    use midnight_transient_crypto::proofs::Resolver;
+    let mut materials = RemoteProofKeyMaterials::default();
+    materials
+        .insert("mint".to_owned(), proving_material(1, 2, 3))
+        .unwrap();
+    let responses = RemoteProofResponses::default();
+    let provider = PausingProver {
+        responses: &responses,
+        key_material: &materials,
+        captured: Arc::new(Mutex::new(BTreeMap::new())),
+    };
+    let resolve = |name: &'static str| {
+        block_on(
+            provider
+                .resolver()
+                .resolve_key(KeyLocation(std::borrow::Cow::Borrowed(name))),
+        )
+        .unwrap()
+    };
+    assert_eq!(resolve("mint").unwrap().verifier_key, vec![2]);
+    assert!(resolve("other").is_none());
+}
+
+#[cfg(not(feature = "ledger-v9"))]
+#[test]
+fn canonicalization_matches_legacy_ledger_8_1_0_fixture() {
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/transaction-8.1.0.json")).unwrap();
+    let field = |name: &str| fixture[name].as_str().unwrap();
+    let raw = hex::decode(field("rawHex")).unwrap();
+    assert_eq!(field("ledgerRevision"), super::super::SOURCE_REVISION);
+    assert_eq!(
+        canonicalize_transaction(
+            field("signatureMarker"),
+            field("proofMarker"),
+            field("bindingMarker"),
+            &raw,
+        )
+        .unwrap(),
+        raw
+    );
+}

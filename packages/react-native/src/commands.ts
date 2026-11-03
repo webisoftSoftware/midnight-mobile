@@ -26,7 +26,6 @@ export interface MidnightDappInput {
 export interface MidnightCommandMap {
   readonly signData: {
     readonly kind: "signData";
-    readonly domain: string;
     readonly dataBase64: string;
   };
   readonly createCheckPayload: {

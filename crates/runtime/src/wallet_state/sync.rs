@@ -193,7 +193,7 @@ impl NativeWalletState {
         Ok(proposed)
     }
 
-    fn resolve_dust_spend_chains(
+    pub(super) fn resolve_dust_spend_chains(
         &self,
         payload: &[u8],
         expected_event_id: u64,

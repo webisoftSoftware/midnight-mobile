@@ -7,6 +7,7 @@ use num_bigint::BigUint;
 use zeroize::Zeroize;
 
 mod codec;
+mod compat;
 mod executor;
 mod local_prover;
 mod runtime;
@@ -20,9 +21,20 @@ pub use local_prover::{
 pub use runtime::{
     RuntimeSessionHandle, apply_sync_batch, begin_command, cancel_operation, close_wallet_session,
     export_wallet_checkpoint, get_wallet_snapshot, open_wallet_session, resume_operation,
+    sign_gateway_challenge,
 };
 
+/// Ledger 9 session and operation ids start here, so one id space routes to either engine.
+pub const ID_BASE: u64 = if cfg!(feature = "ledger-v9") {
+    1 << 40
+} else {
+    0
+};
+
+#[cfg(not(feature = "ledger-v9"))]
 const SOURCE_REVISION: &str = "02716c2c95d50654aeb3cb63bfd8386046e4ca7d";
+#[cfg(feature = "ledger-v9")]
+const SOURCE_REVISION: &str = "67f9f97246339539af0091c4d8c6bc5ab236a191";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WalletAddressMaterial {
@@ -32,7 +44,8 @@ pub struct WalletAddressMaterial {
     pub dust_public_key: String,
 }
 
-#[derive(Debug, thiserror::Error, uniffi::Error)]
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(not(feature = "ledger-v9"), derive(uniffi::Error))]
 pub enum MidnightRuntimeError {
     #[error("UNAVAILABLE")]
     Unavailable,
@@ -135,6 +148,8 @@ fn serializable_hex<T: Serializable + ?Sized>(value: &T) -> Result<String, Midni
     Ok(hex::encode(serialized))
 }
 
+// The Ledger 9 build is a library of the Ledger 8 crate and exports no FFI of its own.
+#[cfg(not(feature = "ledger-v9"))]
 uniffi::setup_scaffolding!();
 
 #[cfg(test)]

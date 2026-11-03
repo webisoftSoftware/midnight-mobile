@@ -1,10 +1,11 @@
-use super::hardening::isolated_runtime;
+use super::hardening::{assert_runtime_error, isolated_runtime};
 use super::*;
+use midnight_serialize::Deserializable;
 
 #[test]
 fn command_decoder_accepts_exactly_the_wallet_core_union() {
     let accepted = [
-        r#"{"kind":"signData","domain":"example.test","dataBase64":""}"#,
+        r#"{"kind":"signData","dataBase64":""}"#,
         r#"{"kind":"createCheckPayload","preimageBase64":""}"#,
         r#"{"kind":"parseCheckResult","resultBase64":""}"#,
         r#"{"kind":"createProvingPayload","preimageBase64":""}"#,
@@ -105,7 +106,7 @@ fn sign_data_result_matches_the_typescript_hex_contract() {
     let raw = begin_command(
         handle.id,
         handle.generation,
-        r#"{"kind":"signData","domain":"example.test","dataBase64":"AA=="}"#.to_owned(),
+        r#"{"kind":"signData","dataBase64":"AA=="}"#.to_owned(),
     )
     .unwrap();
     let step: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -113,6 +114,26 @@ fn sign_data_result_matches_the_typescript_hex_contract() {
     assert_eq!(
         step["result"]["verifyingKeyHex"].as_str().unwrap().len(),
         64
+    );
+    // Signature verifies over the raw data, not a transcript.
+    let signature = crate::compat::Signature::deserialize(
+        &mut &hex::decode(step["result"]["signatureHex"].as_str().unwrap()).unwrap()[..],
+        0,
+    )
+    .unwrap();
+    assert!(crate::compat::verify(
+        &SigningKey::from_bytes(&[1; 32]).unwrap(),
+        &[0],
+        &signature
+    ));
+    let oversized = encode_base64(&vec![0; MAX_DAPP_SIGN_DATA_BYTES + 1]);
+    assert_runtime_error(
+        begin_command(
+            handle.id,
+            handle.generation,
+            serde_json::json!({"kind": "signData", "dataBase64": oversized}).to_string(),
+        ),
+        "INVALID_ARGUMENT",
     );
     close_wallet_session(handle.id, handle.generation).unwrap();
 }
@@ -124,15 +145,6 @@ fn balance_service_expiry_accepts_wire_strings_and_serializes_as_a_number() {
     )
     .unwrap();
     assert_eq!(decoded.expires_at, Some(u64::MAX));
-}
-
-#[test]
-fn signing_transcript_is_versioned_length_prefixed_and_domain_separated() {
-    let first = signing_transcript("example.one", b"same-data").unwrap();
-    let second = signing_transcript("example.two", b"same-data").unwrap();
-    assert_ne!(first, second);
-    assert!(first.starts_with(b"midnight-mobile/sign-data\x01"));
-    assert!(signing_transcript("", b"data").is_err());
 }
 
 #[test]

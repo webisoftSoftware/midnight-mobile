@@ -69,6 +69,7 @@ fn proof_operation_kinds(
             key_material: transaction::RemoteProofKeyMaterials::default(),
             proposed_state: Some(wallet_state.clone()),
             expected_identifiers: Vec::new(),
+            local_balance: None,
             responses: transaction::RemoteProofResponses::default(),
             pending_requests: vec![request()],
         },
@@ -87,6 +88,8 @@ fn proof_operation_kinds(
         PendingOperationKind::Balance {
             original_raw: vec![0xff],
             original_sealed: false,
+            proposed_state: None,
+            expected_identifiers: Vec::new(),
             balancing_raw: unproven.to_vec(),
             responses: transaction::RemoteProofResponses::default(),
             pending_requests: vec![request()],
@@ -551,4 +554,39 @@ fn accepted_proof_responses_drive_each_resumable_transaction_family() {
         assert!(matches!(error, MidnightRuntimeError::ProofFailed));
         assert!(lock_session(&session).unwrap().active_operation.is_none());
     }
+}
+
+#[test]
+fn finalized_submission_preserves_structured_node_rejection_details() {
+    let _runtime = isolated_runtime();
+    let handle = open_test_session("coverage-node-rejection", None);
+    let step = run_command(
+        &handle,
+        serde_json::json!({
+            "kind": "submitFinalized",
+            "rawBase64": encode_base64(&empty_finalized_transaction().canonical)
+        }),
+    )
+    .unwrap();
+    let completed = resume_operation(
+        step["operation"]["id"].as_u64().unwrap(),
+        step["operation"]["generation"].as_u64().unwrap(),
+        Some(
+            serde_json::json!({
+                "effectId": step["effectId"],
+                "outcome": "rejected",
+                "error": {
+                    "message": "Invalid Transaction | code=1010 | Custom error: 170",
+                    "rpcCode": 1010,
+                    "customCode": 170,
+                },
+            })
+            .to_string(),
+        ),
+    )
+    .unwrap();
+    let completed: serde_json::Value = serde_json::from_str(&completed).unwrap();
+    assert_eq!(completed["result"]["status"], "rejected");
+    assert_eq!(completed["result"]["error"]["rpcCode"], 1010);
+    assert_eq!(completed["result"]["error"]["customCode"], 170);
 }

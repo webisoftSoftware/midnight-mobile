@@ -135,6 +135,81 @@ impl NativeWalletState {
         Ok(())
     }
 
+    #[cfg(test)]
+    pub(crate) fn insert_test_shielded_coin(
+        &mut self,
+        zswap_seed: &[u8],
+        value: u128,
+    ) -> Result<(), MidnightRuntimeError> {
+        let seed: [u8; 32] = zswap_seed
+            .try_into()
+            .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
+        let keys = ZswapSecretKeys::from(ZswapSeed::from(seed));
+        let coin = ShieldedCoinInfo {
+            nonce: Default::default(),
+            type_: Default::default(),
+            value,
+        };
+        self.shielded = self
+            .shielded
+            .insert_coin(&keys, coin)
+            .map_err(|_| MidnightRuntimeError::NativeInternal)?;
+        self.refresh_coin_hashes(&keys)
+    }
+
+    /// Seeds one spendable DUST UTXO for runtime tests.
+    #[cfg(test)]
+    pub(crate) fn insert_test_dust_utxo(
+        &mut self,
+        dust_seed: &[u8],
+        index: u64,
+        initial_value: u128,
+        now_seconds: u64,
+    ) -> Result<(), MidnightRuntimeError> {
+        use midnight_base_crypto::time::Timestamp;
+        use midnight_ledger::dust::{InitialNonce, dust_first_nonce};
+
+        let seed: [u8; 32] = dust_seed
+            .try_into()
+            .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
+        let key = DustSecretKey::derive_secret_key(&seed);
+        let owner = DustPublicKey::from(key.clone());
+        let mut nonce_bytes = [0_u8; 32];
+        nonce_bytes[0] = u8::try_from(index % 255).unwrap_or(0) + 1;
+        let backing_night = InitialNonce(HashOutput(nonce_bytes));
+        let generation = DustGenerationInfo {
+            value: initial_value
+                .checked_div(u128::from(self.dust.params.night_dust_ratio))
+                .unwrap_or(0)
+                .saturating_add(1),
+            owner,
+            nonce: backing_night,
+            dtime: Timestamp::from_secs(now_seconds + 60 * 60),
+        };
+        self.dust = self
+            .dust
+            .insert_generation_info(index, generation, Some(backing_night))
+            .map_err(|_| MidnightRuntimeError::NativeInternal)?;
+        let output = QualifiedDustOutput {
+            initial_value,
+            owner,
+            nonce: dust_first_nonce(&backing_night, &owner),
+            seq: 0,
+            ctime: Timestamp::from_secs(now_seconds),
+            backing_night,
+            mt_index: index,
+        };
+        self.dust = self
+            .dust
+            .insert_commitment(index, output, true)
+            .map_err(|_| MidnightRuntimeError::NativeInternal)?;
+        self.dust = self
+            .dust
+            .add_utxo(&output.nullifier(&key), &output, None)
+            .map_err(|_| MidnightRuntimeError::NativeInternal)?;
+        Ok(())
+    }
+
     pub(super) fn insert_coin_hash(
         &self,
         destination: &mut BTreeMap<String, CoinHashes>,

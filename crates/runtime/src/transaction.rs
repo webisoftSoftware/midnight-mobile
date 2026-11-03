@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
-use midnight_base_crypto::schnorr::Signature;
+use crate::compat::Signature;
 use midnight_ledger::structure::{LedgerParameters, ProofMarker, ProofPreimageMarker, Transaction};
 use midnight_onchain_runtime::cost_model::INITIAL_COST_MODEL;
 use midnight_serialize::{
@@ -40,6 +40,15 @@ pub(crate) struct FinalizedTransaction {
 pub(crate) enum BalanceProgress {
     Network(Vec<RemoteProofRequest>),
     Complete(FinalizedTransaction),
+}
+
+/// Contract calls that must still receive wallet-owned token inputs before
+/// binding need their proofs without the final Pedersen binding step.
+// Used by app asset flows; unused in the SDK until they re-attach.
+#[allow(dead_code)]
+pub(crate) enum UnsealedProofProgress {
+    Network(Vec<RemoteProofRequest>),
+    Complete(Vec<u8>),
 }
 
 /// Drains every request the paused prove tree captured in this poll.
@@ -117,6 +126,48 @@ pub(crate) fn advance_unproven_transaction_with_materials(
             )?))
         }
         Err(_) => Ok(BalanceProgress::Network(captured_batch(&captured)?)),
+    }
+}
+
+/// Proves a contract transaction up to, but not including, the Pedersen binding.
+/// Wallet token inputs can still be added before it is sealed.
+#[allow(dead_code)]
+pub(crate) fn advance_unproven_transaction_unsealed_with_materials(
+    raw: &[u8],
+    expected_network_id: &str,
+    responses: &RemoteProofResponses,
+    key_material: &RemoteProofKeyMaterials,
+) -> Result<UnsealedProofProgress, MidnightRuntimeError> {
+    if raw.is_empty() || raw.len() > MAX_TRANSACTION_BYTES || expected_network_id.is_empty() {
+        return Err(MidnightRuntimeError::InvalidArgument);
+    }
+    let transaction: Transaction<Signature, ProofPreimageMarker, PedersenRandomness, InMemoryDB> =
+        tagged_deserialize(&mut &raw[..]).map_err(|_| MidnightRuntimeError::InvalidArgument)?;
+    if transaction_network(&transaction) != expected_network_id {
+        return Err(MidnightRuntimeError::InvalidArgument);
+    }
+    let mut canonical = Vec::new();
+    tagged_serialize(&transaction, &mut canonical)
+        .map_err(|_| MidnightRuntimeError::NativeInternal)?;
+    if canonical != raw {
+        return Err(MidnightRuntimeError::InvalidArgument);
+    }
+    key_material.validate_locations(&proof_key_locations(&transaction))?;
+
+    let captured = Arc::new(Mutex::new(BTreeMap::new()));
+    let provider = PausingProver {
+        responses,
+        key_material,
+        captured: Arc::clone(&captured),
+    };
+    match block_on(transaction.prove(provider, &INITIAL_COST_MODEL)) {
+        Ok(proven) => {
+            let mut proven_raw = Vec::new();
+            tagged_serialize(&proven, &mut proven_raw)
+                .map_err(|_| MidnightRuntimeError::NativeInternal)?;
+            Ok(UnsealedProofProgress::Complete(proven_raw))
+        }
+        Err(_) => Ok(UnsealedProofProgress::Network(captured_batch(&captured)?)),
     }
 }
 

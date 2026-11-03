@@ -17,7 +17,7 @@ const verifyingKey = "33".repeat(32);
 
 export const PUBLIC_COMMAND_TYPE_FIXTURES = {
   signData: [
-    { kind: "signData", domain: "example", dataBase64: "AA==" },
+    { kind: "signData", dataBase64: "AA==" },
     { signatureHex: signature, verifyingKeyHex: verifyingKey },
   ],
   createCheckPayload: [

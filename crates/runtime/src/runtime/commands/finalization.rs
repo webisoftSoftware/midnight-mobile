@@ -30,6 +30,7 @@ pub(super) fn handle(
                 key_material,
                 proposed_state: None,
                 expected_identifiers,
+                local_balance: None,
             },
         );
     }

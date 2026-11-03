@@ -126,7 +126,6 @@ pub(crate) fn create_proving_payload(
 }
 
 #[cfg(test)]
-#[cfg(test)]
 fn synthetic_preimage_bytes() -> Vec<u8> {
     use std::borrow::Cow;
 

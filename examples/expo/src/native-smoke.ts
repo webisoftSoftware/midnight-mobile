@@ -98,7 +98,6 @@ async function signData(
 ): Promise<readonly [null, string]> {
   const step = await api.beginCommand(session, {
     kind: "signData",
-    domain: "midnight-mobile/device-smoke",
     dataBase64: "ZGV2aWNlLXNtb2tl",
   });
   if (step.kind !== "complete") {
@@ -134,7 +133,7 @@ async function exerciseSession(
       return [checkpoint, describeCheckpoint(checkpoint)] as const;
     });
 
-    await attempt(steps, "sign domain-separated data", () =>
+    await attempt(steps, "sign data", () =>
       signData(api, session),
     );
 

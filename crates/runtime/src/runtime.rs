@@ -13,15 +13,17 @@ use super::{
     derive_wallet_address_material_inner, serializable_hex, transaction,
     wallet_state::{
         BalanceManifest, BalanceRequest, DappIntentBuildInput, DappIntentInput,
-        DappTransactionOutput, DustCommitmentRequest, FeeMode, LegacyExportContext,
-        LegacyWalletState, NativeWalletState, RestoreContext, WalletBalanceSnapshot,
+        DappTransactionOutput, DustBalanceInput, DustCommitmentRequest, FeeMode,
+        LegacyExportContext, LegacyWalletState, NativeWalletState, RestoreContext,
+        WalletBalanceSnapshot,
     },
 };
 use midnight_transient_crypto::proofs::ProvingKeyMaterial;
 
 // This UniFFI record stays at the runtime module boundary so its stable public
 // type identity is independent of the private implementation layout.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, uniffi::Record)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(not(feature = "ledger-v9"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeSessionHandle {
     pub id: u64,
@@ -30,6 +32,7 @@ pub struct RuntimeSessionHandle {
 
 mod checkpoint;
 mod commands;
+mod dust_balance;
 mod operation_helpers;
 mod registry;
 mod registry_types;
@@ -40,6 +43,7 @@ mod types;
 mod wire_codec;
 
 use checkpoint::*;
+use dust_balance::*;
 use operation_helpers::*;
 use registry::*;
 use registry_types::*;
@@ -48,7 +52,7 @@ use wire_codec::*;
 
 // Keep the exported functions in this module so UniFFI's public metadata remains
 // stable while the session implementation lives in its focused submodule.
-#[uniffi::export]
+#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
 pub fn open_wallet_session(
     config_json: String,
     night_external_key: Vec<u8>,
@@ -65,7 +69,7 @@ pub fn open_wallet_session(
     )
 }
 
-#[uniffi::export]
+#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
 pub fn apply_sync_batch(
     session_id: u64,
     generation: u64,
@@ -84,7 +88,7 @@ pub fn apply_sync_batch(
     )
 }
 
-#[uniffi::export]
+#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
 pub fn get_wallet_snapshot(
     session_id: u64,
     generation: u64,
@@ -92,7 +96,7 @@ pub fn get_wallet_snapshot(
     session::get_wallet_snapshot(session_id, generation)
 }
 
-#[uniffi::export]
+#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
 pub fn export_wallet_checkpoint(
     session_id: u64,
     generation: u64,
@@ -100,7 +104,16 @@ pub fn export_wallet_checkpoint(
     session::export_wallet_checkpoint(session_id, generation)
 }
 
-#[uniffi::export]
+/// Not a uniffi export: only Rust hosts call it for now.
+pub fn sign_gateway_challenge(
+    session_id: u64,
+    generation: u64,
+    challenge: Vec<u8>,
+) -> Result<String, MidnightRuntimeError> {
+    session::sign_gateway_challenge(session_id, generation, challenge)
+}
+
+#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
 pub fn begin_command(
     session_id: u64,
     generation: u64,
@@ -117,7 +130,7 @@ pub fn begin_command(
     result
 }
 
-#[uniffi::export]
+#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
 pub fn resume_operation(
     operation_id: u64,
     generation: u64,
@@ -201,7 +214,7 @@ pub fn resume_operation(
     resumed
 }
 
-#[uniffi::export]
+#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
 pub fn cancel_operation(operation_id: u64, generation: u64) -> Result<(), MidnightRuntimeError> {
     let mut runtime = lock_registry()?;
     let operation = runtime
@@ -239,7 +252,7 @@ pub fn cancel_operation(operation_id: u64, generation: u64) -> Result<(), Midnig
     Ok(())
 }
 
-#[uniffi::export]
+#[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
 pub fn close_wallet_session(session_id: u64, generation: u64) -> Result<(), MidnightRuntimeError> {
     let session = {
         let mut runtime = lock_registry()?;

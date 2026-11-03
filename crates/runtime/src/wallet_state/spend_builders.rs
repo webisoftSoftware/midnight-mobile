@@ -79,7 +79,7 @@ impl NativeWalletState {
                     .ok_or(MidnightRuntimeError::InvalidArgument)?;
                 inputs.push(UtxoSpend {
                     value: coin_value,
-                    owner: signing_key.verifying_key(),
+                    owner: crate::compat::owner_key(&signing_key),
                     type_: UnshieldedTokenType(decode_hash(&coin.utxo.type_)?),
                     intent_hash: IntentHash(decode_hash(&coin.utxo.intent_hash)?),
                     output_no: coin.utxo.output_no,
@@ -101,7 +101,7 @@ impl NativeWalletState {
         let guaranteed_offer = make_offer(&guaranteed)?;
         let fallible_offer = make_offer(&fallible)?;
         let registration = DustRegistration::<Signature, InMemoryDB> {
-            night_key: signing_key.verifying_key(),
+            night_key: crate::compat::owner_key(&signing_key),
             dust_address: Some(Sp::new(dust_address)),
             allow_fee_payment,
             signature: None,
@@ -123,7 +123,7 @@ impl NativeWalletState {
                 midnight_base_crypto::time::Timestamp::from_secs(ttl_seconds),
             );
         let data_to_sign = intent.erase_proofs().erase_signatures().data_to_sign(1);
-        let signature = signing_key.sign(rng, &data_to_sign);
+        let signature = crate::compat::sign(&signing_key, rng, &data_to_sign);
         for offer in [
             &mut intent.guaranteed_unshielded_offer,
             &mut intent.fallible_unshielded_offer,
@@ -230,7 +230,7 @@ impl NativeWalletState {
                         .value
                         .parse::<u128>()
                         .map_err(|_| MidnightRuntimeError::StateIncompatible)?,
-                    owner: signing_key.verifying_key(),
+                    owner: crate::compat::owner_key(&signing_key),
                     type_: UnshieldedTokenType(decode_hash(&coin.utxo.type_)?),
                     intent_hash: IntentHash(decode_hash(&coin.utxo.intent_hash)?),
                     output_no: coin.utxo.output_no,
@@ -271,7 +271,7 @@ impl NativeWalletState {
                 midnight_base_crypto::time::Timestamp::from_secs(ttl_seconds),
             );
         let data_to_sign = intent.erase_proofs().erase_signatures().data_to_sign(1);
-        let signature = signing_key.sign(rng, &data_to_sign);
+        let signature = crate::compat::sign(&signing_key, rng, &data_to_sign);
         let target_offer = if is_night {
             &mut intent.fallible_unshielded_offer
         } else {

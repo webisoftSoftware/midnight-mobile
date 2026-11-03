@@ -339,6 +339,7 @@ pub(super) struct TransactionFinalizationInput {
     pub(super) key_material: transaction::RemoteProofKeyMaterials,
     pub(super) proposed_state: Option<NativeWalletState>,
     pub(super) expected_identifiers: Vec<String>,
+    pub(super) local_balance: Option<LocalDustBalanceRequest>,
 }
 
 pub(super) fn start_transaction_finalization(
@@ -361,6 +362,7 @@ pub(super) fn start_transaction_finalization(
             key_material,
             proposed_state,
             expected_identifiers,
+            local_balance,
             ..
         } = input;
         match progress {
@@ -377,20 +379,35 @@ pub(super) fn start_transaction_finalization(
                         expected_identifiers,
                         responses,
                         pending_requests,
+                        local_balance,
                     },
                 )?;
                 registered_operation = Some(operation.id);
                 to_json(&proof_step_from_bodies(operation, &effect_id, bodies)?)
             }
-            transaction::BalanceProgress::Complete(finalized) => start_transaction_balance(
-                session_id,
-                generation,
-                session,
-                proposed_state,
-                expected_identifiers,
-                finalized,
-                &mut registered_operation,
-            ),
+            transaction::BalanceProgress::Complete(finalized) => match &local_balance {
+                Some(request) => start_local_transfer_balance(
+                    session_id,
+                    generation,
+                    session,
+                    request,
+                    LocalTransferBalanceInput {
+                        proposed_state,
+                        expected_identifiers,
+                        finalized,
+                    },
+                    &mut registered_operation,
+                ),
+                None => start_transaction_balance(
+                    session_id,
+                    generation,
+                    session,
+                    proposed_state,
+                    expected_identifiers,
+                    finalized,
+                    &mut registered_operation,
+                ),
+            },
         }
     })();
     if result.is_err() {
@@ -418,7 +435,7 @@ pub(super) fn start_transaction_balance(
     {
         return Err(MidnightRuntimeError::ProofFailed);
     }
-    let body = finalized.canonical;
+    let body = Zeroizing::new(finalized.canonical);
     let (operation, effect_id) = register_reserved_operation(
         session_id,
         generation,

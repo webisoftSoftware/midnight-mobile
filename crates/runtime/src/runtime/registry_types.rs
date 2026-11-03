@@ -47,6 +47,8 @@ pub(super) enum PendingOperationKind {
         expected_identifiers: Vec<String>,
         responses: transaction::RemoteProofResponses,
         pending_requests: Vec<transaction::RemoteProofRequest>,
+        /// Present when the wallet pays DUST fees locally after proving.
+        local_balance: Option<LocalDustBalanceRequest>,
     },
     FinalizeTransactionBalance {
         proposed_state: Option<NativeWalletState>,
@@ -70,6 +72,10 @@ pub(super) enum PendingOperationKind {
         balancing_raw: Vec<u8>,
         responses: transaction::RemoteProofResponses,
         pending_requests: Vec<transaction::RemoteProofRequest>,
+        /// Applied after merge; balance-only preparation leaves it empty.
+        proposed_state: Option<NativeWalletState>,
+        /// Identifiers that the merged transaction must carry.
+        expected_identifiers: Vec<String>,
     },
 }
 
@@ -134,7 +140,7 @@ pub(super) struct RuntimeRegistry {
 impl Default for RuntimeRegistry {
     fn default() -> Self {
         Self {
-            next_id: 1,
+            next_id: crate::ID_BASE + 1,
             next_generation: 1,
             sessions: HashMap::new(),
             operations: HashMap::new(),

@@ -8,10 +8,33 @@ use super::*;
 const NIGHT: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
 mod balance;
+mod dapp;
+mod dust_fees;
+mod snapshots;
 mod sync;
+mod transfers;
 
 fn material() -> WalletAddressMaterial {
     super::super::derive_wallet_address_material_inner(&[1; 32], &[2; 32], &[3; 32]).unwrap()
+}
+
+fn fixture_material() -> WalletAddressMaterial {
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/ledger-8.1.0.json")).unwrap();
+    let value = &fixture["deriveWalletAddressMaterial"];
+    let field = |name: &str| value[name].as_str().unwrap().to_owned();
+    WalletAddressMaterial {
+        unshielded_address_hex: field("unshieldedAddressHex"),
+        shielded_coin_public_key_hex: field("shieldedCoinPublicKeyHex"),
+        shielded_encryption_public_key_hex: field("shieldedEncryptionPublicKeyHex"),
+        dust_public_key: field("dustPublicKey"),
+    }
+}
+
+fn secret(field: &str) -> Vec<u8> {
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/ledger-8.1.0.json")).unwrap();
+    hex::decode(fixture["productionSecrets"][field].as_str().unwrap()).unwrap()
 }
 
 fn empty_state() -> NativeWalletState {
