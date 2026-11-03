@@ -143,7 +143,7 @@ fn begin_command_rejects_removed_unknown_and_malformed_commands_before_execution
 
 #[test]
 fn finalize_unproven_transaction_balances_locally_finalized_bytes_and_rejects_bad_material_maps() {
-    use midnight_base_crypto::schnorr::Signature;
+    use crate::compat::Signature;
     use midnight_ledger::structure::{ProofPreimageMarker, Transaction};
     use midnight_serialize::tagged_serialize;
     use midnight_storage::db::InMemoryDB;

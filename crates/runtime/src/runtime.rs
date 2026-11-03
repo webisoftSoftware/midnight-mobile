@@ -61,6 +61,16 @@ pub fn open_wallet_session(
     dust_seed: Vec<u8>,
     checkpoint: Option<Vec<u8>>,
 ) -> Result<RuntimeSessionHandle, MidnightRuntimeError> {
+    #[cfg(not(feature = "ledger-v9"))]
+    if crate::dispatch::is_v9_network(&config_json) {
+        return crate::dispatch::open_wallet_session(
+            config_json,
+            night_external_key,
+            zswap_seed,
+            dust_seed,
+            checkpoint,
+        );
+    }
     session::open_wallet_session(
         config_json,
         night_external_key,
@@ -79,6 +89,17 @@ pub fn apply_sync_batch(
     to_offset: u64,
     payloads: Vec<Vec<u8>>,
 ) -> Result<String, MidnightRuntimeError> {
+    #[cfg(not(feature = "ledger-v9"))]
+    if crate::dispatch::is_v9(session_id) {
+        return crate::dispatch::apply_sync_batch(
+            session_id,
+            generation,
+            stream,
+            from_offset,
+            to_offset,
+            payloads,
+        );
+    }
     session::apply_sync_batch(
         session_id,
         generation,
@@ -94,6 +115,10 @@ pub fn get_wallet_snapshot(
     session_id: u64,
     generation: u64,
 ) -> Result<String, MidnightRuntimeError> {
+    #[cfg(not(feature = "ledger-v9"))]
+    if crate::dispatch::is_v9(session_id) {
+        return crate::dispatch::get_wallet_snapshot(session_id, generation);
+    }
     session::get_wallet_snapshot(session_id, generation)
 }
 
@@ -102,6 +127,10 @@ pub fn export_wallet_checkpoint(
     session_id: u64,
     generation: u64,
 ) -> Result<Vec<u8>, MidnightRuntimeError> {
+    #[cfg(not(feature = "ledger-v9"))]
+    if crate::dispatch::is_v9(session_id) {
+        return crate::dispatch::export_wallet_checkpoint(session_id, generation);
+    }
     session::export_wallet_checkpoint(session_id, generation)
 }
 
@@ -111,6 +140,10 @@ pub fn sign_gateway_challenge(
     generation: u64,
     challenge: Vec<u8>,
 ) -> Result<String, MidnightRuntimeError> {
+    #[cfg(not(feature = "ledger-v9"))]
+    if crate::dispatch::is_v9(session_id) {
+        return crate::dispatch::sign_gateway_challenge(session_id, generation, challenge);
+    }
     session::sign_gateway_challenge(session_id, generation, challenge)
 }
 
@@ -120,6 +153,10 @@ pub fn begin_command(
     generation: u64,
     mut command_json: String,
 ) -> Result<String, MidnightRuntimeError> {
+    #[cfg(not(feature = "ledger-v9"))]
+    if crate::dispatch::is_v9(session_id) {
+        return crate::dispatch::begin_command(session_id, generation, command_json);
+    }
     let result = (|| {
         if let Some(kind) = extension::host_kind(&command_json) {
             let session = session_for_handle(session_id, generation)?;
@@ -149,6 +186,10 @@ pub fn resume_operation(
     generation: u64,
     mut network_result_json: Option<String>,
 ) -> Result<String, MidnightRuntimeError> {
+    #[cfg(not(feature = "ledger-v9"))]
+    if crate::dispatch::is_v9(operation_id) {
+        return crate::dispatch::resume_operation(operation_id, generation, network_result_json);
+    }
     let mut resumed_session = None;
     let resumed = (|| {
         let result_json = network_result_json
@@ -229,6 +270,10 @@ pub fn resume_operation(
 
 #[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
 pub fn cancel_operation(operation_id: u64, generation: u64) -> Result<(), MidnightRuntimeError> {
+    #[cfg(not(feature = "ledger-v9"))]
+    if crate::dispatch::is_v9(operation_id) {
+        return crate::dispatch::cancel_operation(operation_id, generation);
+    }
     let mut runtime = lock_registry()?;
     let operation = runtime
         .operations
@@ -268,6 +313,10 @@ pub fn cancel_operation(operation_id: u64, generation: u64) -> Result<(), Midnig
 
 #[cfg_attr(not(feature = "ledger-v9"), uniffi::export)]
 pub fn close_wallet_session(session_id: u64, generation: u64) -> Result<(), MidnightRuntimeError> {
+    #[cfg(not(feature = "ledger-v9"))]
+    if crate::dispatch::is_v9(session_id) {
+        return crate::dispatch::close_wallet_session(session_id, generation);
+    }
     let session = {
         let mut runtime = lock_registry()?;
         let session = runtime

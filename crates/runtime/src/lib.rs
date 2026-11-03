@@ -8,12 +8,16 @@ use zeroize::Zeroize;
 
 mod codec;
 mod compat;
+#[cfg(not(feature = "ledger-v9"))]
+mod dispatch;
 mod executor;
+#[cfg(not(feature = "ledger-v9"))]
 mod local_prover;
 mod runtime;
 mod transaction;
 mod wallet_state;
 
+#[cfg(not(feature = "ledger-v9"))]
 pub use local_prover::{
     deterministic_zswap_output_request, deterministic_zswap_spend_check_request,
     deterministic_zswap_spend_request,

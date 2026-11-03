@@ -1,7 +1,12 @@
+#[cfg(not(feature = "ledger-v9"))]
 use midnight_base_crypto::time::Timestamp;
+#[cfg(not(feature = "ledger-v9"))]
 use midnight_ledger::dust::{InitialNonce, dust_first_nonce};
+#[cfg(not(feature = "ledger-v9"))]
 use midnight_ledger::structure::{INITIAL_PARAMETERS, ProofMarker};
+#[cfg(not(feature = "ledger-v9"))]
 use midnight_transient_crypto::commitment::PureGeneratorPedersen;
+#[cfg(not(feature = "ledger-v9"))]
 use serde_json::Value;
 
 use super::*;
