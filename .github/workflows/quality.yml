@@ -39,3 +39,6 @@ jobs:
 
       - name: Run pull request checks
         run: npm run quality:pr
+        # Two ledger engines overflow the runner disk with debug info.
+        env:
+          CARGO_PROFILE_DEV_DEBUG: "0"
