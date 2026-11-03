@@ -133,9 +133,7 @@ async function exerciseSession(
       return [checkpoint, describeCheckpoint(checkpoint)] as const;
     });
 
-    await attempt(steps, "sign data", () =>
-      signData(api, session),
-    );
+    await attempt(steps, "sign data", () => signData(api, session));
 
     await attempt(steps, "close wallet session", async () => {
       await api.closeWalletSession(session);
