@@ -17,6 +17,9 @@ pub(super) struct WalletSessionConfig {
     pub(super) network_id: String,
     pub(super) wallet_fingerprint: String,
     pub(super) unshielded_address: String,
+    /// Migration input: used only when no checkpoint is given.
+    #[serde(default)]
+    pub(super) legacy_state: Option<LegacyWalletState>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

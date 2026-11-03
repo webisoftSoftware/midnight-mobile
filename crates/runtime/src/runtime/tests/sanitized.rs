@@ -156,3 +156,18 @@ fn checkpoint_decoder_rejects_invalid_json_and_unknown_framed_versions() {
     unknown.extend_from_slice(b"{}");
     assert!(decode_checkpoint(&unknown).is_err());
 }
+
+#[test]
+fn balance_service_expiry_ignores_empty_and_opaque_strings() {
+    for expiry in ["", "2026-01-01T00:00:00Z", "007"] {
+        let raw = format!(r#"{{"txHash":"aa","txBytes":"bb","expiresAt":"{expiry}"}}"#);
+        let decoded: BalanceServiceResult = serde_json::from_str(&raw).unwrap();
+        assert_eq!(decoded.expires_at, None);
+    }
+}
+
+#[test]
+fn legacy_state_in_the_config_is_accepted() {
+    let config = r#"{"networkId":"preview","walletFingerprint":"f","unshieldedAddress":"a","legacyState":{"serializedDustWalletState":"","serializedShieldedWalletState":"","serializedUnshieldedWalletState":""}}"#;
+    assert!(serde_json::from_str::<WalletSessionConfig>(config).is_ok());
+}

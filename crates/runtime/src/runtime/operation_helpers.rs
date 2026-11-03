@@ -490,12 +490,11 @@ where
     match Option::<NumericValue>::deserialize(deserializer)? {
         None => Ok(None),
         Some(NumericValue::Integer(value)) => Ok(Some(value)),
-        Some(NumericValue::Decimal(value)) => value
+        // The wallet core may send '' or an opaque string: keep only canonical numbers.
+        Some(NumericValue::Decimal(value)) => Ok(value
             .parse::<u64>()
             .ok()
-            .filter(|parsed| parsed.to_string() == value)
-            .map(Some)
-            .ok_or_else(|| serde::de::Error::custom("expiresAt must be a canonical u64")),
+            .filter(|parsed| parsed.to_string() == value)),
     }
 }
 

@@ -25,6 +25,7 @@ pub(super) fn open_wallet_session(
         let legacy_state = checkpoint
             .as_ref()
             .map(|checkpoint| checkpoint.legacy_state.clone())
+            .or_else(|| config.legacy_state.clone())
             .unwrap_or_default();
         let wallet_state = NativeWalletState::restore(
             &legacy_state,
