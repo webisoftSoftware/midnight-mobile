@@ -36,3 +36,39 @@ fn ledger_9_ids_start_at_id_base_and_accept_stagenet() {
     let handle = open_wallet_session(config, vec![1; 32], vec![2; 32], vec![3; 32], None).unwrap();
     assert!(handle.id > crate::ID_BASE);
 }
+
+#[test]
+#[cfg(not(feature = "ledger-v9"))]
+fn the_ledger_field_routes_any_network_and_ledger_8_checkpoints_do_not_cross() {
+    use crate::dispatch::is_v9;
+    let _runtime = isolated_runtime();
+    let open = |ledger: &str, checkpoint: Option<Vec<u8>>| {
+        let mut config: serde_json::Value =
+            serde_json::from_str(&test_config("fp").replace("preview", "mainnet")).unwrap();
+        config["ledger"] = ledger.into();
+        open_wallet_session(
+            config.to_string(),
+            vec![1; 32],
+            vec![2; 32],
+            vec![3; 32],
+            checkpoint,
+        )
+    };
+    let v8 = open("v8", None).unwrap();
+    assert!(!is_v9(v8.id));
+    let v8_checkpoint = export_wallet_checkpoint(v8.id, v8.generation).unwrap();
+    close_wallet_session(v8.id, v8.generation).unwrap();
+
+    // The host falls back to a fresh sync when its stored checkpoint is from the old ledger.
+    assert_eq!(
+        open("v9", Some(v8_checkpoint)).unwrap_err().to_string(),
+        "STATE_INCOMPATIBLE"
+    );
+    let v9 = open("v9", None).unwrap();
+    assert!(is_v9(v9.id));
+    close_wallet_session(v9.id, v9.generation).unwrap();
+    assert_eq!(
+        open("v10", None).unwrap_err().to_string(),
+        "INVALID_ARGUMENT"
+    );
+}

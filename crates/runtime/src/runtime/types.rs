@@ -17,6 +17,9 @@ pub(super) struct WalletSessionConfig {
     pub(super) network_id: String,
     pub(super) wallet_fingerprint: String,
     pub(super) unshielded_address: String,
+    /// Ledger the chain head runs (`v8` or `v9`); `dispatch` routes on it.
+    #[serde(default)]
+    pub(super) ledger: Option<String>,
     /// Migration input: used only when no checkpoint is given.
     #[serde(default)]
     pub(super) legacy_state: Option<LegacyWalletState>,

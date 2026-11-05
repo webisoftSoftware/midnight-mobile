@@ -1,4 +1,4 @@
-//! Routes calls for the `stagenet` network (Ledger 9) to the `runtime-v9` engine.
+//! Routes calls for Ledger 9 chains to the `runtime-v9` engine.
 //! Its ids start at `v9::ID_BASE`, so a session or operation id picks the engine.
 
 use midnight_mobile_runtime_v9 as v9;
@@ -11,9 +11,14 @@ pub(crate) fn is_v9(id: u64) -> bool {
     id >= v9::ID_BASE
 }
 
+/// The host passes the chain head's `ledger`; without it only stagenet runs Ledger 9.
 pub(crate) fn is_v9_network(config_json: &str) -> bool {
-    serde_json::from_str::<serde_json::Value>(config_json)
-        .is_ok_and(|config| config["networkId"] == "stagenet")
+    serde_json::from_str::<serde_json::Value>(config_json).is_ok_and(
+        |config| match config["ledger"].as_str() {
+            Some(ledger) => ledger == "v9",
+            None => config["networkId"] == "stagenet",
+        },
+    )
 }
 
 /// Errors have the same codes in both engines.
@@ -134,22 +139,33 @@ pub(crate) fn close_wallet_session(
 mod tests {
     use super::*;
 
-    fn config(network: &str) -> String {
-        serde_json::json!({
+    fn config(network: &str, ledger: Option<&str>) -> String {
+        let mut config = serde_json::json!({
             "networkId": network,
             "walletFingerprint": "fp",
             "unshieldedAddress": "addr",
-        })
-        .to_string()
+        });
+        if let Some(ledger) = ledger {
+            config["ledger"] = ledger.into();
+        }
+        config.to_string()
     }
 
     #[test]
-    fn only_stagenet_selects_ledger_9() {
-        assert!(is_v9_network(&config("stagenet")));
+    fn without_a_ledger_only_stagenet_selects_ledger_9() {
+        assert!(is_v9_network(&config("stagenet", None)));
         for network in ["mainnet", "preprod", "preview", "undeployed"] {
-            assert!(!is_v9_network(&config(network)));
+            assert!(!is_v9_network(&config(network, None)));
         }
         assert!(!is_v9_network("not json"));
+    }
+
+    #[test]
+    fn the_ledger_field_selects_the_engine() {
+        for network in ["mainnet", "preprod", "preview", "stagenet"] {
+            assert!(is_v9_network(&config(network, Some("v9"))));
+            assert!(!is_v9_network(&config(network, Some("v8"))));
+        }
     }
 
     #[test]

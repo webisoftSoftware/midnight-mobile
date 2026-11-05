@@ -50,7 +50,8 @@ pub(super) fn validate_config(
         !config.wallet_fingerprint.trim().is_empty() && config.wallet_fingerprint.len() <= 256;
     let valid_address =
         !config.unshielded_address.trim().is_empty() && config.unshielded_address.len() <= 256;
-    if !valid_network || !valid_fingerprint || !valid_address {
+    let valid_ledger = matches!(config.ledger.as_deref(), None | Some("v8" | "v9"));
+    if !valid_network || !valid_fingerprint || !valid_address || !valid_ledger {
         return Err(MidnightRuntimeError::InvalidArgument);
     }
     Ok(config)
