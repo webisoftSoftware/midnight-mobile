@@ -25,6 +25,7 @@ pub(super) fn open_wallet_session(
         let legacy_state = checkpoint
             .as_ref()
             .map(|checkpoint| checkpoint.legacy_state.clone())
+            .or_else(|| config.legacy_state.clone())
             .unwrap_or_default();
         let wallet_state = NativeWalletState::restore(
             &legacy_state,
@@ -254,4 +255,15 @@ pub(super) fn export_wallet_checkpoint(
     };
     checkpoint.checksum = checkpoint_checksum(&checkpoint);
     encode_checkpoint(&checkpoint)
+}
+
+/// Signs a gateway auth challenge with the session's night key.
+pub(super) fn sign_gateway_challenge(
+    session_id: u64,
+    generation: u64,
+    challenge: Vec<u8>,
+) -> Result<String, MidnightRuntimeError> {
+    let session = session_for_handle(session_id, generation)?;
+    let state = lock_session(&session)?;
+    sign_challenge_locked(&state, &challenge)
 }

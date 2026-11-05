@@ -36,9 +36,10 @@ pub(super) struct DustBalance {
 /// of the fee, so the loop re-derives the fee from the exact candidate until it
 /// converges.
 pub(super) fn plan(
-    dust_state: &DustLocalState<InMemoryDB>,
+    state: &NativeWalletState,
     request: DustRequest<'_>,
 ) -> Result<DustBalance, MidnightRuntimeError> {
+    let dust_state = &state.dust;
     let DustRequest {
         network_id,
         base,
@@ -61,14 +62,10 @@ pub(super) fn plan(
         .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
     let dust_key = DustSecretKey::derive_secret_key(&seed);
     seed.zeroize();
-    // Set ctime before the wall-clock time. Do not set it before the latest
-    // DUST state that the wallet has synchronized.
-    let current_time = midnight_base_crypto::time::Timestamp::from_secs(
-        current_time_seconds
-            .saturating_sub(30)
-            .max(dust_state.sync_time.to_secs())
-            .min(current_time_seconds),
-    );
+    // The declared spend ctime lags the wall clock and never precedes the DUST
+    // stream's own sync time, so a spend cannot be priced against a future the
+    // node has not seen yet.
+    let current_time = state.dust_spend_ctime(current_time_seconds);
     let ttl = midnight_base_crypto::time::Timestamp::from_secs(ttl_seconds);
 
     let mut available = dust_state
@@ -115,6 +112,8 @@ pub(super) fn plan(
         let mut spends = Vec::with_capacity(deductions.len());
         for ((_, coin), deduction) in available.iter().zip(deductions) {
             let (next, spend) = next_state
+                // A coin below its fee share at the declared ctime cannot
+                // afford the fee. That is a shortfall, not a malformed request.
                 .spend(&dust_key, coin, *deduction, current_time)
                 .map_err(|error| match error {
                     DustSpendError::NotEnoughDust { .. } => MidnightRuntimeError::InsufficientDust,

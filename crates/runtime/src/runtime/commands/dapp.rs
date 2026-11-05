@@ -7,13 +7,26 @@ pub(super) fn handle(
     mut command: RuntimeCommand,
     mut state: MutexGuard<'_, SessionState>,
 ) -> Result<String, MidnightRuntimeError> {
-    if let RuntimeCommand::DappTransfer { outputs } = &mut command {
+    if let RuntimeCommand::DappTransfer {
+        outputs,
+        ledger_parameters_base64,
+        fee_blocks_margin,
+        additional_fee_overhead,
+    } = &mut command
+    {
         if !["shielded", "unshielded", "dust"]
             .iter()
             .all(|stream| state.caught_up_streams.contains(*stream))
         {
             return Err(MidnightRuntimeError::Unavailable);
         }
+        // Ledger parameters are used when DUST sponsorship is off.
+        // The wallet then balances the proven transfer.
+        let local_balance = parse_local_dust_balance_request(
+            ledger_parameters_base64.as_deref(),
+            *fee_blocks_margin,
+            additional_fee_overhead.as_deref(),
+        )?;
         let outputs = parse_dapp_outputs(std::mem::take(outputs))?;
         let ttl_seconds = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -44,6 +57,7 @@ pub(super) fn handle(
                 key_material: transaction::RemoteProofKeyMaterials::default(),
                 proposed_state: Some(proposed),
                 expected_identifiers,
+                local_balance,
             },
         );
     }

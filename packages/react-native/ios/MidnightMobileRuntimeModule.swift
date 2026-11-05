@@ -32,6 +32,8 @@ private func runtimeException(_ error: Error) -> Exception {
     code = "INVALID_LENGTH"
   case MidnightRuntimeError.DecodeFailed:
     code = "DECODE_FAILED"
+  case MidnightRuntimeError.UnsupportedCommand:
+    code = "UNSUPPORTED_COMMAND"
   case MidnightRuntimeError.NativeInternal:
     code = "NATIVE_INTERNAL"
   default:

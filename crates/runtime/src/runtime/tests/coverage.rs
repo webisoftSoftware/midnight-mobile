@@ -32,6 +32,7 @@ fn runtime_codecs_and_operation_result_helpers_cover_wire_shapes() {
         effect_id: "1:2:3".to_owned(),
         outcome: "accepted".to_owned(),
         body_base64: None,
+        error: None,
     }]);
     assert_eq!(network_results.into_vec().len(), 1);
 
@@ -414,6 +415,7 @@ fn resumable_operation_variants_clear_or_preserve_state_on_failure() {
             key_material: transaction::RemoteProofKeyMaterials::default(),
             proposed_state: Some(wallet_state.clone()),
             expected_identifiers: Vec::new(),
+            local_balance: None,
             responses: transaction::RemoteProofResponses::default(),
             pending_requests: vec![request()],
         },
@@ -436,6 +438,8 @@ fn resumable_operation_variants_clear_or_preserve_state_on_failure() {
         PendingOperationKind::Balance {
             original_raw: vec![0xff],
             original_sealed: false,
+            proposed_state: None,
+            expected_identifiers: Vec::new(),
             balancing_raw: vec![0xff],
             responses: transaction::RemoteProofResponses::default(),
             pending_requests: vec![request()],
@@ -470,6 +474,7 @@ fn batch_result(effect_id: &str, outcome: &str, body: Option<&str>) -> NetworkRe
         effect_id: effect_id.to_owned(),
         outcome: outcome.to_owned(),
         body_base64: body.map(str::to_owned),
+        error: None,
     }
 }
 

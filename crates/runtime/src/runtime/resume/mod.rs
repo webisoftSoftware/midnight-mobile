@@ -14,6 +14,9 @@ pub(super) fn resume_operation_kind(
     operation: PendingOperation,
     state: MutexGuard<'_, SessionState>,
 ) -> Result<String, MidnightRuntimeError> {
+    if matches!(&operation.kind, PendingOperationKind::Extension(_)) {
+        return extension::resume(operation_id, generation, results, operation, state);
+    }
     if matches!(
         &operation.kind,
         PendingOperationKind::DappIntentProof { .. }

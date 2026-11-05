@@ -72,6 +72,7 @@ fn transaction_and_dust_reservations_block_sync_and_cleanup() {
                 key_material: transaction::RemoteProofKeyMaterials::default(),
                 proposed_state: None,
                 expected_identifiers: Vec::new(),
+                local_balance: None,
             },
         ),
         "INVALID_ARGUMENT",
@@ -145,4 +146,28 @@ fn transaction_and_dust_reservations_block_sync_and_cleanup() {
         Vec::new(),
     )
     .unwrap();
+}
+
+#[test]
+fn signs_gateway_challenges_with_the_session_key() {
+    use midnight_serialize::Deserializable;
+    let _runtime = isolated_runtime();
+    let handle = open_test_session("gateway-challenge", None);
+    let challenge = b"1AM-AUTH-v1\nexample.test\nnonce\n123";
+    let signed: serde_json::Value = serde_json::from_str(
+        &sign_gateway_challenge(handle.id, handle.generation, challenge.to_vec()).unwrap(),
+    )
+    .unwrap();
+    let signature = midnight_base_crypto::schnorr::Signature::deserialize(
+        &mut &hex::decode(signed["signatureHex"].as_str().unwrap()).unwrap()[..],
+        0,
+    )
+    .unwrap();
+    assert!(
+        SigningKey::from_bytes(&[1; 32])
+            .unwrap()
+            .verifying_key()
+            .verify(challenge, &signature)
+    );
+    assert_eq!(signed["address"], "synthetic-address");
 }

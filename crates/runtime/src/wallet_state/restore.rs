@@ -66,6 +66,14 @@ impl NativeWalletState {
         Ok(result)
     }
 
+    pub(crate) fn state_count(&self) -> u64 {
+        let count = self.shielded.coins.iter().count()
+            + self.dust.dust_utxos.values().count()
+            + self.unshielded.available_utxos.len()
+            + self.unshielded.pending_utxos.len();
+        u64::try_from(count).unwrap_or(u64::MAX)
+    }
+
     pub(crate) fn balances(&self) -> Result<WalletBalanceSnapshot, MidnightRuntimeError> {
         const NIGHT_TOKEN: &str =
             "0000000000000000000000000000000000000000000000000000000000000000";

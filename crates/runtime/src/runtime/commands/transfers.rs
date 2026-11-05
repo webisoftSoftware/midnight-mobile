@@ -12,6 +12,9 @@ pub(super) fn handle(
         amount,
         token_type,
         wallet_type,
+        ledger_parameters_base64,
+        fee_blocks_margin,
+        additional_fee_overhead,
     } = &command
     {
         if !["shielded", "unshielded", "dust"]
@@ -52,6 +55,13 @@ pub(super) fn handle(
         let expected_identifiers =
             transaction::validate_unproven_transaction(&transaction, &state.config.network_id)?;
         let network_id = state.config.network_id.clone();
+        // Ledger parameters are used when DUST sponsorship is off.
+        // The wallet then balances the proven transfer.
+        let local_balance = parse_local_dust_balance_request(
+            ledger_parameters_base64.as_deref(),
+            *fee_blocks_margin,
+            additional_fee_overhead.as_deref(),
+        )?;
         reserve_operation(&mut state)?;
         drop(state);
         return start_transaction_finalization(
@@ -64,6 +74,7 @@ pub(super) fn handle(
                 key_material: transaction::RemoteProofKeyMaterials::default(),
                 proposed_state: Some(proposed),
                 expected_identifiers,
+                local_balance,
             },
         );
     }

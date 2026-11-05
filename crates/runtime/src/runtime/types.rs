@@ -5,7 +5,7 @@ pub(super) const CHECKPOINT_MAGIC: &[u8; 4] = b"MMCP";
 pub(super) const MAX_OPEN_SESSIONS: usize = 2;
 pub(super) const MAX_SYNC_PAYLOAD_BYTES: usize = 64 * 1024 * 1024;
 pub(super) const MAX_CHECKPOINT_BYTES: usize = 64 * 1024 * 1024;
-pub(super) const MAX_SIGNING_DOMAIN_BYTES: usize = 1024;
+pub(super) const MAX_AUTH_CHALLENGE_BYTES: usize = 4 * 1024;
 pub(super) const MAX_DAPP_SIGN_DATA_BYTES: usize = 1024 * 1024;
 pub(super) const MAX_SYNC_BATCH_RECEIPTS: usize = 4096;
 pub(super) const MAX_CANCELLED_OPERATION_TOMBSTONES: usize = 1024;
@@ -17,6 +17,12 @@ pub(super) struct WalletSessionConfig {
     pub(super) network_id: String,
     pub(super) wallet_fingerprint: String,
     pub(super) unshielded_address: String,
+    /// Ledger the chain head runs (`v8` or `v9`); `dispatch` routes on it.
+    #[serde(default)]
+    pub(super) ledger: Option<String>,
+    /// Migration input: used only when no checkpoint is given.
+    #[serde(default)]
+    pub(super) legacy_state: Option<LegacyWalletState>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -78,6 +84,7 @@ pub(super) struct WalletSnapshot {
     pub(super) network_id: String,
     pub(super) status: &'static str,
     pub(super) generation: u64,
+    pub(super) state_count: u64,
     pub(super) stream_offsets: Vec<StreamOffset>,
     pub(super) unshielded_address: String,
     pub(super) shielded_coin_public_key_hex: String,
@@ -111,7 +118,6 @@ pub(super) enum SyncRequestMode {
 )]
 pub(super) enum RuntimeCommand {
     SignData {
-        domain: String,
         data_base64: String,
     },
     CreateCheckPayload {
@@ -171,9 +177,21 @@ pub(super) enum RuntimeCommand {
         amount: String,
         token_type: String,
         wallet_type: String,
+        #[serde(default)]
+        ledger_parameters_base64: Option<String>,
+        #[serde(default)]
+        fee_blocks_margin: Option<u64>,
+        #[serde(default)]
+        additional_fee_overhead: Option<String>,
     },
     DappTransfer {
         outputs: Vec<RuntimeDappOutput>,
+        #[serde(default)]
+        ledger_parameters_base64: Option<String>,
+        #[serde(default)]
+        fee_blocks_margin: Option<u64>,
+        #[serde(default)]
+        additional_fee_overhead: Option<String>,
     },
     DappIntent {
         inputs: Vec<RuntimeDappInput>,
@@ -237,12 +255,12 @@ pub(super) struct RuntimeDappOutput {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct RuntimeProvingKeyMaterial {
-    pub(super) prover_key_base64: String,
-    pub(super) verifier_key_base64: String,
-    pub(super) ir_base64: String,
+pub struct RuntimeProvingKeyMaterial {
+    pub prover_key_base64: String,
+    pub verifier_key_base64: String,
+    pub ir_base64: String,
     #[serde(default)]
-    pub(super) compression: Option<String>,
+    pub compression: Option<String>,
 }
 
 impl Drop for RuntimeProvingKeyMaterial {
@@ -258,11 +276,23 @@ impl Drop for RuntimeProvingKeyMaterial {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct NetworkResult {
-    pub(super) effect_id: String,
-    pub(super) outcome: String,
+pub struct NetworkResult {
+    pub effect_id: String,
+    pub outcome: String,
     #[serde(default)]
-    pub(super) body_base64: Option<String>,
+    pub body_base64: Option<String>,
+    #[serde(default)]
+    pub error: Option<NetworkError>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NetworkError {
+    pub message: String,
+    #[serde(default)]
+    pub rpc_code: Option<i64>,
+    #[serde(default)]
+    pub custom_code: Option<u64>,
 }
 
 /// A resume payload carries either one result (every effect except a batched proof
@@ -305,9 +335,9 @@ pub(super) struct BalancePreviewResult {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct OperationHandle {
-    pub(super) id: u64,
-    pub(super) generation: u64,
+pub struct OperationHandle {
+    pub id: u64,
+    pub generation: u64,
 }
 
 /// One effect of a multi-effect round. Emitted only alongside the singular fields, so

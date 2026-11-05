@@ -78,7 +78,7 @@ fn candidates(
 /// by earlier segments of the same plan so no coin is selected twice.
 pub(super) fn plan_segment(
     state: &NativeWalletState,
-    verifying_key: &VerifyingKey,
+    verifying_key: &crate::compat::OwnerKey,
     owner: UserAddress,
     imbalances: &BTreeMap<UnshieldedTokenType, i128>,
     already_taken: &[UnshieldedUtxoWithMeta],
@@ -185,7 +185,7 @@ fn install(
 /// party is not valid after the intent changes.
 fn ensure_wallet_inputs(
     inputs: &[UtxoSpend],
-    verifying_key: &VerifyingKey,
+    verifying_key: &crate::compat::OwnerKey,
 ) -> Result<(), MidnightRuntimeError> {
     if inputs.iter().all(|input| input.owner == *verifying_key) {
         Ok(())
@@ -240,7 +240,7 @@ impl IntentEdit {
         materialize: bool,
         rng: &mut R,
     ) -> Result<UnsealedIntent, MidnightRuntimeError> {
-        let verifying_key = signing_key.verifying_key();
+        let verifying_key = crate::compat::owner_key(signing_key);
         let mut updated = intent.clone();
         if let Some((inputs, outputs)) = &self.guaranteed {
             updated.guaranteed_unshielded_offer = Some(Sp::new(install(inputs, outputs.clone())));
@@ -267,7 +267,7 @@ impl IntentEdit {
                 .erase_proofs()
                 .erase_signatures()
                 .data_to_sign(segment);
-            signing_key.sign(rng, &data_to_sign)
+            crate::compat::sign(signing_key, rng, &data_to_sign)
         } else {
             placeholder_signature()
         };
@@ -332,7 +332,7 @@ pub(super) fn sign_balancing_intent<R: Rng + CryptoRng>(
             .erase_proofs()
             .erase_signatures()
             .data_to_sign(segment);
-        signing_key.sign(rng, &data_to_sign)
+        crate::compat::sign(signing_key, rng, &data_to_sign)
     } else {
         placeholder_signature()
     };

@@ -47,6 +47,8 @@ pub(super) enum PendingOperationKind {
         expected_identifiers: Vec<String>,
         responses: transaction::RemoteProofResponses,
         pending_requests: Vec<transaction::RemoteProofRequest>,
+        /// Present when the wallet pays DUST fees locally after proving.
+        local_balance: Option<LocalDustBalanceRequest>,
     },
     FinalizeTransactionBalance {
         proposed_state: Option<NativeWalletState>,
@@ -64,12 +66,18 @@ pub(super) enum PendingOperationKind {
         responses: transaction::RemoteProofResponses,
         pending_requests: Vec<transaction::RemoteProofRequest>,
     },
+    /// State owned by the host extension.
+    Extension(super::extension::ExtensionOp),
     Balance {
         original_raw: Vec<u8>,
         original_sealed: bool,
         balancing_raw: Vec<u8>,
         responses: transaction::RemoteProofResponses,
         pending_requests: Vec<transaction::RemoteProofRequest>,
+        /// Applied after merge; balance-only preparation leaves it empty.
+        proposed_state: Option<NativeWalletState>,
+        /// Identifiers that the merged transaction must carry.
+        expected_identifiers: Vec<String>,
     },
 }
 
@@ -90,6 +98,7 @@ impl PendingOperationKind {
             | Self::Balance {
                 pending_requests, ..
             } => Some(pending_requests),
+            Self::Extension(op) => super::extension::pending_requests(op.as_ref()),
             Self::SubmitFinalized { .. } | Self::FinalizeTransactionBalance { .. } => None,
         }
     }
@@ -110,7 +119,9 @@ impl PendingOperationKind {
             | Self::Balance {
                 pending_requests, ..
             } => *pending_requests = requests,
-            Self::SubmitFinalized { .. } | Self::FinalizeTransactionBalance { .. } => {}
+            Self::SubmitFinalized { .. }
+            | Self::FinalizeTransactionBalance { .. }
+            | Self::Extension(_) => {}
         }
     }
 }
@@ -134,7 +145,7 @@ pub(super) struct RuntimeRegistry {
 impl Default for RuntimeRegistry {
     fn default() -> Self {
         Self {
-            next_id: 1,
+            next_id: crate::ID_BASE + 1,
             next_generation: 1,
             sessions: HashMap::new(),
             operations: HashMap::new(),

@@ -35,11 +35,11 @@ pub(super) fn resume(
                         endpoint_role: None,
                         body_base64: None,
                         effects: None,
-                        result_json: Some(submission_result(
+                        result_json: Some(submission_json(
                             transaction_hash,
                             identifiers,
                             status,
-                            result.body_base64.clone(),
+                            result,
                         )?),
                     })
                 }
@@ -105,11 +105,32 @@ pub(super) fn resume(
                 Err(MidnightRuntimeError::InvalidArgument)
             }
         },
-        PendingOperationKind::Balance { .. }
+        PendingOperationKind::Extension(_)
+        | PendingOperationKind::Balance { .. }
         | PendingOperationKind::FinalizeTransactionProof { .. }
         | PendingOperationKind::DappIntentProof { .. }
         | PendingOperationKind::GenerateDustProof { .. } => {
             Err(MidnightRuntimeError::NativeInternal)
         }
     }
+}
+
+// Submission result plus the node error, when the result carries one.
+fn submission_json(
+    transaction_hash: &str,
+    identifiers: Vec<String>,
+    status: &str,
+    result: &NetworkResult,
+) -> Result<String, MidnightRuntimeError> {
+    let mut value = serde_json::from_str::<serde_json::Value>(&submission_result(
+        transaction_hash,
+        identifiers,
+        status,
+        result.body_base64.clone(),
+    )?)
+    .map_err(|_| MidnightRuntimeError::NativeInternal)?;
+    if let Some(error) = &result.error {
+        value["error"] = serde_json::json!(error);
+    }
+    to_json(&value)
 }

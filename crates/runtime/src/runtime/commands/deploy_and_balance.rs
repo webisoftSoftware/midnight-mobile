@@ -202,6 +202,10 @@ pub(super) fn handle(
             balancing_raw,
             responses,
             pending_requests: requests,
+            // Balance-only preparation for an unowned transaction proposes
+            // nothing. It also asserts nothing.
+            proposed_state: None,
+            expected_identifiers: Vec::new(),
         },
     )?;
     to_json(&proof_step_from_bodies(operation, &effect_id, bodies)?)

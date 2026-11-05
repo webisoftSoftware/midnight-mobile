@@ -234,6 +234,7 @@ pub(super) fn snapshot(state: &SessionState) -> Result<WalletSnapshot, MidnightR
         network_id: state.config.network_id.clone(),
         status: if synced { "ready" } else { "syncing" },
         generation: state.generation,
+        state_count: state.wallet_state.state_count(),
         stream_offsets: sorted_offsets(&state.offsets),
         unshielded_address: state.config.unshielded_address.clone(),
         shielded_coin_public_key_hex: state.address_material.shielded_coin_public_key_hex.clone(),

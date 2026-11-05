@@ -424,9 +424,9 @@ pub(crate) struct DustCoinSnapshot {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct WalletBalanceSnapshot {
-    pub(crate) shielded_balances: BTreeMap<String, String>,
-    pub(crate) unshielded_balances: BTreeMap<String, String>,
+pub struct WalletBalanceSnapshot {
+    pub shielded_balances: BTreeMap<String, String>,
+    pub unshielded_balances: BTreeMap<String, String>,
     pub(super) total_shielded: String,
     pub(super) total_unshielded: String,
     pub(super) total_shielded_all: String,

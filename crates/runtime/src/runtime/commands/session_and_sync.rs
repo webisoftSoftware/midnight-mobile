@@ -5,12 +5,9 @@ pub(super) fn handle(
     mut state: MutexGuard<'_, SessionState>,
 ) -> Result<String, MidnightRuntimeError> {
     match &mut command {
-        RuntimeCommand::SignData {
-            domain,
-            data_base64,
-        } => {
+        RuntimeCommand::SignData { data_base64 } => {
             let data = decode_base64(data_base64)?;
-            let result_json = sign_data_locked(&state, domain, &data)?;
+            let result_json = sign_data_locked(&state, &data)?;
             return complete_json(result_json);
         }
         RuntimeCommand::CreateSyncRequest {

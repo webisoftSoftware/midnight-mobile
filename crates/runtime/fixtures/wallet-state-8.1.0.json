@@ -1,0 +1,11 @@
+{
+  "ledgerRevision": "02716c2c95d50654aeb3cb63bfd8386046e4ca7d",
+  "emptyShieldedStateHex": "6d69646e696768743a7a737761702d6c6f63616c2d73746174655b76365d3a080004000c0000000c022000",
+  "emptyDustStateHex": "6d69646e696768743a647573742d6c6f63616c2d73746174655b76315d3a080004000800007c022000022000000700f2052a012d81302a0000000000000000000000000000",
+  "emptyShieldedSnapshot": "{\"publicKeys\":{\"coinPublicKey\":\"936052e04411e8bfd54cb1fa7fe636a797daf913608c54cdee24c2308aca3b6f\",\"encryptionPublicKey\":\"b8bcf4fb4139196291759fee18d2b4fc000152206e663177d4d2caba8616ab43\"},\"state\":\"6d69646e696768743a7a737761702d6c6f63616c2d73746174655b76365d3a080004000c0000000c022000\",\"protocolVersion\":\"0\",\"offset\":\"0\",\"networkId\":\"preprod\",\"coinHashes\":{}}",
+  "emptyDustSnapshot": "{\"publicKey\":{\"publicKey\":\"42193219532329565324930351219832547212770092983395950190828560018918765452321\"},\"state\":\"6d69646e696768743a647573742d6c6f63616c2d73746174655b76315d3a080004000800007c022000022000000700f2052a012d81302a0000000000000000000000000000\",\"protocolVersion\":\"0\",\"networkId\":\"preprod\",\"offset\":\"0\"}",
+  "emptyUnshieldedSecretKeyHex": "af7a998947b1b1fd12d99cb40ee98a739e6a2518d8965690781d85ea0e3a5e13",
+  "emptyUnshieldedAddressHex": "2d8c83c0c382c91f67fbde88dd1d7c27823192505a8753e7a14a92d5b4e2aa02",
+  "emptyUnshieldedAddress": "mn_addr_preview19kxg8sxrsty37elmm6yd68tuy7prryjst2r48eapf2fdtd8z4gpq8xczf2",
+  "emptyUnshieldedSnapshot": "{\"publicKey\":{\"publicKey\":\"1a106adf788d757917bcb7efab1eb2170c357dd12091f05114e85c1bcfad67ca\",\"addressHex\":\"2d8c83c0c382c91f67fbde88dd1d7c27823192505a8753e7a14a92d5b4e2aa02\",\"address\":\"mn_addr_preview19kxg8sxrsty37elmm6yd68tuy7prryjst2r48eapf2fdtd8z4gpq8xczf2\"},\"state\":{\"availableUtxos\":[],\"pendingUtxos\":[]},\"protocolVersion\":\"0\",\"appliedId\":\"0\",\"networkId\":\"preview\"}"
+}

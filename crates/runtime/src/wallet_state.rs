@@ -2,10 +2,11 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::compat::Signature;
 use bech32::primitives::decode::CheckedHrpstring;
 use bech32::{Bech32m, Hrp};
 use midnight_base_crypto::hash::HashOutput;
-use midnight_base_crypto::schnorr::{Signature, SigningKey, VerifyingKey};
+use midnight_base_crypto::schnorr::SigningKey;
 use midnight_coin_structure::coin::{
     Info as ShieldedCoinInfo, Nullifier as ShieldedNullifier, PublicKey as ShieldedCoinPublicKey,
     ShieldedTokenType, TokenType, UnshieldedTokenType, UserAddress,
@@ -57,8 +58,9 @@ mod spend_builders;
 mod sync;
 mod types;
 
+pub use types::WalletBalanceSnapshot;
 use types::*;
-pub(crate) use types::{DustCommitmentRequest, LegacyWalletState, WalletBalanceSnapshot};
+pub(crate) use types::{DustCommitmentRequest, LegacyWalletState};
 
 const MAX_LEGACY_STATE_BYTES: usize = 64 * 1024 * 1024;
 const MAX_SYNC_ENTRIES: usize = 1_000_000;
@@ -109,7 +111,7 @@ fn to_snapshot_json<T: Serialize>(value: &T) -> Result<String, MidnightRuntimeEr
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct NativeWalletState {
+pub struct NativeWalletState {
     shielded: midnight_zswap::local::State<InMemoryDB>,
     dust: DustLocalState<InMemoryDB>,
     unshielded: UnshieldedCollections,
@@ -117,10 +119,10 @@ pub(crate) struct NativeWalletState {
     protocol_version: String,
 }
 
-pub(crate) struct ShieldedMintContext {
-    pub(crate) coin_public_key: ShieldedCoinPublicKey,
-    pub(crate) encryption_public_key: encryption::PublicKey,
-    pub(crate) output_index: u64,
+pub struct ShieldedMintContext {
+    pub coin_public_key: ShieldedCoinPublicKey,
+    pub encryption_public_key: encryption::PublicKey,
+    pub output_index: u64,
 }
 
 pub(crate) struct RestoreContext<'a> {
@@ -140,6 +142,17 @@ pub(crate) struct LegacyExportContext<'a> {
     pub unshielded_offset: Option<u64>,
 }
 
+pub(crate) struct DustBalanceInput<'a> {
+    pub network_id: &'a str,
+    pub original: &'a Transaction<Signature, (), Pedersen, InMemoryDB>,
+    pub ledger_parameters: &'a LedgerParameters,
+    pub fee_blocks_margin: usize,
+    pub additional_fee_overhead: u128,
+    pub dust_seed: &'a [u8],
+    pub current_time_seconds: u64,
+    pub ttl_seconds: u64,
+}
+
 struct UnshieldedTransferInput<'a> {
     network_id: &'a str,
     target_address: &'a str,
@@ -148,6 +161,14 @@ struct UnshieldedTransferInput<'a> {
     night_external_key: &'a [u8],
     ttl_seconds: u64,
 }
+
+type DustBalancingResult = Result<
+    (
+        DustLocalState<InMemoryDB>,
+        Transaction<Signature, ProofPreimageMarker, PedersenRandomness, InMemoryDB>,
+    ),
+    MidnightRuntimeError,
+>;
 
 #[cfg(test)]
 mod tests;

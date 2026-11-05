@@ -1186,6 +1186,12 @@ sealed class MidnightRuntimeException: kotlin.Exception() {
             get() = ""
     }
 
+    class UnsupportedCommand(
+        ) : MidnightRuntimeException() {
+        override val message
+            get() = ""
+    }
+
 
 
 
@@ -1220,6 +1226,7 @@ public object FfiConverterTypeMidnightRuntimeError : FfiConverterRustBuffer<Midn
             13 -> MidnightRuntimeException.InvalidLength()
             14 -> MidnightRuntimeException.DecodeFailed()
             15 -> MidnightRuntimeException.NativeInternal()
+            16 -> MidnightRuntimeException.UnsupportedCommand()
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
     }
@@ -1286,6 +1293,10 @@ public object FfiConverterTypeMidnightRuntimeError : FfiConverterRustBuffer<Midn
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
             )
+            is MidnightRuntimeException.UnsupportedCommand -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
         }
     }
 
@@ -1349,6 +1360,10 @@ public object FfiConverterTypeMidnightRuntimeError : FfiConverterRustBuffer<Midn
             }
             is MidnightRuntimeException.NativeInternal -> {
                 buf.putInt(15)
+                Unit
+            }
+            is MidnightRuntimeException.UnsupportedCommand -> {
+                buf.putInt(16)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }

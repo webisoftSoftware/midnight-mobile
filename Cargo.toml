@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/runtime", "tools/bindgen"]
+members = ["crates/runtime", "crates/runtime-v9", "tools/bindgen"]
 default-members = ["crates/runtime"]
 resolver = "2"
 
@@ -12,3 +12,10 @@ version = "0.1.0"
 lto = true
 codegen-units = 1
 strip = "symbols"
+
+# Ledger 9 zkir pulls older crates.io builds of these for v1 proving; resolve them
+# to the Ledger 9 sources so one copy of each type exists (as the ledger repo does).
+[patch.crates-io]
+midnight-transient-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger", tag = "transient-crypto-2.2.0-rc.1" }
+midnight-base-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5" }
+midnight-serialize = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5" }

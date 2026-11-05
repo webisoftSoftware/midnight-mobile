@@ -7,22 +7,40 @@ use num_bigint::BigUint;
 use zeroize::Zeroize;
 
 mod codec;
+mod compat;
+#[cfg(not(feature = "ledger-v9"))]
+mod dispatch;
 mod executor;
+#[cfg(not(feature = "ledger-v9"))]
 mod local_prover;
 mod runtime;
 mod transaction;
 mod wallet_state;
 
+#[cfg(not(feature = "ledger-v9"))]
 pub use local_prover::{
     deterministic_zswap_output_request, deterministic_zswap_spend_check_request,
     deterministic_zswap_spend_request,
 };
+#[doc(hidden)]
+pub use runtime::extension;
 pub use runtime::{
     RuntimeSessionHandle, apply_sync_batch, begin_command, cancel_operation, close_wallet_session,
     export_wallet_checkpoint, get_wallet_snapshot, open_wallet_session, resume_operation,
+    sign_gateway_challenge,
 };
 
+/// Ledger 9 session and operation ids start here, so one id space routes to either engine.
+pub const ID_BASE: u64 = if cfg!(feature = "ledger-v9") {
+    1 << 40
+} else {
+    0
+};
+
+#[cfg(not(feature = "ledger-v9"))]
 const SOURCE_REVISION: &str = "02716c2c95d50654aeb3cb63bfd8386046e4ca7d";
+#[cfg(feature = "ledger-v9")]
+const SOURCE_REVISION: &str = "67f9f97246339539af0091c4d8c6bc5ab236a191";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WalletAddressMaterial {
@@ -32,7 +50,11 @@ pub struct WalletAddressMaterial {
     pub dust_public_key: String,
 }
 
-#[derive(Debug, thiserror::Error, uniffi::Error)]
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(
+    all(feature = "ffi", not(feature = "ledger-v9")),
+    derive(uniffi::Error)
+)]
 pub enum MidnightRuntimeError {
     #[error("UNAVAILABLE")]
     Unavailable,
@@ -64,6 +86,8 @@ pub enum MidnightRuntimeError {
     DecodeFailed,
     #[error("NATIVE_INTERNAL")]
     NativeInternal,
+    #[error("UNSUPPORTED_COMMAND")]
+    UnsupportedCommand,
 }
 
 pub fn parse_check_result(data: Vec<u8>) -> Result<Vec<Option<String>>, MidnightRuntimeError> {
@@ -135,6 +159,9 @@ fn serializable_hex<T: Serializable + ?Sized>(value: &T) -> Result<String, Midni
     Ok(hex::encode(serialized))
 }
 
+// The Ledger 9 build is a library of the Ledger 8 crate and exports no FFI of its own.
+// A host with its own UniFFI surface turns `ffi` off.
+#[cfg(all(feature = "ffi", not(feature = "ledger-v9")))]
 uniffi::setup_scaffolding!();
 
 #[cfg(test)]

@@ -54,10 +54,14 @@ export function validatePolicyManifest(manifest) {
   const errors = [];
   const keys = Object.keys(manifest).sort();
   if (
-    keys.length !== 4 ||
-    !["commandKinds", "contracts", "schemaVersion", "sourceInputs"].every(
-      (key) => keys.includes(key),
-    )
+    keys.length !== 5 ||
+    ![
+      "commandKinds",
+      "contracts",
+      "extensionKinds",
+      "schemaVersion",
+      "sourceInputs",
+    ].every((key) => keys.includes(key))
   ) {
     errors.push("boundary manifest has an unexpected schema");
   }
@@ -82,6 +86,10 @@ export function validatePolicyManifest(manifest) {
     );
   }
   validateCommandKinds(manifest.commandKinds, errors);
+  // Kinds outside commandKinds go to a host extension instead of failing.
+  if (manifest.extensionKinds !== "open") {
+    errors.push("extensionKinds must be open");
+  }
   validatePaths(manifest.sourceInputs, "sourceInputs", errors);
   return errors;
 }

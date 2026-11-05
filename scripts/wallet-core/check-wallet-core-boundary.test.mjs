@@ -78,11 +78,13 @@ test("policy manifest rejects malformed, duplicate, and unsafe values", () => {
   value.commandKinds.push(value.commandKinds[0]);
   value.sourceInputs = ["../outside"];
   delete value.contracts.rust;
+  value.extensionKinds = "closed";
   const errors = validatePolicyManifest(value);
   includesError(errors, "schemaVersion must be 2");
   includesError(errors, "duplicate kind");
   includesError(errors, "invalid repository path");
   includesError(errors, "exactly rust and typescript");
+  includesError(errors, "extensionKinds must be open");
 });
 
 test("extracts all TypeScript and Rust command surfaces", () => {
@@ -268,6 +270,7 @@ test("boundary scans configured source trees without inventorying every file", (
         rust: "src/types.rs",
       },
       commandKinds: [...ALLOWED_COMMAND_KINDS],
+      extensionKinds: "open",
       sourceInputs: ["src"],
     };
     const manifestPath = join(root, "boundary.json");

@@ -34,6 +34,9 @@ jobs:
 
       - name: Run release-candidate qualification
         run: npm run quality:rc
+        # Two ledger engines overflow the runner disk with debug info.
+        env:
+          CARGO_PROFILE_DEV_DEBUG: "0"
 
       - name: Verify tag and release inputs
         run: npm run check:release -- --tag "$GITHUB_REF_NAME"

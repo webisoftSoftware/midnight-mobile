@@ -44,7 +44,7 @@ pub(super) fn proof_effect(kind: transaction::RemoteProofKind) -> &'static str {
     }
 }
 
-pub(super) fn take_proving_key_material(
+pub fn take_proving_key_material(
     key_material: &mut Option<RuntimeProvingKeyMaterial>,
 ) -> Result<Option<ProvingKeyMaterial>, MidnightRuntimeError> {
     let Some(mut material) = key_material.take() else {
@@ -123,30 +123,7 @@ pub(super) fn proof_step_from_bodies(
     effect_id: &str,
     bodies: Vec<(&'static str, String)>,
 ) -> Result<OperationStep, MidnightRuntimeError> {
-    let total = bodies.len();
-    let (first_effect, first_body) = bodies.first().ok_or(MidnightRuntimeError::ProofFailed)?;
-    let effects = (total > 1).then(|| {
-        bodies
-            .iter()
-            .enumerate()
-            .map(|(index, (effect, body))| OperationEffect {
-                effect_id: proof_effect_id(effect_id, index, total),
-                effect,
-                endpoint_role: "proof",
-                body_base64: body.clone(),
-            })
-            .collect()
-    });
-    Ok(OperationStep {
-        kind: "network",
-        operation: Some(handle),
-        effect_id: Some(proof_effect_id(effect_id, 0, total)),
-        effect: Some(first_effect),
-        endpoint_role: Some("proof"),
-        body_base64: Some(first_body.clone()),
-        effects,
-        result_json: None,
-    })
+    extension::effects_step(handle, effect_id, extension::bodies_to_effects(bodies))
 }
 
 /// Builds the next network step from the requests already stored on the operation,
@@ -179,7 +156,7 @@ pub(super) fn pending_proof_step(
 /// missing, extra, or duplicated entries, so a partial batch can never silently
 /// under-fill the response map. `InvalidArgument` leaves the operation resumable; every
 /// other error retires it, matching the pre-batching single-effect semantics.
-pub(super) fn decode_proof_batch(
+pub fn decode_proof_batch(
     results: &[NetworkResult],
     pending: &[transaction::RemoteProofRequest],
     effect_id: &str,
@@ -220,7 +197,7 @@ pub(super) fn decode_proof_batch(
 }
 
 /// Memoizes one decoded body per outstanding request before the single replay pass.
-pub(super) fn accept_proof_batch(
+pub fn accept_proof_batch(
     responses: &mut transaction::RemoteProofResponses,
     pending: &[transaction::RemoteProofRequest],
     bodies: Vec<Vec<u8>>,
@@ -339,6 +316,7 @@ pub(super) struct TransactionFinalizationInput {
     pub(super) key_material: transaction::RemoteProofKeyMaterials,
     pub(super) proposed_state: Option<NativeWalletState>,
     pub(super) expected_identifiers: Vec<String>,
+    pub(super) local_balance: Option<LocalDustBalanceRequest>,
 }
 
 pub(super) fn start_transaction_finalization(
@@ -361,6 +339,7 @@ pub(super) fn start_transaction_finalization(
             key_material,
             proposed_state,
             expected_identifiers,
+            local_balance,
             ..
         } = input;
         match progress {
@@ -377,20 +356,35 @@ pub(super) fn start_transaction_finalization(
                         expected_identifiers,
                         responses,
                         pending_requests,
+                        local_balance,
                     },
                 )?;
                 registered_operation = Some(operation.id);
                 to_json(&proof_step_from_bodies(operation, &effect_id, bodies)?)
             }
-            transaction::BalanceProgress::Complete(finalized) => start_transaction_balance(
-                session_id,
-                generation,
-                session,
-                proposed_state,
-                expected_identifiers,
-                finalized,
-                &mut registered_operation,
-            ),
+            transaction::BalanceProgress::Complete(finalized) => match &local_balance {
+                Some(request) => start_local_transfer_balance(
+                    session_id,
+                    generation,
+                    session,
+                    request,
+                    LocalTransferBalanceInput {
+                        proposed_state,
+                        expected_identifiers,
+                        finalized,
+                    },
+                    &mut registered_operation,
+                ),
+                None => start_transaction_balance(
+                    session_id,
+                    generation,
+                    session,
+                    proposed_state,
+                    expected_identifiers,
+                    finalized,
+                    &mut registered_operation,
+                ),
+            },
         }
     })();
     if result.is_err() {
@@ -418,7 +412,7 @@ pub(super) fn start_transaction_balance(
     {
         return Err(MidnightRuntimeError::ProofFailed);
     }
-    let body = finalized.canonical;
+    let body = Zeroizing::new(finalized.canonical);
     let (operation, effect_id) = register_reserved_operation(
         session_id,
         generation,
@@ -496,12 +490,11 @@ where
     match Option::<NumericValue>::deserialize(deserializer)? {
         None => Ok(None),
         Some(NumericValue::Integer(value)) => Ok(Some(value)),
-        Some(NumericValue::Decimal(value)) => value
+        // The wallet core may send '' or an opaque string: keep only canonical numbers.
+        Some(NumericValue::Decimal(value)) => Ok(value
             .parse::<u64>()
             .ok()
-            .filter(|parsed| parsed.to_string() == value)
-            .map(Some)
-            .ok_or_else(|| serde::de::Error::custom("expiresAt must be a canonical u64")),
+            .filter(|parsed| parsed.to_string() == value)),
     }
 }
 

@@ -29,6 +29,7 @@ pub(super) fn resume(
         balancing_raw,
         responses,
         pending_requests,
+        ..
     } = &mut operation.kind
     {
         if accept_proof_batch(responses, pending_requests, bodies).is_err() {
@@ -47,6 +48,21 @@ pub(super) fn resume(
     };
     match progress {
         Ok(transaction::BalanceProgress::Complete(finalized)) => {
+            let PendingOperationKind::Balance {
+                proposed_state,
+                expected_identifiers,
+                ..
+            } = operation.kind
+            else {
+                return Err(MidnightRuntimeError::NativeInternal);
+            };
+            if !covers_expected_identifiers(&finalized, &expected_identifiers) {
+                clear_active_operation(&mut state, operation_id);
+                return Err(MidnightRuntimeError::ProofFailed);
+            }
+            if let Some(proposed_state) = proposed_state {
+                state.wallet_state = proposed_state;
+            }
             clear_active_operation(&mut state, operation_id);
             to_json(&OperationStep {
                 kind: "complete",

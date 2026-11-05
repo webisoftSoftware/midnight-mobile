@@ -1,5 +1,9 @@
+use midnight_base_crypto::time::Timestamp;
+use midnight_ledger::dust::{InitialNonce, dust_first_nonce};
 use midnight_ledger::events::{Event, EventDetails, EventSource, ZswapPreimageEvidence};
 use midnight_ledger::structure::{INITIAL_PARAMETERS, TransactionHash};
+
+use serde_json::Value;
 
 use super::*;
 
@@ -244,4 +248,292 @@ fn wallet_sync_snapshot_restore_and_dust_requests_round_trip() {
             .validate_dust_registration_fee(&[], &INITIAL_PARAMETERS, 0, 0)
             .is_err()
     );
+}
+
+#[test]
+fn nullable_unshielded_ctime_uses_the_transaction_block_time() {
+    let material = fixture_material();
+    let night = secret("nightExternalKeyHex");
+    let state = NativeWalletState::restore(
+        &LegacyWalletState::default(),
+        RestoreContext {
+            network_id: "preprod",
+            unshielded_address: "mn_addr_preprod1fixture",
+            address_material: &material,
+            night_external_key: &night,
+        },
+    )
+    .unwrap();
+    let update = |registered| {
+        serde_json::json!({
+            "type": "UnshieldedTransaction",
+            "transaction": {
+                "id": 1,
+                "type": "RegularTransaction",
+                "block": { "timestamp": 1_700_000_123_456_i64 },
+                "transactionResult": { "status": "SUCCESS" }
+            },
+            "createdUtxos": [{
+                "value": "7",
+                "owner": "mn_addr_preprod1fixture",
+                "tokenType": "00".repeat(32),
+                "intentHash": "11".repeat(32),
+                "outputIndex": 0,
+                "ctime": null,
+                "registeredForDustGeneration": registered
+            }],
+            "spentUtxos": []
+        })
+        .to_string()
+        .into_bytes()
+    };
+    let applied = state
+        .apply_batch(
+            "unshielded",
+            &[update(false)],
+            &secret("zswapSeedHex"),
+            &secret("dustSeedHex"),
+        )
+        .unwrap();
+    assert_eq!(
+        applied.unshielded.available_utxos[0].meta.ctime,
+        1_700_000_123_456
+    );
+    assert!(matches!(
+        state.apply_batch(
+            "unshielded",
+            &[update(true)],
+            &secret("zswapSeedHex"),
+            &secret("dustSeedHex"),
+        ),
+        Err(MidnightRuntimeError::InvalidArgument)
+    ));
+
+    let mut without_block_time: Value = serde_json::from_slice(&update(false)).unwrap();
+    without_block_time["transaction"]
+        .as_object_mut()
+        .unwrap()
+        .remove("block");
+    assert!(matches!(
+        state.apply_batch(
+            "unshielded",
+            &[serde_json::to_vec(&without_block_time).unwrap()],
+            &secret("zswapSeedHex"),
+            &secret("dustSeedHex"),
+        ),
+        Err(MidnightRuntimeError::InvalidArgument)
+    ));
+}
+
+#[test]
+fn shielded_spent_reconciliation_only_removes_exact_owned_nullifiers() {
+    let material = fixture_material();
+    let night = secret("nightExternalKeyHex");
+    let zswap_seed = secret("zswapSeedHex");
+    let mut state = NativeWalletState::restore(
+        &LegacyWalletState::default(),
+        RestoreContext {
+            network_id: "preprod",
+            unshielded_address: "mn_addr_preprod1fixture",
+            address_material: &material,
+            night_external_key: &night,
+        },
+    )
+    .unwrap();
+    let seed: [u8; 32] = zswap_seed.clone().try_into().unwrap();
+    let keys = ZswapSecretKeys::from(ZswapSeed::from(seed));
+    let coin = ShieldedCoinInfo {
+        nonce: Default::default(),
+        type_: Default::default(),
+        value: 7,
+    };
+    state.shielded = state.shielded.insert_coin(&keys, coin).unwrap();
+    state.refresh_coin_hashes(&keys).unwrap();
+    let nullifier = state.coin_hashes.values().next().unwrap().nullifier.clone();
+    let request: Value = serde_json::from_slice(&state.shielded_spent_request().unwrap()).unwrap();
+    assert_eq!(request["nullifierPrefixes"][0], &nullifier[..32]);
+
+    let response = serde_json::json!({
+        "results": [
+            { "nullifier": "ff".repeat(32), "eventId": 16, "spent": true },
+            {
+                "nullifier": nullifier.to_ascii_uppercase(),
+                "eventId": 17,
+                "spent": true
+            },
+        ],
+        "lastEventId": 17,
+    })
+    .to_string();
+    let (proposed, removed) = state
+        .apply_shielded_spent_response(response.as_bytes(), &zswap_seed)
+        .unwrap();
+    assert_eq!(removed, 1);
+    assert_eq!(state.shielded.coins.iter().count(), 1);
+    assert_eq!(proposed.shielded.coins.iter().count(), 0);
+    assert!(proposed.coin_hashes.is_empty());
+
+    assert!(matches!(
+        state.apply_shielded_spent_response(br#"{"results":[{"nullifier":"ABC"}]}"#, &zswap_seed,),
+        Err(MidnightRuntimeError::InvalidArgument)
+    ));
+}
+
+#[test]
+fn dust_spend_chain_resolution_matches_the_established_36_byte_identity_layout() {
+    let material = fixture_material();
+    let night = secret("nightExternalKeyHex");
+    let dust_seed = secret("dustSeedHex");
+    let mut state = NativeWalletState::restore(
+        &LegacyWalletState::default(),
+        RestoreContext {
+            network_id: "preprod",
+            unshielded_address: "mn_addr_preprod1fixture",
+            address_material: &material,
+            night_external_key: &night,
+        },
+    )
+    .unwrap();
+    let seed: [u8; 32] = dust_seed.clone().try_into().unwrap();
+    let key = DustSecretKey::derive_secret_key(&seed);
+    let owner = DustPublicKey::from(key.clone());
+    let backing_night = InitialNonce(HashOutput([7_u8; 32]));
+    let generation = DustGenerationInfo {
+        value: 1_000,
+        owner,
+        nonce: backing_night,
+        dtime: Timestamp::from_secs(2_000_000_000),
+    };
+    state.dust = state
+        .dust
+        .insert_generation_info(0, generation, Some(backing_night))
+        .unwrap();
+    let output = QualifiedDustOutput {
+        initial_value: 100,
+        owner,
+        nonce: dust_first_nonce(&backing_night, &owner),
+        seq: 0,
+        ctime: Timestamp::from_secs(1_900_000_000),
+        backing_night,
+        mt_index: 0,
+    };
+    state.dust = state.dust.insert_commitment(0, output, true).unwrap();
+    state.dust = state
+        .dust
+        .add_utxo(&output.nullifier(&key), &output, None)
+        .unwrap();
+
+    let mut spend = Vec::new();
+    spend.extend_from_slice(&7_u64.to_le_bytes());
+    spend.extend_from_slice(&1_u32.to_le_bytes());
+    spend.extend_from_slice(&output.nullifier(&key).0.as_le_bytes()[..16]);
+    spend.extend_from_slice(&9_u64.to_le_bytes());
+    spend.extend_from_slice(&3_u64.to_le_bytes());
+    spend.extend_from_slice(&1_900_000_010_u32.to_le_bytes());
+    let DustSpendResolution::Changed(resolved) = state
+        .resolve_dust_spend_chains(&spend, 7, &dust_seed)
+        .unwrap()
+    else {
+        unreachable!("matching spend record must advance the wallet UTXO")
+    };
+    let successor = resolved.utxos().next().unwrap();
+    assert_eq!(successor.seq, 1);
+    assert_eq!(successor.mt_index, 9);
+    assert_eq!(successor.ctime, Timestamp::from_secs(1_900_000_010));
+    assert_eq!(state.dust.utxos().next().unwrap(), output);
+
+    let mut duplicate = spend.clone();
+    duplicate[8..12].copy_from_slice(&2_u32.to_le_bytes());
+    duplicate.extend_from_slice(&spend[12..]);
+    assert!(matches!(
+        state.resolve_dust_spend_chains(&duplicate, 7, &dust_seed),
+        Err(MidnightRuntimeError::InvalidArgument)
+    ));
+
+    let mut stale = spend;
+    stale[..8].copy_from_slice(&6_u64.to_le_bytes());
+    assert!(matches!(
+        state.resolve_dust_spend_chains(&stale, 7, &dust_seed),
+        Err(MidnightRuntimeError::SyncGap)
+    ));
+}
+
+#[test]
+fn dust_spend_and_commitment_rebuild_commit_as_one_native_state_transition() {
+    let material = fixture_material();
+    let night = secret("nightExternalKeyHex");
+    let dust_seed = secret("dustSeedHex");
+    let mut state = NativeWalletState::restore(
+        &LegacyWalletState::default(),
+        RestoreContext {
+            network_id: "preprod",
+            unshielded_address: "mn_addr_preprod1fixture",
+            address_material: &material,
+            night_external_key: &night,
+        },
+    )
+    .unwrap();
+    let seed: [u8; 32] = dust_seed.clone().try_into().unwrap();
+    let key = DustSecretKey::derive_secret_key(&seed);
+    let owner = DustPublicKey::from(key.clone());
+    let backing_night = InitialNonce(HashOutput([8_u8; 32]));
+    let generation = DustGenerationInfo {
+        value: 1_000,
+        owner,
+        nonce: backing_night,
+        dtime: Timestamp::from_secs(2_000_000_000),
+    };
+    state.dust = state
+        .dust
+        .insert_generation_info(0, generation, Some(backing_night))
+        .unwrap();
+    let output = QualifiedDustOutput {
+        initial_value: 100,
+        owner,
+        nonce: dust_first_nonce(&backing_night, &owner),
+        seq: 0,
+        ctime: Timestamp::from_secs(1_900_000_000),
+        backing_night,
+        mt_index: 0,
+    };
+    state.dust = state.dust.insert_commitment(0, output, true).unwrap();
+    state.dust = state
+        .dust
+        .add_utxo(&output.nullifier(&key), &output, None)
+        .unwrap();
+
+    let mut spend = Vec::new();
+    spend.extend_from_slice(&11_u64.to_le_bytes());
+    spend.extend_from_slice(&1_u32.to_le_bytes());
+    spend.extend_from_slice(&output.nullifier(&key).0.as_le_bytes()[..16]);
+    spend.extend_from_slice(&0_u64.to_le_bytes());
+    spend.extend_from_slice(&3_u64.to_le_bytes());
+    spend.extend_from_slice(&1_900_000_010_u32.to_le_bytes());
+
+    let mut placeholder = Vec::new();
+    output.serialize(&mut placeholder).unwrap();
+    let mut commitment = Vec::new();
+    commitment.extend_from_slice(&1_u32.to_le_bytes());
+    commitment.extend_from_slice(&0_u32.to_le_bytes());
+    commitment.extend_from_slice(&(placeholder.len() as u32).to_le_bytes());
+    commitment.extend_from_slice(&placeholder);
+    commitment.extend_from_slice(&0_u64.to_le_bytes());
+    commitment.extend_from_slice(&0_u32.to_le_bytes());
+    commitment.extend_from_slice(&11_u64.to_le_bytes());
+
+    let proposed = state
+        .apply_dust_spend_resolution(&spend, &commitment, 11, &dust_seed)
+        .unwrap();
+    assert_eq!(state.dust.utxos().next().unwrap().seq, 0);
+    assert_eq!(proposed.dust.utxos().next().unwrap().seq, 1);
+    assert_eq!(proposed.dust.commitment_tree_first_free, 1);
+
+    let mut wrong_tip = commitment;
+    let tip_offset = wrong_tip.len() - 8;
+    wrong_tip[tip_offset..].copy_from_slice(&12_u64.to_le_bytes());
+    assert!(matches!(
+        state.apply_dust_spend_resolution(&spend, &wrong_tip, 11, &dust_seed),
+        Err(MidnightRuntimeError::SyncGap)
+    ));
+    assert_eq!(state.dust.utxos().next().unwrap().seq, 0);
 }

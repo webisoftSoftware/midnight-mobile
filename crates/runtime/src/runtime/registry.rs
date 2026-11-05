@@ -41,15 +41,17 @@ pub(super) fn valid_checkpoint_stream(stream: &str) -> bool {
 pub(super) fn validate_config(
     config: WalletSessionConfig,
 ) -> Result<WalletSessionConfig, MidnightRuntimeError> {
+    // Stagenet runs on Ledger 9 only; the Ledger 8 engine hands it to `dispatch`.
     let valid_network = matches!(
         config.network_id.as_str(),
         "preview" | "preprod" | "mainnet"
-    );
+    ) || (cfg!(feature = "ledger-v9") && config.network_id == "stagenet");
     let valid_fingerprint =
         !config.wallet_fingerprint.trim().is_empty() && config.wallet_fingerprint.len() <= 256;
     let valid_address =
         !config.unshielded_address.trim().is_empty() && config.unshielded_address.len() <= 256;
-    if !valid_network || !valid_fingerprint || !valid_address {
+    let valid_ledger = matches!(config.ledger.as_deref(), None | Some("v8" | "v9"));
+    if !valid_network || !valid_fingerprint || !valid_address || !valid_ledger {
         return Err(MidnightRuntimeError::InvalidArgument);
     }
     Ok(config)

@@ -26,7 +26,6 @@ export interface MidnightDappInput {
 export interface MidnightCommandMap {
   readonly signData: {
     readonly kind: "signData";
-    readonly domain: string;
     readonly dataBase64: string;
   };
   readonly createCheckPayload: {
@@ -183,6 +182,15 @@ export interface MidnightBalanceManifest {
 export interface MidnightBalancePreviewResult {
   readonly manifest: MidnightBalanceManifest;
   readonly manifestDigest: string;
+}
+
+/**
+ * A command the SDK does not know. A host extension handles it; without one the
+ * runtime fails with UNSUPPORTED_COMMAND. Not part of `MidnightCommandMap`.
+ */
+export interface MidnightExtensionCommand {
+  readonly kind: string;
+  readonly [field: string]: unknown;
 }
 
 export type MidnightCommandKind = keyof MidnightCommandMap;

@@ -226,7 +226,6 @@ await test("runtime API maps every remaining native ABI method", async () => {
   );
   const begun = await api.beginCommand(session, {
     kind: "signData",
-    domain: "test",
     dataBase64: "",
   });
   assert.equal(begun.kind, "complete");

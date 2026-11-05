@@ -38,6 +38,8 @@ export interface MidnightWalletSessionConfig {
   readonly networkId: MidnightNetworkId;
   readonly walletFingerprint: string;
   readonly unshieldedAddress: string;
+  /** Ledger the chain head runs. Omitted: only stagenet uses Ledger 9. */
+  readonly ledger?: "v8" | "v9";
 }
 
 export interface MidnightWalletSessionSecrets {

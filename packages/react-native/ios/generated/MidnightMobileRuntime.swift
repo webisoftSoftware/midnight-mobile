@@ -617,6 +617,7 @@ enum MidnightRuntimeError: Swift.Error, Equatable, Hashable, Foundation.Localize
     case InvalidLength
     case DecodeFailed
     case NativeInternal
+    case UnsupportedCommand
 
 
 
@@ -661,6 +662,7 @@ public struct FfiConverterTypeMidnightRuntimeError: FfiConverterRustBuffer {
         case 13: return .InvalidLength
         case 14: return .DecodeFailed
         case 15: return .NativeInternal
+        case 16: return .UnsupportedCommand
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -731,6 +733,10 @@ public struct FfiConverterTypeMidnightRuntimeError: FfiConverterRustBuffer {
 
         case .NativeInternal:
             writeInt(&buf, Int32(15))
+
+
+        case .UnsupportedCommand:
+            writeInt(&buf, Int32(16))
 
         }
     }

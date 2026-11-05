@@ -38,15 +38,15 @@ pub(crate) struct BalanceRequest<'a> {
     pub(crate) fee_blocks_margin: usize,
     pub(crate) additional_fee_overhead: u128,
     pub(crate) fee_mode: FeeMode,
+    /// Set this field to true to create wallet signatures. Set it to false for
+    /// a preview. A preview selects inputs and calculates fees, but it does not
+    /// create valid signatures.
+    pub(crate) materialize: bool,
     pub(crate) night_external_key: &'a [u8],
     pub(crate) zswap_seed: &'a [u8],
     pub(crate) dust_seed: &'a [u8],
     pub(crate) current_time_seconds: u64,
     pub(crate) ttl_seconds: u64,
-    /// Set this field to true to create wallet signatures. Set it to false for
-    /// a preview. A preview selects inputs and calculates fees, but it does not
-    /// create valid signatures.
-    pub(crate) materialize: bool,
 }
 
 #[derive(Debug)]
@@ -219,7 +219,7 @@ impl NativeWalletState {
 
         let signing_key = SigningKey::from_bytes(request.night_external_key)
             .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
-        let verifying_key = signing_key.verifying_key();
+        let verifying_key = crate::compat::owner_key(&signing_key);
         let owner = UserAddress::from(verifying_key.clone());
         let mut zswap_seed: [u8; 32] = request
             .zswap_seed
@@ -391,7 +391,7 @@ impl NativeWalletState {
             FeeMode::LocalDust => {
                 let segment = free_segments(&used_segments, 1)?[0];
                 let balance = dust::plan(
-                    &proposed.dust,
+                    &proposed,
                     dust::DustRequest {
                         network_id: request.network_id,
                         base: &token_balanced,

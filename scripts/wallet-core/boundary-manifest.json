@@ -29,6 +29,7 @@
     "finalizeUnprovenTransaction",
     "submitFinalized"
   ],
+  "extensionKinds": "open",
   "sourceInputs": [
     "crates/runtime/src",
     "packages/react-native/src",
