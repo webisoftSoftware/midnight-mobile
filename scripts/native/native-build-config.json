@@ -37,7 +37,7 @@
         "architecture": "x86_64"
       }
     ],
-    "compressedBudgetBytes": 15728640,
+    "compressedBudgetBytes": 25165824,
     "localProver": {
       "exportedFunctions": [
         "midnight_mobile_local_prover_cancel",
