@@ -117,8 +117,8 @@ function validateAppleConfig(apple, errors) {
   ) {
     errors.push("Apple targets must match the reviewed architecture set");
   }
-  if (apple?.compressedBudgetBytes !== 15 * 1024 * 1024) {
-    errors.push("Apple compressed XCFramework budget must be exactly 15 MiB");
+  if (apple?.compressedBudgetBytes !== 24 * 1024 * 1024) {
+    errors.push("Apple compressed XCFramework budget must be exactly 24 MiB");
   }
 }
 
