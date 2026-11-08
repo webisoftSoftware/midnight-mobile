@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use midnight_coin_structure::coin::{Info as CoinInfo, QualifiedInfo as QualifiedCoinInfo};
 use midnight_ledger::structure::{ProofPreimageVersioned, ProofVersioned};
-use midnight_proofs::poly::commitment::Params;
+use midnight_proofs::{poly::commitment::Params, utils::SerdeFormat};
 use midnight_serialize::{tagged_deserialize, tagged_serialize};
 use midnight_storage::db::InMemoryDB;
 use midnight_transient_crypto::curve::Fr;
@@ -25,6 +25,7 @@ use zeroize::Zeroizing;
 
 mod ffi;
 mod timings;
+mod zkir_v3;
 
 use crate::executor::block_on;
 use timings::{ProveStageDurations, maybe_record_prove_timing, stage_micros};
@@ -258,6 +259,19 @@ struct MemoryRegistry {
     circuits: HashMap<String, ProvingKeyMaterial>,
 }
 
+impl MemoryRegistry {
+    fn v3_params(&self, k: u8) -> io::Result<zkir_v3::ParamsProver> {
+        let params = self.params.get(&k).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::NotFound, format!("missing params k={k}"))
+        })?;
+        let mut bytes = Vec::new();
+        params
+            .0
+            .write_custom(&mut bytes, SerdeFormat::RawBytesUnchecked)?;
+        zkir_v3::ParamsProver::read(&bytes[..])
+    }
+}
+
 impl ParamsProverProvider for MemoryRegistry {
     async fn get_params(&self, k: u8) -> io::Result<ParamsProver> {
         self.params
@@ -341,6 +355,16 @@ fn decode_circuit(
     ] {
         verify_hash(bytes, hash)?;
     }
+    let material = ProvingKeyMaterial {
+        prover_key: input.prover_key.to_vec(),
+        verifier_key: input.verifier_key.to_vec(),
+        ir_source: input.ir.to_vec(),
+    };
+    if zkir_v3::matches_tag(input.ir) {
+        let k = zkir_v3::validate_keys(&material)
+            .map_err(|_| LocalProverError::InvalidConfiguration)?;
+        return Ok((k, material));
+    }
     let ir = IrSource::load_from_tagged(Cursor::new(input.ir))
         .map_err(|_| LocalProverError::InvalidConfiguration)?;
     let prover_key = IrSource::load_prover_key_from_tagged(Cursor::new(input.prover_key))
@@ -358,14 +382,7 @@ fn decode_circuit(
     verifier_key
         .init()
         .map_err(|_| LocalProverError::InvalidConfiguration)?;
-    Ok((
-        ir.k(),
-        ProvingKeyMaterial {
-            prover_key: input.prover_key.to_vec(),
-            verifier_key: input.verifier_key.to_vec(),
-            ir_source: input.ir.to_vec(),
-        },
-    ))
+    Ok((ir.k(), material))
 }
 
 fn build_registry(
@@ -507,14 +524,18 @@ pub(crate) fn run_check(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalPro
     if ir_bytes.is_empty() || ir_bytes.len() > MAX_ARTIFACT_BYTES {
         return Err(LocalProverError::ResourcePreflightFailed);
     }
-    let ir = IrSource::load_from_tagged(Cursor::new(ir_bytes))
-        .map_err(|_| LocalProverError::UnsupportedCircuit)?;
-    let result = preimage
-        .check(&ir)
-        .map_err(|_| LocalProverError::CheckFailed)?
-        .into_iter()
-        .map(|entry| entry.and_then(|value| u64::try_from(value).ok()))
-        .collect::<Vec<_>>();
+    let result = if zkir_v3::matches_tag(&ir_bytes) {
+        zkir_v3::check(&preimage, &ir_bytes).map_err(|_| LocalProverError::CheckFailed)?
+    } else {
+        let ir = IrSource::load_from_tagged(Cursor::new(ir_bytes))
+            .map_err(|_| LocalProverError::UnsupportedCircuit)?;
+        preimage
+            .check(&ir)
+            .map_err(|_| LocalProverError::CheckFailed)?
+    }
+    .into_iter()
+    .map(|entry| entry.and_then(|value| u64::try_from(value).ok()))
+    .collect::<Vec<_>>();
     serialize_response(&result)
 }
 
@@ -562,10 +583,14 @@ fn validate_supplied_material(
         material.verifier_key.len(),
         material.ir_source.len(),
     ])?;
-    let ir = IrSource::load_from_tagged(Cursor::new(&material.ir_source))
-        .map_err(|_| LocalProverError::UnsupportedCircuit)?;
+    let k = if zkir_v3::matches_tag(&material.ir_source) {
+        zkir_v3::circuit_size(&material.ir_source)
+    } else {
+        IrSource::load_from_tagged(Cursor::new(&material.ir_source)).map(|ir| ir.k())
+    }
+    .map_err(|_| LocalProverError::UnsupportedCircuit)?;
     let available_ks: Vec<u8> = registry.params.keys().copied().collect();
-    match refuse_for_size(ir.k(), &available_ks) {
+    match refuse_for_size(k, &available_ks) {
         Some(error) => Err(error),
         None => Ok(()),
     }
@@ -606,21 +631,37 @@ pub(crate) fn run_prove(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalPro
     let key_location = preimage.key_location.0.to_string();
     let cached_material = profiling.then(|| selected_material.clone());
 
-    let resolver = RequestResolver {
-        registry: &registry,
-        supplied,
-    };
     let prove_start = Instant::now();
     // `block_on` here must be the re-entrant one from `crate::executor`, never
     // `futures_executor::block_on`: a pool worker driving another admitted proof can
     // steal this job and land a second `block_on` on its own stack. See issue #136.
-    let (proof, _) = prover_pool()?
-        .install(|| block_on(preimage.prove::<IrSource>(OsRng, &*registry, &resolver)))
-        .map_err(|_| LocalProverError::ProofFailed)?;
+    let pool = prover_pool()?;
+    let v3 = zkir_v3::matches_tag(&selected_material.ir_source);
+    let proof = if v3 {
+        pool.install(|| {
+            block_on(zkir_v3::prove(&preimage, selected_material, |k| {
+                registry.v3_params(k)
+            }))
+        })
+        .map_err(|_| LocalProverError::ProofFailed)?
+    } else {
+        let resolver = RequestResolver {
+            registry: &registry,
+            supplied,
+        };
+        pool.install(|| block_on(preimage.prove::<IrSource>(OsRng, &*registry, &resolver)))
+            .map_err(|_| LocalProverError::ProofFailed)?
+            .0
+    };
     let prove_call_micros = stage_micros(prove_start);
 
     let serialize_start = Instant::now();
-    let response = serialize_response(&ProofVersioned::V2(proof))?;
+    let response = if v3 {
+        // Ledger 9 uses the verifier key to version the raw proof.
+        serialize_response(&proof)?
+    } else {
+        serialize_response(&ProofVersioned::V2(proof))?
+    };
     let serialize_response_micros = stage_micros(serialize_start);
 
     maybe_record_prove_timing(
