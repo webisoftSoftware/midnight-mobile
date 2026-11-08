@@ -19,3 +19,4 @@ strip = "symbols"
 midnight-transient-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger", tag = "transient-crypto-2.2.0-rc.1" }
 midnight-base-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5" }
 midnight-serialize = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5" }
+midnight-transient-crypto-v3 = { package = "midnight-transient-crypto", git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5" }
