@@ -91,8 +91,18 @@ fn decode_proof(raw: &[u8]) -> Result<Proof, anyhow::Error> {
     let versioned: ProofVersioned = tagged_deserialize(&mut &raw[..])?;
     match versioned {
         ProofVersioned::V2(proof) => Ok(proof),
+        #[cfg(feature = "ledger-v9")]
+        ProofVersioned::V3(proof) => Ok(proof),
         _ => Err(anyhow::anyhow!("unsupported proof version")),
     }
+}
+
+#[cfg(all(test, feature = "ledger-v9"))]
+#[test]
+fn accepts_version_three_proof_responses() {
+    let mut raw = Vec::new();
+    tagged_serialize(&ProofVersioned::V3(Proof(vec![1])), &mut raw).unwrap();
+    assert_eq!(decode_proof(&raw).unwrap().0, vec![1]);
 }
 
 impl PausingProver<'_> {
