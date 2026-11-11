@@ -156,7 +156,7 @@ fn unshielded_transfer_signs_the_intent_and_reserves_selected_utxos_atomically()
             UnshieldedTransferInput {
                 network_id: "preprod",
                 target_address: &target,
-                amount: 4,
+                amount: 10,
                 token_type: &night_token,
                 night_external_key: &night,
                 ttl_seconds: 1_900_000_000,
@@ -178,7 +178,7 @@ fn unshielded_transfer_signs_the_intent_and_reserves_selected_utxos_atomically()
         offer
             .outputs
             .iter()
-            .any(|output| { output.value == 4 && output.owner == target_user_address })
+            .any(|output| { output.value == 10 && output.owner == target_user_address })
     );
     let signatures = offer.signatures.iter().collect::<Vec<_>>();
     assert_eq!(signatures.len(), 2);
@@ -213,4 +213,19 @@ fn unshielded_transfer_signs_the_intent_and_reserves_selected_utxos_atomically()
         Err(MidnightRuntimeError::InvalidArgument)
     ));
     assert!(state.unshielded.pending_utxos.is_empty());
+}
+
+#[test]
+fn unshielded_selection_pays_from_the_smallest_covering_coin_else_the_largest() {
+    let coins = |values: &[u128]| values.iter().map(|value| (*value, *value)).collect();
+    let picked = |selected: Vec<(u128, u128)>| {
+        selected
+            .into_iter()
+            .map(|(_, coin)| coin)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(picked(covering_coins(coins(&[1, 2, 3, 100]), 50)), [100]);
+    assert_eq!(picked(covering_coins(coins(&[1, 60, 70, 100]), 50)), [60]);
+    assert_eq!(picked(covering_coins(coins(&[1, 2, 30, 40]), 50)), [40, 30]);
+    assert_eq!(picked(covering_coins(coins(&[1, 2, 3]), 50)), [3, 2, 1]);
 }

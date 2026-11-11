@@ -194,28 +194,25 @@ impl NativeWalletState {
             .unshielded
             .available_utxos
             .iter()
-            .filter_map(|coin| {
-                let candidate_type = decode_hash(&coin.utxo.type_).ok()?;
-                (candidate_type == token_type.0).then_some(coin.clone())
+            .filter(|coin| decode_hash(&coin.utxo.type_).ok() == Some(token_type.0))
+            .map(|coin| {
+                let value = coin
+                    .utxo
+                    .value
+                    .parse::<u128>()
+                    .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
+                Ok((value, coin.clone()))
             })
-            .collect::<Vec<_>>();
-        available.sort_by_key(|coin| coin.utxo.value.parse::<u128>().unwrap_or(u128::MAX));
+            .collect::<Result<Vec<_>, MidnightRuntimeError>>()?;
+        available.sort_by_key(|(value, _)| *value);
 
         let mut selected = Vec::new();
         let mut selected_value = 0_u128;
-        for coin in available {
-            let value = coin
-                .utxo
-                .value
-                .parse::<u128>()
-                .map_err(|_| MidnightRuntimeError::StateIncompatible)?;
+        for (value, coin) in covering_coins(available, amount) {
             selected_value = selected_value
                 .checked_add(value)
                 .ok_or(MidnightRuntimeError::InvalidArgument)?;
             selected.push(coin);
-            if selected_value >= amount {
-                break;
-            }
         }
         if selected_value < amount {
             return Err(MidnightRuntimeError::InvalidArgument);

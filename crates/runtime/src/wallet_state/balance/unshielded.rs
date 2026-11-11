@@ -23,14 +23,14 @@ fn parse_value(value: &str) -> Result<u128, MidnightRuntimeError> {
         .map_err(|_| MidnightRuntimeError::StateIncompatible)
 }
 
-/// Deterministic smallest-coin-first ordering, matching the Wallet SDK's coin
-/// selection. The intent hash and output number break ties so two runs over the
-/// same wallet state always select the same UTXOs.
+/// Spendable coins of `token` with their values, ordered by value. The intent
+/// hash and output number break ties so two runs over the same wallet state
+/// always select the same UTXOs.
 fn candidates(
     state: &NativeWalletState,
     token: UnshieldedTokenType,
     already_taken: &[UnshieldedUtxoWithMeta],
-) -> Result<Vec<UnshieldedUtxoWithMeta>, MidnightRuntimeError> {
+) -> Result<Vec<(u128, UnshieldedUtxoWithMeta)>, MidnightRuntimeError> {
     let mut available = Vec::new();
     for coin in &state.unshielded.available_utxos {
         if decode_hash(&coin.utxo.type_).ok() != Some(token.0) {
@@ -68,7 +68,7 @@ fn candidates(
                 .then_with(|| left.1.utxo.output_no.cmp(&right.1.utxo.output_no))
         })
     });
-    Ok(keyed.into_iter().map(|(_, coin)| coin).collect())
+    Ok(keyed)
 }
 
 /// Resolves every unshielded imbalance of one segment against the wallet.
@@ -106,8 +106,7 @@ pub(super) fn plan_segment(
         let mut taken = already_taken.to_vec();
         taken.extend(plan.spent.iter().cloned());
         let mut selected = 0_u128;
-        for coin in candidates(state, *token, &taken)? {
-            let value = parse_value(&coin.utxo.value)?;
+        for (value, coin) in covering_coins(candidates(state, *token, &taken)?, needed) {
             plan.inputs.push(UtxoSpend {
                 value,
                 owner: verifying_key.clone(),
@@ -119,9 +118,6 @@ pub(super) fn plan_segment(
             selected = selected
                 .checked_add(value)
                 .ok_or(MidnightRuntimeError::InvalidArgument)?;
-            if selected >= needed {
-                break;
-            }
         }
         if selected < needed {
             return Err(MidnightRuntimeError::InsufficientFunds);

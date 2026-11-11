@@ -277,3 +277,19 @@ fn upsert_utxo(values: &mut Vec<UnshieldedUtxoWithMeta>, value: UnshieldedUtxoWi
     remove_utxo(values, &value.utxo);
     values.push(value);
 }
+
+/// Pays from the smallest coin that covers what is still owed, else the largest,
+/// and repeats. Smallest-first adds an input (one more signature for the node to
+/// check) per small coin, which can push a payment over the node's
+/// time-to-dismiss limit (`Custom error: 231`). `coins` must be sorted by value.
+fn covering_coins<T>(mut coins: Vec<(u128, T)>, needed: u128) -> Vec<(u128, T)> {
+    let mut selected = Vec::new();
+    let mut owed = needed;
+    while owed > 0 && !coins.is_empty() {
+        let covering = coins.partition_point(|(value, _)| *value < owed);
+        let coin = coins.remove(covering.min(coins.len() - 1));
+        owed = owed.saturating_sub(coin.0);
+        selected.push(coin);
+    }
+    selected
+}

@@ -78,8 +78,8 @@
       ]
     },
     {
-      "name": "smallest-coin-first-selection",
-      "note": "Selection is smallest-first, so two small coins are consumed before the large one.",
+      "name": "covering-coin-selection",
+      "note": "No small coin covers the payment, so the wallet spends the one large coin instead of adding the small ones as extra inputs.",
       "coins": [
         {
           "type": "0909090909090909090909090909090909090909090909090909090909090909",
@@ -112,7 +112,7 @@
       "change": [
         {
           "tokenType": "0909090909090909090909090909090909090909090909090909090909090909",
-          "amount": "5"
+          "amount": "975"
         }
       ]
     },
