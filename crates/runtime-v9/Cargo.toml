@@ -32,14 +32,14 @@ zeroize = { version = "=1.9.0", default-features = false }
 
 # Same dependency keys as `runtime`, resolved to Ledger 9 so the shared sources
 # compile unchanged. No zkir/proofs/rayon: the local prover stays on Ledger 8.
-midnight-ledger = { package = "midnight-ledger-v9", git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5", default-features = false }
-midnight-onchain-runtime = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5", default-features = false }
-midnight-base-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5", default-features = false }
-midnight-coin-structure = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5", default-features = false }
-midnight-serialize = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5", default-features = false }
-midnight-storage = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5", default-features = false }
-midnight-transient-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5", default-features = false }
-midnight-zswap = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5", default-features = false }
+midnight-ledger = { package = "midnight-ledger-v9", git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.2", default-features = false }
+midnight-onchain-runtime = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.2", default-features = false }
+midnight-base-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.2", default-features = false }
+midnight-coin-structure = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.2", default-features = false }
+midnight-serialize = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.2", default-features = false }
+midnight-storage = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.2", default-features = false }
+midnight-transient-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.2", default-features = false }
+midnight-zswap = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.2", default-features = false }
 
 [dev-dependencies]
 rayon = "=1.12.0"
