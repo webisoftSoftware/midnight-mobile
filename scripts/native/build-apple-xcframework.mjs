@@ -79,6 +79,10 @@ function verifyToolchain() {
       fail(`required Rust target is not installed: ${target.rustTarget}`);
     }
     run("xcrun", ["--sdk", target.sdk, "--show-sdk-path"]);
+    // The GPU accelerator's shaders are compiled into the library. Xcode 26
+    // ships the Metal compiler as a separate component: install it with
+    // `xcodebuild -downloadComponent MetalToolchain`.
+    run("xcrun", ["--sdk", target.sdk, "-f", "metal"]);
   }
 }
 
@@ -102,6 +106,9 @@ function buildTarget(root, target) {
     CARGO_INCREMENTAL: "0",
     CARGO_TARGET_DIR: targetDirectory,
     IPHONEOS_DEPLOYMENT_TARGET: APPLE_CONFIGURATION.deploymentTarget,
+    // A missing Metal compiler must fail the build. Without this the shaders
+    // would ship as source that each device compiles at first use.
+    MIDNIGHT_METAL_REQUIRE_METALLIB: "1",
     SOURCE_DATE_EPOCH: String(SOURCE_DATE_EPOCH),
     ZERO_AR_DATE: "1",
   };

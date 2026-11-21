@@ -1,0 +1,63 @@
+[package]
+name = "midnight-metal"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90.0"
+description = """
+Metal kernels for the midnight-proofs accelerator hooks on Apple GPUs: BLS12-381 field arithmetic, the device context, and the MSM, NTT and quotient entry points
+"""
+license = "Apache-2.0"
+publish = false
+build = "build.rs"
+
+# Vendored from https://github.com/SeungheonOh/midnight-zk (branch `metal-prover`).
+# See VENDORED.md for the upstream revision and the local changes.
+
+[features]
+default = []
+# Test only: the test switches, test entry points and test kernels.
+test-support = []
+# Compiles the quotient kernels into the shader library. Off by default: no
+# prover version in this repository has a quotient hook, so a quotient call
+# declines.
+quotient = []
+
+[dependencies]
+blst = "0.3.15"
+
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+midnight-curves = "=0.3.1"
+rayon = "=1.12.0"
+objc2 = "0.6.3"
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
+    "std",
+    "NSError",
+    "NSString",
+] }
+objc2-metal = { version = "0.3.2", default-features = false, features = [
+    "std",
+    "dispatch2",
+    "objc2-core-foundation",
+    "MTLAllocation",
+    "MTLBuffer",
+    "MTLCommandBuffer",
+    "MTLCommandEncoder",
+    "MTLCommandQueue",
+    "MTLComputeCommandEncoder",
+    "MTLComputePipeline",
+    "MTLDevice",
+    "MTLLibrary",
+    "MTLResidencySet",
+    "MTLResource",
+    "MTLTypes",
+] }
+dispatch2 = { version = "0.3.1", default-features = false, features = ["std", "block2"] }
+
+[dev-dependencies]
+midnight-metal = { path = ".", features = ["test-support"] }
+rand_chacha = "0.3"
+rand_core = { version = "0.6", default-features = false }
+ff = "0.13"
+group = "0.13"
+midnight-curves = "=0.3.1"
+rayon = "=1.12.0"

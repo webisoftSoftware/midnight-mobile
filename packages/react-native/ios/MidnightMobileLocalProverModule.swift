@@ -125,15 +125,35 @@ private final class LocalProverBridge {
   /// Drains recorded samples as the JSON the platform layer forwards verbatim. Empties the native
   /// queue, so a second call with no proofs in between yields `[]`.
   func takeTimings() throws -> String {
+    try jsonResponse(whenEmpty: "[]", midnight_mobile_local_prover_take_timings)
+  }
+
+  /// Turns GPU acceleration of proving on or off. Off by default. Never fails for lack of a GPU:
+  /// the prover then stays on the CPU and `acceleratorStatus` reports why.
+  func setAccelerator(_ enabled: Bool) throws {
+    try requireSuccess(midnight_mobile_local_prover_set_accelerator(enabled))
+  }
+
+  /// The accelerator's state as the JSON object the platform layer forwards verbatim.
+  func acceleratorStatus() throws -> String {
+    try jsonResponse(whenEmpty: "{}", midnight_mobile_local_prover_accelerator_status)
+  }
+
+  /// Runs a native call that writes UTF-8 JSON into a response and returns it as a string. The
+  /// response is freed on every path.
+  private func jsonResponse(
+    whenEmpty empty: String,
+    _ call: (UnsafeMutablePointer<MidnightMobileLocalProverResponse>) -> Int32
+  ) throws -> String {
     var response = MidnightMobileLocalProverResponse(bytes: nil, bytes_len: 0)
-    let code = midnight_mobile_local_prover_take_timings(&response)
+    let code = call(&response)
     defer {
       if response.bytes != nil {
         midnight_mobile_local_prover_free(response.bytes, response.bytes_len)
       }
     }
     try requireSuccess(code)
-    guard let responseBytes = response.bytes, response.bytes_len > 0 else { return "[]" }
+    guard let responseBytes = response.bytes, response.bytes_len > 0 else { return empty }
     let data = Data(bytes: responseBytes, count: response.bytes_len)
     guard let json = String(data: data, encoding: .utf8) else {
       throw LocalProverBridgeFailure(code: "NATIVE_INTERNAL")
@@ -385,6 +405,22 @@ public final class MidnightMobileLocalProverModule: Module {
       }
     }.runOnQueue(localProverQueue)
 
+    AsyncFunction("setAccelerator") { (enabled: Bool) in
+      do {
+        try bridge.setAccelerator(enabled)
+      } catch {
+        throw localProverException(error, fallback: "NATIVE_INTERNAL")
+      }
+    }.runOnQueue(localProverQueue)
+
+    AsyncFunction("acceleratorStatus") { () -> String in
+      do {
+        return try bridge.acceleratorStatus()
+      } catch {
+        throw localProverException(error, fallback: "NATIVE_INTERNAL")
+      }
+    }.runOnQueue(localProverQueue)
+
     AsyncFunction("close") {
       do {
         try bridge.close()
@@ -403,6 +439,9 @@ public final class MidnightMobileLocalProverModule: Module {
         queue: nil
       ) { _ in
         _ = midnight_mobile_local_prover_set_max_concurrency(1)
+        // Also give back the GPU accelerator's reusable memory. A running proof keeps what it
+        // holds; the next accelerated proof allocates again.
+        _ = midnight_mobile_local_prover_trim_memory()
       }
     }
 

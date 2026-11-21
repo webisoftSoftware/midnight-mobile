@@ -1,6 +1,9 @@
 [workspace]
-members = ["crates/runtime", "crates/runtime-v9", "tools/bindgen"]
+members = ["crates/prover-accel", "crates/runtime", "crates/runtime-v9", "tools/bindgen"]
 default-members = ["crates/runtime"]
+# Vendored crates keep their upstream layout and lints; they build as path
+# dependencies but are not linted as workspace members.
+exclude = ["third_party"]
 resolver = "2"
 
 [workspace.package]
@@ -16,6 +19,11 @@ strip = "symbols"
 # Ledger 9 zkir pulls older crates.io builds of these for v1 proving; resolve them
 # to the Ledger 9 sources so one copy of each type exists (as the ledger repo does).
 [patch.crates-io]
+# The local prover's two `midnight-proofs` builds, with the accelerator hooks of
+# `src/gpu.rs` added (see third_party/README.md). Without an installed
+# accelerator they run the code of the upstream releases.
+midnight-proofs-v7 = { package = "midnight-proofs", path = "third_party/midnight-proofs-0.7.3" }
+midnight-proofs-v8 = { package = "midnight-proofs", path = "third_party/midnight-proofs-0.8.3" }
 midnight-transient-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger", tag = "transient-crypto-2.2.0-rc.1" }
 midnight-base-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5" }
 midnight-serialize = { git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5" }

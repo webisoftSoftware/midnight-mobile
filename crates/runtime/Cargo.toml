@@ -46,8 +46,15 @@ midnight-serialize-v3 = { package = "midnight-serialize", git = "https://github.
 midnight-transient-crypto-v3 = { package = "midnight-transient-crypto", git = "https://github.com/midnightntwrk/midnight-ledger.git", tag = "ledger-9.1.0.0-rc.5" }
 midnight-zkir-v3 = { package = "midnight-zkir", git = "https://github.com/midnightntwrk/midnight-zkir", tag = "zkir-3.2.0" }
 
+# GPU acceleration of the local prover (Metal on Apple targets, no-op elsewhere).
+midnight-mobile-prover-accel = { path = "../prover-accel" }
+
 # Ledger 9 engine for the stagenet network (see src/dispatch.rs).
 midnight-mobile-runtime-v9 = { path = "../runtime-v9" }
+
+[dev-dependencies]
+# The scalar field of the Ledger 8 prover, for the accelerator tests.
+midnight-curves = "=0.2.1"
 
 # The `ledger-v9` feature belongs to `runtime-v9`, which compiles these same sources.
 # Declaring it here would let `--all-features` build the Ledger 8 deps as Ledger 9.

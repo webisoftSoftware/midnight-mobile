@@ -44,7 +44,16 @@ function countPhysicalLines(contents) {
     : lines.length;
 }
 
+// Vendored third-party crates keep their upstream form so that they can be
+// compared with the upstream release. They are not maintained here: the local
+// changes to them are small, are listed in third_party/README.md, and follow
+// this policy themselves.
+const VENDORED_ROOT = "third_party/";
+
 function isMaintainedSource(file) {
+  if (file.startsWith(VENDORED_ROOT)) {
+    return false;
+  }
   return SOURCE_EXTENSIONS.has(extname(file)) || file.endsWith(".gradle.kts");
 }
 

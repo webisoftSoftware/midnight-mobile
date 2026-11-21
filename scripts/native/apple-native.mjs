@@ -45,11 +45,17 @@ const LOCAL_PROVER_HEADER_SOURCE = join(
 export const SOURCE_DATE_EPOCH = 1_785_340_800;
 export const XCODE_BUILD_CONCURRENCY_ARGUMENTS = Object.freeze(["-jobs", "2"]);
 
+// Metal, CoreGraphics, Foundation and the Objective-C runtime are the system
+// libraries of the local prover's GPU accelerator (third_party/midnight-metal).
 const ALLOWED_DEPENDENCIES = new Set([
   "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+  "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+  "/System/Library/Frameworks/Foundation.framework/Foundation",
+  "/System/Library/Frameworks/Metal.framework/Metal",
   "/System/Library/Frameworks/Security.framework/Security",
   "/usr/lib/libSystem.B.dylib",
   "/usr/lib/libiconv.2.dylib",
+  "/usr/lib/libobjc.A.dylib",
 ]);
 
 export function fail(message) {

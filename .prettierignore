@@ -6,3 +6,5 @@ artifacts/
 coverage/
 *.xcarchive/
 *.xcframework/
+# Vendored upstream crates keep their upstream formatting.
+third_party/midnight-*/

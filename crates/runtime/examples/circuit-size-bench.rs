@@ -18,6 +18,14 @@
 //! prove  <params-dir> <k> <request> [managed-dir]
 //!                                         prove a prepared request
 //! ```
+//!
+//! Environment:
+//! - `MIDNIGHT_BENCH_GPU=1`: turn the GPU accelerator on before configuring.
+//! - `MIDNIGHT_BENCH_PROFILE=1`: collect the per-proof stage timings and report them.
+//!   Profiling repeats the key decoding to time it, so it slows each proof down.
+//! - `MIDNIGHT_BENCH_REPEAT=<n>`: prove `n` times in the process and report each
+//!   duration. The first proof is cold; with the accelerator on it also builds the
+//!   device's copy of the parameters.
 
 use std::env::args;
 use std::fs::read;
@@ -82,6 +90,10 @@ unsafe extern "C" {
         output: *mut Response,
     ) -> i32;
     fn midnight_mobile_local_prover_free(bytes: *mut u8, bytes_len: usize);
+    fn midnight_mobile_local_prover_set_profiling(enabled: bool) -> i32;
+    fn midnight_mobile_local_prover_take_timings(output: *mut Response) -> i32;
+    fn midnight_mobile_local_prover_set_accelerator(enabled: bool) -> i32;
+    fn midnight_mobile_local_prover_accelerator_status(output: *mut Response) -> i32;
 }
 
 /// The key location the request builder records, and therefore the one a registered
@@ -229,6 +241,23 @@ fn prove(params_dir: &str, k: u32, request_path: &str, managed: Option<&str>) {
     );
 }
 
+/// The JSON a status entry point of the C ABI reports, or `null` when it fails.
+fn json_from(entry_point: unsafe extern "C" fn(*mut Response) -> i32) -> String {
+    let mut output = Response {
+        bytes: std::ptr::null_mut(),
+        bytes_len: 0,
+    };
+    // SAFETY: The response pointer addresses valid writable storage.
+    if unsafe { entry_point(&mut output) } != 0 {
+        return "null".to_owned();
+    }
+    // SAFETY: A successful call returned `bytes_len` initialized bytes at `bytes`.
+    let json = unsafe { std::slice::from_raw_parts(output.bytes, output.bytes_len) }.to_vec();
+    // SAFETY: Pointer and length came from the call above and are freed once.
+    unsafe { midnight_mobile_local_prover_free(output.bytes, output.bytes_len) };
+    String::from_utf8(json).unwrap_or_else(|_| "null".to_owned())
+}
+
 /// Circuit key material with its hashes, kept alive for the duration of an FFI call.
 struct Material {
     prover_key: Vec<u8>,
@@ -290,6 +319,21 @@ fn run(params_dir: &str, k: u32, request: &[u8], circuit: Option<(&str, &Materia
         None => (std::ptr::null(), 0),
     };
 
+    let gpu = std::env::var("MIDNIGHT_BENCH_GPU").as_deref() == Ok("1");
+    if gpu {
+        // SAFETY: The function takes no pointer.
+        unsafe { midnight_mobile_local_prover_set_accelerator(true) };
+    }
+    let profile = std::env::var("MIDNIGHT_BENCH_PROFILE").as_deref() == Ok("1");
+    if profile {
+        // SAFETY: The function takes no pointer.
+        unsafe { midnight_mobile_local_prover_set_profiling(true) };
+    }
+    let repeat: usize = std::env::var("MIDNIGHT_BENCH_REPEAT")
+        .ok()
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(1);
+
     let mut handle = 0_u64;
     let configure_start = Instant::now();
     // All referenced buffers and hashes outlive this synchronous call.
@@ -311,27 +355,47 @@ fn run(params_dir: &str, k: u32, request: &[u8], circuit: Option<(&str, &Materia
         bytes: std::ptr::null_mut(),
         bytes_len: 0,
     };
-    let prove_start = Instant::now();
-    // The request outlives the call; the successful response is freed once below.
-    // SAFETY: The response pointer addresses valid writable storage.
-    let code = unsafe {
-        midnight_mobile_local_prover_prove(handle, request.as_ptr(), request.len(), &mut response)
-    };
-    let prove_ms = prove_start.elapsed().as_millis();
-    if code != 0 {
-        println!(
-            "{{\"k\":{k},\"stage\":\"prove\",\"error_code\":{code},\
-             \"configure_ms\":{configure_ms},\"prove_ms\":{prove_ms}{}}}",
-            peak_rss_field(),
-        );
-        exit(1);
+    let mut prove_ms = Vec::with_capacity(repeat);
+    for _ in 0..repeat.max(1) {
+        if !response.bytes.is_null() {
+            // SAFETY: Pointer and length came from a successful prove call and are freed once.
+            unsafe { midnight_mobile_local_prover_free(response.bytes, response.bytes_len) };
+        }
+        let prove_start = Instant::now();
+        // The request outlives the call; the last successful response is freed once below.
+        // SAFETY: The response pointer addresses valid writable storage.
+        let code = unsafe {
+            midnight_mobile_local_prover_prove(
+                handle,
+                request.as_ptr(),
+                request.len(),
+                &mut response,
+            )
+        };
+        prove_ms.push(prove_start.elapsed().as_millis());
+        if code != 0 {
+            println!(
+                "{{\"k\":{k},\"stage\":\"prove\",\"error_code\":{code},\
+                 \"configure_ms\":{configure_ms},\"prove_ms\":{prove_ms:?}{}}}",
+                peak_rss_field(),
+            );
+            exit(1);
+        }
     }
 
     println!(
-        "{{\"k\":{k},\"stage\":\"ok\",\"configure_ms\":{configure_ms},\"prove_ms\":{prove_ms},\
-         \"request_bytes\":{},\"proof_bytes\":{}{}}}",
+        "{{\"k\":{k},\"stage\":\"ok\",\"configure_ms\":{configure_ms},\"prove_ms\":{},\
+         \"prove_ms_each\":{prove_ms:?},\"request_bytes\":{},\"proof_bytes\":{},\
+         \"accelerator\":{},\"timings\":{}{}}}",
+        prove_ms[0],
         request.len(),
         response.bytes_len,
+        json_from(midnight_mobile_local_prover_accelerator_status),
+        if profile {
+            json_from(midnight_mobile_local_prover_take_timings)
+        } else {
+            "null".into()
+        },
         peak_rss_field(),
     );
     // SAFETY: Pointer and length came from a successful prove call and are freed once.

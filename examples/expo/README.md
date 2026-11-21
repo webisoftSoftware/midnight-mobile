@@ -46,6 +46,26 @@ If the prover files are missing, the host and native-runtime phases still run.
 The native-prover phase reports the missing files; it never returns a fake proof
 response.
 
+### Compare the CPU and the GPU on a device
+
+The native-prover phase proves the same Zswap spend request four times and shows
+each duration:
+
+| Step                         | What it measures                                                  |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `run native prove`           | The first proof on the CPU                                        |
+| `repeat native prove on CPU` | A repeat proof on the CPU                                         |
+| `run native prove with GPU`  | A first and a repeat proof with GPU acceleration, and its GPU use |
+
+Compare the two repeat durations. The first proof in each mode does one-time
+work: on the CPU it derives the circuit size, and with the GPU it also copies
+the proof parameters to the GPU.
+
+To measure an iPhone, connect it and run `npx expo run:ios --device`. The GPU
+step needs iOS 18.0 or later. On a device or simulator without a usable GPU the
+step passes and shows why the GPU was not used. A simulator uses the Mac's GPU,
+so its durations do not describe a phone.
+
 ## Test it
 
 From this folder:

@@ -6,6 +6,16 @@ import {
   type MidnightTransportConfiguration,
 } from "./transport.js";
 
+import {
+  decodeAcceleratorStatus,
+  type MidnightLocalProverAcceleratorStatus,
+} from "./local-prover-accelerator.js";
+
+export type {
+  MidnightLocalProverAcceleratorAvailability,
+  MidnightLocalProverAcceleratorStatus,
+} from "./local-prover-accelerator.js";
+
 export const EXPO_MIDNIGHT_LOCAL_PROVER_MODULE_NAME =
   "MidnightMobileLocalProver";
 
@@ -138,6 +148,19 @@ export interface MidnightLocalProver {
    * limit a caller passes is always the limit that took effect.
    */
   setMaxConcurrency?(limit: number): Promise<void>;
+  /**
+   * Optional: turns GPU acceleration of proving on or off. Off by default.
+   *
+   * With it on, the prover's heaviest arithmetic runs on the device's GPU
+   * where one is usable; everything else, and every device without one, uses
+   * the CPU exactly as before. A proof is the same proof either way, and it
+   * is verified before it is returned. Turning it on never fails for lack of
+   * a GPU: read `getAcceleratorStatus` to see whether it is in use. Absent on
+   * native binaries built before the accelerator existed.
+   */
+  setAccelerator?(enabled: boolean): Promise<void>;
+  /** Optional: whether the GPU is in use, and what it has done so far. */
+  getAcceleratorStatus?(): Promise<MidnightLocalProverAcceleratorStatus>;
   close(): Promise<void>;
 }
 
@@ -153,6 +176,10 @@ export interface NativeLocalProverModule {
   takeTimings?(): Promise<string>;
   /** Optional: may be absent on older native binaries. */
   setMaxConcurrency?(limit: number): Promise<void>;
+  /** Optional: may be absent on older native binaries. */
+  setAccelerator?(enabled: boolean): Promise<void>;
+  /** Optional: may be absent on older native binaries. Returns JSON. */
+  acceleratorStatus?(): Promise<string>;
   close(): Promise<void>;
 }
 
@@ -283,6 +310,8 @@ class NativeMidnightLocalProver implements MidnightLocalProver {
   readonly setProfiling?: (enabled: boolean) => Promise<void>;
   readonly takeTimings?: () => Promise<string>;
   readonly setMaxConcurrency?: (limit: number) => Promise<void>;
+  readonly setAccelerator?: (enabled: boolean) => Promise<void>;
+  readonly getAcceleratorStatus?: () => Promise<MidnightLocalProverAcceleratorStatus>;
 
   constructor(private readonly native: NativeLocalProverModule) {
     if (typeof native.proveBatch === "function") {
@@ -312,6 +341,30 @@ class NativeMidnightLocalProver implements MidnightLocalProver {
           );
         }
         return nativeCall(() => setMaxConcurrency(limit));
+      };
+    }
+    // Process-wide like the instrumentation: the switch outlives a registry.
+    const setAccelerator = native.setAccelerator?.bind(native);
+    if (setAccelerator !== undefined) {
+      this.setAccelerator = (enabled) => {
+        if (typeof enabled !== "boolean") {
+          return Promise.reject(
+            new MidnightLocalProverError("INVALID_REQUEST"),
+          );
+        }
+        return nativeCall(() => setAccelerator(enabled));
+      };
+    }
+    const acceleratorStatus = native.acceleratorStatus?.bind(native);
+    if (acceleratorStatus !== undefined) {
+      this.getAcceleratorStatus = async () => {
+        const status = decodeAcceleratorStatus(
+          await nativeCall(() => acceleratorStatus()),
+        );
+        if (status === undefined) {
+          throw new MidnightLocalProverError("NATIVE_INTERNAL");
+        }
+        return status;
       };
     }
   }

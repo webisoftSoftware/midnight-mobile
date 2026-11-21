@@ -13,6 +13,7 @@ const config = JSON.parse(
 await test("native build config pins the exact M4 Android contract", () => {
   assert.deepEqual(validateNativeBuildConfig(config), []);
   assert.deepEqual(config.android.localProver.exportedFunctions, [
+    "midnight_mobile_local_prover_accelerator_status",
     "midnight_mobile_local_prover_cancel",
     "midnight_mobile_local_prover_check",
     "midnight_mobile_local_prover_close",
@@ -20,9 +21,11 @@ await test("native build config pins the exact M4 Android contract", () => {
     "midnight_mobile_local_prover_free",
     "midnight_mobile_local_prover_prove",
     "midnight_mobile_local_prover_prove_batch",
+    "midnight_mobile_local_prover_set_accelerator",
     "midnight_mobile_local_prover_set_max_concurrency",
     "midnight_mobile_local_prover_set_profiling",
     "midnight_mobile_local_prover_take_timings",
+    "midnight_mobile_local_prover_trim_memory",
   ]);
   assert.match(
     validateNativeBuildConfig({

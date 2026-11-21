@@ -4,30 +4,31 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
-use midnight_coin_structure::coin::{Info as CoinInfo, QualifiedInfo as QualifiedCoinInfo};
 use midnight_ledger::structure::{ProofPreimageVersioned, ProofVersioned};
 use midnight_proofs::{poly::commitment::Params, utils::SerdeFormat};
 use midnight_serialize::{tagged_deserialize, tagged_serialize};
-use midnight_storage::db::InMemoryDB;
 use midnight_transient_crypto::curve::Fr;
-use midnight_transient_crypto::merkle_tree::MerkleTree;
 use midnight_transient_crypto::proofs::{
     KeyLocation, ParamsProver, ParamsProverProvider, ProvingKeyMaterial, Resolver, VerifierKey,
     WrappedIr, Zkir,
 };
 use midnight_zkir::IrSource;
-use midnight_zswap::{Input, Output};
-use rand::SeedableRng;
-use rand::rngs::{OsRng, StdRng};
+use rand::rngs::OsRng;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
+mod accelerator;
 mod ffi;
+mod fixtures;
 mod timings;
 mod zkir_v3;
 
 use crate::executor::block_on;
+pub use fixtures::{
+    deterministic_zswap_output_request, deterministic_zswap_spend_check_request,
+    deterministic_zswap_spend_request,
+};
 use timings::{ProveStageDurations, maybe_record_prove_timing, stage_micros};
 pub(crate) use timings::{set_profiling, take_timings};
 
@@ -289,14 +290,14 @@ impl Resolver for MemoryRegistry {
 
 struct RequestResolver<'a> {
     registry: &'a MemoryRegistry,
-    supplied: Option<ProvingKeyMaterial>,
+    supplied: Option<&'a ProvingKeyMaterial>,
 }
 
 impl Resolver for RequestResolver<'_> {
     async fn resolve_key(&self, key: KeyLocation) -> io::Result<Option<ProvingKeyMaterial>> {
         Ok(self
             .supplied
-            .clone()
+            .cloned()
             .or_else(|| self.registry.circuits.get(key.0.as_ref()).cloned()))
     }
 }
@@ -363,17 +364,20 @@ fn decode_circuit(
     if zkir_v3::matches_tag(input.ir) {
         let k = zkir_v3::validate_keys(&material)
             .map_err(|_| LocalProverError::InvalidConfiguration)?;
+        remember_circuit_size(input.ir, k);
         return Ok((k, material));
     }
     let ir = IrSource::load_from_tagged(Cursor::new(input.ir))
         .map_err(|_| LocalProverError::InvalidConfiguration)?;
     let prover_key = IrSource::load_prover_key_from_tagged(Cursor::new(input.prover_key))
         .map_err(|_| LocalProverError::InvalidConfiguration)?;
+    // Deriving `k` builds the circuit's cost model, so it is done once and remembered.
+    let k = ir.k();
     if prover_key
         .init()
         .map_err(|_| LocalProverError::InvalidConfiguration)?
         .k()
-        != ir.k()
+        != k
     {
         return Err(LocalProverError::InvalidConfiguration);
     }
@@ -382,7 +386,8 @@ fn decode_circuit(
     verifier_key
         .init()
         .map_err(|_| LocalProverError::InvalidConfiguration)?;
-    Ok((ir.k(), material))
+    remember_circuit_size(input.ir, k);
+    Ok((k, material))
 }
 
 fn build_registry(
@@ -449,8 +454,12 @@ pub(crate) fn configure_registry(
     if slot.generation == 0 {
         return Err(LocalProverError::NativeInternal);
     }
-    slot.value = Some(value);
-    Ok(slot.generation)
+    slot.value = Some(Arc::clone(&value));
+    let generation = slot.generation;
+    drop(slot);
+    accelerator::release_tables();
+    accelerator::warm(&value);
+    Ok(generation)
 }
 
 fn configured_registry(handle: u64) -> Result<Arc<MemoryRegistry>, LocalProverError> {
@@ -475,6 +484,7 @@ pub(crate) fn close_registry(handle: u64) -> Result<(), LocalProverError> {
         return Err(LocalProverError::StaleRegistry);
     }
     slot.value = None;
+    accelerator::release_tables();
     Ok(())
 }
 
@@ -567,6 +577,53 @@ fn refuse_for_size(k: u8, available_ks: &[u8]) -> Option<LocalProverError> {
     })
 }
 
+/// Circuit sizes by the SHA-256 of the IR, oldest first.
+static CIRCUIT_SIZES: Mutex<Vec<([u8; 32], u8)>> = Mutex::new(Vec::new());
+const MAX_CACHED_CIRCUIT_SIZES: usize = 256;
+
+fn circuit_sizes() -> MutexGuard<'static, Vec<([u8; 32], u8)>> {
+    CIRCUIT_SIZES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Records the `k` of an IR whose size is already known.
+fn remember_circuit_size(ir_source: &[u8], k: u8) {
+    let digest: [u8; 32] = Sha256::digest(ir_source).into();
+    let mut sizes = circuit_sizes();
+    if !sizes.iter().any(|(known, _)| *known == digest) {
+        if sizes.len() >= MAX_CACHED_CIRCUIT_SIZES {
+            sizes.remove(0);
+        }
+        sizes.push((digest, k));
+    }
+}
+
+/// The `k` a circuit's IR requires.
+///
+/// Deriving `k` builds the circuit's cost model: about a third of a second for the Zswap
+/// spend circuit on a desktop core, which every proof used to pay. It is derived once per
+/// IR and remembered by the IR's hash, so another IR never gets a stale size.
+fn circuit_size(ir_source: &[u8]) -> Result<u8, LocalProverError> {
+    let digest: [u8; 32] = Sha256::digest(ir_source).into();
+    let known = circuit_sizes()
+        .iter()
+        .find(|(known, _)| *known == digest)
+        .map(|(_, k)| *k);
+    if let Some(k) = known {
+        return Ok(k);
+    }
+    // Derived outside the lock: it is slow, and two proofs of a new circuit may race.
+    let k = if zkir_v3::matches_tag(ir_source) {
+        zkir_v3::circuit_size(ir_source)
+    } else {
+        IrSource::load_from_tagged(Cursor::new(ir_source)).map(|ir| ir.k())
+    }
+    .map_err(|_| LocalProverError::UnsupportedCircuit)?;
+    remember_circuit_size(ir_source, k);
+    Ok(k)
+}
+
 /// Checks the material a request will prove against, and the registry's ability to
 /// prove it.
 ///
@@ -583,12 +640,7 @@ fn validate_supplied_material(
         material.verifier_key.len(),
         material.ir_source.len(),
     ])?;
-    let k = if zkir_v3::matches_tag(&material.ir_source) {
-        zkir_v3::circuit_size(&material.ir_source)
-    } else {
-        IrSource::load_from_tagged(Cursor::new(&material.ir_source)).map(|ir| ir.k())
-    }
-    .map_err(|_| LocalProverError::UnsupportedCircuit)?;
+    let k = circuit_size(&material.ir_source)?;
     let available_ks: Vec<u8> = registry.params.keys().copied().collect();
     match refuse_for_size(k, &available_ks) {
         Some(error) => Err(error),
@@ -637,22 +689,28 @@ pub(crate) fn run_prove(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalPro
     // steal this job and land a second `block_on` on its own stack. See issue #136.
     let pool = prover_pool()?;
     let v3 = zkir_v3::matches_tag(&selected_material.ir_source);
-    let proof = if v3 {
-        pool.install(|| {
-            block_on(zkir_v3::prove(&preimage, selected_material, |k| {
-                registry.v3_params(k)
-            }))
-        })
-        .map_err(|_| LocalProverError::ProofFailed)?
-    } else {
-        let resolver = RequestResolver {
-            registry: &registry,
-            supplied,
-        };
-        pool.install(|| block_on(preimage.prove::<IrSource>(OsRng, &*registry, &resolver)))
-            .map_err(|_| LocalProverError::ProofFailed)?
-            .0
+    let resolver = RequestResolver {
+        registry: &registry,
+        supplied: supplied.as_ref(),
     };
+    // One attempt at the proof. `prove` verifies the proof against the verifier key
+    // before it returns it, so `Ok` is a proof the network accepts.
+    let attempt = || {
+        if v3 {
+            pool.install(|| {
+                block_on(zkir_v3::prove(&preimage, selected_material, |k| {
+                    registry.v3_params(k)
+                }))
+            })
+            .map_err(|_| LocalProverError::ProofFailed)
+        } else {
+            pool.install(|| block_on(preimage.prove::<IrSource>(OsRng, &*registry, &resolver)))
+                .map(|(proof, _)| proof)
+                .map_err(|_| LocalProverError::ProofFailed)
+        }
+    };
+    let (proof, accelerator) = accelerator::prove(attempt);
+    let proof = proof?;
     let prove_call_micros = stage_micros(prove_start);
 
     let serialize_start = Instant::now();
@@ -673,6 +731,7 @@ pub(crate) fn run_prove(handle: u64, request: &[u8]) -> Result<Vec<u8>, LocalPro
             select_material_micros,
             prove_call_micros,
             serialize_response_micros,
+            accelerator,
         },
     );
 
@@ -735,64 +794,6 @@ pub(crate) fn run_prove_batch(
     });
 
     results.into_iter().collect()
-}
-
-fn deterministic_zswap_spend_preimage()
--> Result<Arc<midnight_transient_crypto::proofs::ProofPreimage>, LocalProverError> {
-    let mut rng = StdRng::seed_from_u64(0x42);
-    let qualified_coin = QualifiedCoinInfo {
-        value: Default::default(),
-        type_: Default::default(),
-        nonce: rand::Rng::r#gen(&mut rng),
-        mt_index: 0,
-    };
-    let coin = CoinInfo::from(&qualified_coin);
-    let recipient = midnight_coin_structure::transfer::Recipient::Contract(Default::default());
-    let tree = MerkleTree::<(), InMemoryDB>::blank(32)
-        .try_update_hash(0, coin.commitment(&recipient).0, ())
-        .map_err(|_| LocalProverError::ProofFailed)?
-        .rehash();
-    Input::new_contract_owned(&mut rng, &qualified_coin, None, Default::default(), &tree)
-        .map(|input| input.proof)
-        .map_err(|_| LocalProverError::ProofFailed)
-}
-
-fn deterministic_zswap_output_preimage()
--> Result<Arc<midnight_transient_crypto::proofs::ProofPreimage>, LocalProverError> {
-    let mut rng = StdRng::seed_from_u64(0x42);
-    let qualified_coin = QualifiedCoinInfo {
-        value: Default::default(),
-        type_: Default::default(),
-        nonce: rand::Rng::r#gen(&mut rng),
-        mt_index: 0,
-    };
-    let coin = CoinInfo::from(&qualified_coin);
-    Output::<_, InMemoryDB>::new_contract_owned(&mut rng, &coin, None, Default::default())
-        .map(|output| output.proof)
-        .map_err(|_| LocalProverError::ProofFailed)
-}
-
-pub fn deterministic_zswap_spend_request() -> Result<Vec<u8>, LocalProverError> {
-    serialize_response(&(
-        ProofPreimageVersioned::V2(deterministic_zswap_spend_preimage()?),
-        None::<ProvingKeyMaterial>,
-        None::<Fr>,
-    ))
-}
-
-pub fn deterministic_zswap_output_request() -> Result<Vec<u8>, LocalProverError> {
-    serialize_response(&(
-        ProofPreimageVersioned::V2(deterministic_zswap_output_preimage()?),
-        None::<ProvingKeyMaterial>,
-        None::<Fr>,
-    ))
-}
-
-pub fn deterministic_zswap_spend_check_request() -> Result<Vec<u8>, LocalProverError> {
-    serialize_response(&(
-        ProofPreimageVersioned::V2(deterministic_zswap_spend_preimage()?),
-        None::<WrappedIr>,
-    ))
 }
 
 #[cfg(test)]

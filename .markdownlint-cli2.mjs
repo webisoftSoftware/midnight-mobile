@@ -21,6 +21,8 @@ const config = {
     "**/.expo/**",
     "examples/expo/android/**",
     "examples/expo/ios/**",
+    // Vendored upstream crates keep their upstream documents.
+    "third_party/midnight-*/**",
   ],
 };
 

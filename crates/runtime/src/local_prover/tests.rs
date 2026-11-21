@@ -231,7 +231,7 @@ fn providers_resolvers_and_registry_validation_cover_generic_inputs() {
     let supplied = material(vec![4]);
     let resolver = RequestResolver {
         registry: &registry,
-        supplied: Some(supplied.clone()),
+        supplied: Some(&supplied),
     };
     let resolved =
         block_on(resolver.resolve_key(KeyLocation(std::borrow::Cow::Borrowed("registered"))))
@@ -573,6 +573,7 @@ fn timings_round_trip_and_drain_exactly_once() {
         ir_load_micros: Some(50),
         prover_key_init_micros: Some(60),
         verifier_key_init_micros: Some(70),
+        accelerator: Default::default(),
     });
 
     let first = take_timings().unwrap();
@@ -606,6 +607,7 @@ fn timing_queue_drops_oldest_beyond_capacity() {
             ir_load_micros: None,
             prover_key_init_micros: None,
             verifier_key_init_micros: None,
+            accelerator: Default::default(),
         });
     }
     let drained = take_timings().unwrap();

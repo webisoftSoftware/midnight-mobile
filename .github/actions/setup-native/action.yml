@@ -53,6 +53,15 @@ runs:
         echo "LC_ALL=en_US.UTF-8" >> "$GITHUB_ENV"
         sdkmanager --install "ndk;27.1.12297006" "platforms;android-24"
 
+    - name: Install the Metal compiler for the GPU accelerator's shaders
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        set -euo pipefail
+        xcrun --sdk iphoneos -f metal || xcodebuild -downloadComponent MetalToolchain
+        xcrun --sdk iphoneos -f metal
+        xcrun --sdk iphonesimulator -f metal
+
     - name: Verify every pinned toolchain
       shell: bash
       run: |

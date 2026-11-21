@@ -141,6 +141,24 @@ class MidnightMobileLocalProverModule : Module() {
       }
     }.runOnQueue(localProverQueue)
 
+    // The GPU switch is the process's, like the instrumentation. On Android builds without an
+    // accelerator it is accepted and the status reports `unsupported`.
+    AsyncFunction("setAccelerator") { enabled: Boolean ->
+      try {
+        proverBridge().setAccelerator(enabled)
+      } catch (error: Throwable) {
+        throw localProverException(error, "NATIVE_INTERNAL")
+      }
+    }.runOnQueue(localProverQueue)
+
+    AsyncFunction("acceleratorStatus") {
+      try {
+        proverBridge().acceleratorStatus()
+      } catch (error: Throwable) {
+        throw localProverException(error, "NATIVE_INTERNAL")
+      }
+    }.runOnQueue(localProverQueue)
+
     AsyncFunction("close") {
       try {
         bridge?.close()
@@ -161,11 +179,13 @@ class MidnightMobileLocalProverModule : Module() {
 
         override fun onLowMemory() {
           bridge?.setMaxConcurrency(1)
+          bridge?.trimMemory()
         }
 
         override fun onTrimMemory(level: Int) {
           if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE) {
             bridge?.setMaxConcurrency(1)
+            bridge?.trimMemory()
           }
         }
       }

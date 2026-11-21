@@ -1,0 +1,3 @@
+# Vendored upstream crates keep their upstream formatting, so that they can be
+# compared with the upstream release.
+disable_all_formatting = true

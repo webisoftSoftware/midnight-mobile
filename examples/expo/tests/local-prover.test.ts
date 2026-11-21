@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   localProverConfiguration,
   localProverRequests,
+  runAcceleratedProve,
   runLocalProverSmokeTest,
 } from "../src/local-prover-demo";
 
@@ -59,3 +60,114 @@ for (const platform of ["ios", "android"] as const) {
     assert.equal(report.steps.at(-1)?.detail, "NATIVE_INTERNAL");
   });
 }
+
+const activeStatus = {
+  requested: true,
+  availability: "active",
+  active: true,
+  tripped: false,
+  cpuRetries: 0,
+  device: "Apple A18 Pro GPU",
+  gpuOperations: 0,
+  cpuOperations: 0,
+  deviceMicros: 0,
+  tables: 0,
+  tablePoints: 0,
+} as const;
+
+function acceleratedProver(
+  statuses: readonly (typeof activeStatus | object)[],
+) {
+  const switched: boolean[] = [];
+  let reads = 0;
+  let proofs = 0;
+  return {
+    switched,
+    proofs: () => proofs,
+    prover: {
+      prove: () => {
+        proofs += 1;
+        return Promise.resolve(new Uint8Array([1, 2, 3]));
+      },
+      setAccelerator: (enabled: boolean) => {
+        switched.push(enabled);
+        return Promise.resolve();
+      },
+      getAcceleratorStatus: () => {
+        const status = statuses[Math.min(reads, statuses.length - 1)];
+        reads += 1;
+        return Promise.resolve({ ...activeStatus, ...status });
+      },
+    },
+  };
+}
+
+await test("GPU prove step reports both proofs and switches the accelerator off", async () => {
+  const fake = acceleratedProver([{}, { gpuOperations: 144 }]);
+  const step = await runAcceleratedProve(fake.prover, new Uint8Array([9]));
+
+  assert.equal(step.ok, true);
+  assert.match(
+    step.detail,
+    /^3 bytes; first \d+ ms, repeat \d+ ms; 144 GPU operations on Apple A18 Pro GPU$/u,
+  );
+  assert.equal(fake.proofs(), 2);
+  assert.deepEqual(fake.switched, [true, false]);
+});
+
+await test("GPU prove step passes without proving when no GPU is usable", async () => {
+  const fake = acceleratedProver([
+    { active: false, availability: "no-device", device: null },
+  ]);
+  const step = await runAcceleratedProve(fake.prover, new Uint8Array([9]));
+
+  assert.deepEqual(step, {
+    name: "run native prove with GPU",
+    ok: true,
+    detail: "GPU not used: no-device",
+  });
+  assert.equal(fake.proofs(), 0);
+  assert.deepEqual(fake.switched, [true, false]);
+});
+
+await test("GPU prove step fails when the proofs did not use the GPU", async () => {
+  // No GPU operation was counted: the proofs ran on the CPU.
+  const idle = acceleratedProver([{}, {}]);
+  assert.equal(
+    (await runAcceleratedProve(idle.prover, new Uint8Array([9]))).ok,
+    false,
+  );
+  // The accelerator tripped: a proof was made again on the CPU.
+  const tripped = acceleratedProver([
+    {},
+    { gpuOperations: 72, tripped: true, active: false, cpuRetries: 1 },
+  ]);
+  assert.equal(
+    (await runAcceleratedProve(tripped.prover, new Uint8Array([9]))).ok,
+    false,
+  );
+  assert.deepEqual(tripped.switched, [true, false]);
+});
+
+await test("GPU prove step is skipped on a native build without the accelerator", async () => {
+  const step = await runAcceleratedProve(
+    { prove: () => Promise.resolve(new Uint8Array([1])) },
+    new Uint8Array([9]),
+  );
+
+  assert.deepEqual(step, {
+    name: "run native prove with GPU",
+    ok: true,
+    detail: "not available in this native build",
+  });
+});
+
+await test("GPU prove step switches the accelerator off when a proof fails", async () => {
+  const fake = acceleratedProver([{}]);
+  fake.prover.prove = () => Promise.reject(new Error("PROOF_FAILED"));
+
+  await assert.rejects(() =>
+    runAcceleratedProve(fake.prover, new Uint8Array([9])),
+  );
+  assert.deepEqual(fake.switched, [true, false]);
+});

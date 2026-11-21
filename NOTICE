@@ -9,7 +9,10 @@ trademark rights. This project grants no trademark license.
 The MIT License in LICENSE applies only to material that this project creates.
 It does not change the license for third-party software.
 
-Native builds use Midnight Ledger software under Apache-2.0. Native builds also
+Native builds use Midnight Ledger software under Apache-2.0. The `third_party`
+directory contains modified copies of `midnight-proofs` (MIT OR Apache-2.0) and
+of the `midnight-metal` crate (Apache-2.0); `third_party/README.md` lists the
+changes made to each. Native builds also
 use UniFFI software under MPL-2.0. Android applications can use JNA under its
 Apache-2.0 option.
 

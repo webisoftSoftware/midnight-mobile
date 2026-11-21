@@ -297,6 +297,52 @@ The Android local prover accepts an uncompressed `asset://` file or an absolute
 path in the application sandbox. The iOS local prover accepts a `bundle://` file
 or an absolute path in the application sandbox.
 
+## Use GPU acceleration
+
+The local prover can run its heaviest arithmetic on the device's GPU. It is off
+by default, and one call turns it on.
+[docs/gpu-proving.md](./docs/gpu-proving.md) describes the design, the
+safeguards, and the verification.
+
+```ts
+const prover = await createMidnightLocalProver(configuration);
+await prover.setAccelerator?.(true);
+const status = await prover.getAcceleratorStatus?.();
+// status.availability: "active", "no-device", "unsupported", ...
+```
+
+With the accelerator on, the prover offers its commitment multi-scalar
+multiplications and its fast Fourier transforms to the GPU. The GPU either
+returns the exact value that the CPU code would return, or it declines and the
+CPU code runs. A proof is therefore the same proof either way.
+
+- **iOS:** Uses Metal. The GPU code needs iOS 18.0 or later. On an earlier
+  version the status reports `no-device` and proofs run on the CPU.
+- **Android:** This build has no accelerator. The switch is accepted and the
+  status reports `unsupported`.
+
+Three safeguards apply while the accelerator is on:
+
+- The prover verifies every proof against the verifier key before it returns the
+  proof.
+- If a proof fails after the GPU worked on it, the prover makes the proof again
+  on the CPU. If that succeeds, the accelerator turns itself off and the status
+  reports `tripped`. Call `setAccelerator(true)` to turn it on again.
+- GPU buffers that held witness values are zeroed when a proof ends.
+
+The native modules release the accelerator's reusable GPU memory when the
+operating system reports memory pressure. A proof that is running keeps the
+memory that it holds.
+
+The switch applies to the whole process. `getAcceleratorStatus` also reports how
+many operations ran on the GPU and how many fell back to the CPU.
+
+The accelerator is an implementation of Charles Hoskinson's GPU prover,
+[midnightntwrk/midnight-zk#667](https://github.com/midnightntwrk/midnight-zk/pull/667),
+with the Metal port by Seungheon Oh. In our first measurements a shielded spend
+proves in about 30% less time. [third_party/README.md](./third_party/README.md)
+lists the upstream sources and every change made to them.
+
 ## Run the example
 
 The `examples/expo` application is a one-button demonstration with deterministic
@@ -323,6 +369,8 @@ beside the package that publishes them. Build outputs are ignored.
 | Path                     | Responsibility                                                |
 | ------------------------ | ------------------------------------------------------------- |
 | `crates/runtime/`        | Rust wallet runtime and local-prover native interfaces        |
+| `crates/prover-accel/`   | GPU accelerator that connects the prover to the Metal backend |
+| `third_party/`           | Vendored prover crates with accelerator hooks, Metal backend  |
 | `packages/react-native/` | Public TypeScript API and iOS/Android bridges                 |
 | `examples/expo/`         | Minimal Expo consumer and deterministic host mocks            |
 | `scripts/`               | Required quality, packaging, security, and release automation |

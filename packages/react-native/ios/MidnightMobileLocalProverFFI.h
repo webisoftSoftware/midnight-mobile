@@ -71,4 +71,17 @@ int32_t midnight_mobile_local_prover_set_profiling(bool enabled);
 int32_t midnight_mobile_local_prover_take_timings(
     MidnightMobileLocalProverResponse *_Nonnull output);
 
+/// Turns GPU acceleration of proving on or off. Off by default. Always succeeds: without a usable
+/// GPU the prover keeps using the CPU and the status reports why.
+int32_t midnight_mobile_local_prover_set_accelerator(bool enabled);
+
+/// Writes the accelerator's state as a UTF-8 JSON object. Free it with
+/// midnight_mobile_local_prover_free.
+int32_t midnight_mobile_local_prover_accelerator_status(
+    MidnightMobileLocalProverResponse *_Nonnull output);
+
+/// Releases the accelerator's reusable memory: the GPU copies of the proving parameters and idle
+/// GPU buffers. For the memory-warning handler. Safe at any time.
+int32_t midnight_mobile_local_prover_trim_memory(void);
+
 void midnight_mobile_local_prover_free(uint8_t *_Nullable bytes, size_t bytes_len);

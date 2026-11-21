@@ -12,6 +12,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { removeTree } from "../../../scripts/quality/quality-utils.mjs";
+import { applicationSource, localProverConfiguration } from "./app-source.mjs";
 import { findPath, run, sha256, treeBytes } from "./harness-utils.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
@@ -38,6 +39,9 @@ if (device === undefined || device.length === 0) {
 const bundleIdentifier = "dev.oneam.midnightmobile.localprover.validation";
 const timeoutMillis = 15 * 60 * 1_000;
 const resumeApplicationBuild = process.env.IOS_PROVER_RESUME === "1";
+// Uses the XCFramework and archive a previous build left in place instead of
+// building the three Apple targets again, which takes about half an hour.
+const reuseXcframework = process.env.IOS_PROVER_REUSE_XCFRAMEWORK === "1";
 
 function simulatorDetails() {
   const listing = JSON.parse(
@@ -92,100 +96,6 @@ function prepareArtifacts() {
   return parsed;
 }
 
-function localProverConfiguration(manifest) {
-  const byPath = new Map(
-    manifest.artifacts.map((artifact) => [artifact.path, artifact]),
-  );
-  const file = (path) => {
-    const artifact = byPath.get(path);
-    if (artifact === undefined) throw new Error(`manifest is missing ${path}`);
-    return {
-      uri: `bundle://LocalProverArtifacts/${path}`,
-      size: artifact.size,
-      sha256: artifact.sha256,
-    };
-  };
-  return {
-    parameters: [{ k: 15, file: file("bls_midnight_2p15") }],
-    circuits: [
-      {
-        keyLocation: "midnight/zswap/spend",
-        proverKey: file("zswap/9/spend.prover"),
-        verifierKey: file("zswap/9/spend.verifier"),
-        ir: file("zswap/9/spend.bzkir"),
-      },
-    ],
-  };
-}
-
-function applicationSource(manifest) {
-  const request = [
-    ...readFileSync(resolve(artifactsRoot, manifest.request.path)),
-  ];
-  const checkRequest = [
-    ...readFileSync(resolve(artifactsRoot, manifest.checkRequest.path)),
-  ];
-  return `import { createMidnightLocalProver } from "@1am/midnight-mobile/local-prover";
-import { File, Paths } from "expo-file-system";
-import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
-
-const configuration = ${JSON.stringify(localProverConfiguration(manifest))};
-const checkRequest = new Uint8Array(${JSON.stringify(checkRequest)});
-const proveRequest = new Uint8Array(${JSON.stringify(request)});
-
-function write(name, content) {
-  const file = new File(Paths.document, name);
-  file.create({ overwrite: true });
-  file.write(content);
-}
-
-export default function App() {
-  const [status, setStatus] = useState("Starting local prover…");
-  useEffect(() => {
-    void (async () => {
-      const startedAt = performance.now();
-      let prover;
-      let report;
-      try {
-        prover = await createMidnightLocalProver(configuration);
-        const configuredAt = performance.now();
-        const checked = await prover.check(checkRequest);
-        const checkedAt = performance.now();
-        const proof = await prover.prove(proveRequest);
-        const provedAt = performance.now();
-        write("check-response.bin", checked);
-        write("proof-v2.bin", proof);
-        report = {
-          success: true,
-          configureMillis: configuredAt - startedAt,
-          checkMillis: checkedAt - configuredAt,
-          proveMillis: provedAt - checkedAt,
-          checkBytes: checked.length,
-          proofBytes: proof.length,
-        };
-        setStatus("Local check and proof succeeded");
-      } catch (error) {
-        report = {
-          success: false,
-          code: typeof error === "object" && error !== null && "code" in error
-            ? String(error.code)
-            : "UNEXPECTED_ERROR",
-        };
-        setStatus("Local prover failed");
-      } finally {
-        if (prover !== undefined) {
-          try { await prover.close(); } catch { report.closeFailed = true; }
-        }
-        write("local-prover-result.json", JSON.stringify(report));
-      }
-    })();
-  }, []);
-  return <View><Text testID="local-prover-status">{status}</Text></View>;
-}
-`;
-}
-
 function createConsumer(manifest) {
   removeTree(applicationRoot);
   mkdirSync(applicationRoot, { recursive: true });
@@ -231,7 +141,13 @@ function createConsumer(manifest) {
   );
   writeFileSync(
     resolve(applicationRoot, "App.js"),
-    applicationSource(manifest),
+    applicationSource({
+      configuration: localProverConfiguration(manifest),
+      checkRequest: readFileSync(
+        resolve(artifactsRoot, manifest.checkRequest.path),
+      ),
+      proveRequest: readFileSync(resolve(artifactsRoot, manifest.request.path)),
+    }),
   );
   run("/bin/cp", [
     "-cR",
@@ -415,6 +331,39 @@ function hostValidate(dataContainer) {
   };
 }
 
+// The proof the application made with the GPU on goes through the same host
+// validator as the CPU proof. A run on a simulator or device without a usable
+// GPU has no such proof and passes, unless IOS_PROVER_REQUIRE_GPU=1.
+function validateAccelerator(dataContainer, accelerator) {
+  const used = accelerator?.active === true && accelerator.gpuOperations > 0;
+  if (!used) {
+    if (process.env.IOS_PROVER_REQUIRE_GPU === "1") {
+      throw new Error(`the GPU was not used: ${JSON.stringify(accelerator)}`);
+    }
+    return;
+  }
+  if (accelerator.tripped === true || accelerator.cpuRetries !== 0) {
+    throw new Error(`the GPU prover fell back: ${JSON.stringify(accelerator)}`);
+  }
+  const proof = resolve(dataContainer, "Documents/proof-v2-accelerated.bin");
+  if (!existsSync(proof))
+    throw new Error(`application result is missing ${proof}`);
+  run(
+    "cargo",
+    [
+      "run",
+      "--offline",
+      "--locked",
+      "--quiet",
+      "--package",
+      "midnight-mobile-runtime",
+      "--example",
+      "validate_android_prover_proof",
+    ],
+    { input: readFileSync(proof) },
+  );
+}
+
 async function main() {
   const manifest = prepareArtifacts();
   const simulator = simulatorDetails();
@@ -422,14 +371,20 @@ async function main() {
     run("npm", ["run", "build", "--workspace", "@1am/midnight-mobile"], {
       inherit: true,
     });
-    run(
-      "node",
-      [
-        resolve(repositoryRoot, "scripts/native/build-apple-xcframework.mjs"),
-        "--single-pass",
-      ],
-      { inherit: true },
-    );
+    if (!reuseXcframework) {
+      run(
+        "node",
+        [
+          resolve(repositoryRoot, "scripts/native/build-apple-xcframework.mjs"),
+          "--single-pass",
+        ],
+        { inherit: true },
+      );
+    } else if (!existsSync(xcframework) || !existsSync(xcframeworkArchive)) {
+      throw new Error(
+        "IOS_PROVER_REUSE_XCFRAMEWORK=1 but no build is in place",
+      );
+    }
     createConsumer(manifest);
     prebuildConsumer();
   }
@@ -443,6 +398,7 @@ async function main() {
     );
   }
   const outputs = hostValidate(launched.dataContainer);
+  validateAccelerator(launched.dataContainer, completion.result.accelerator);
   const runtimeFramework = resolve(
     build.app,
     "Frameworks/MidnightMobileRuntime.framework",
@@ -486,6 +442,7 @@ async function main() {
     `iOS local prover passed: check=${String(outputs.check.size)} ` +
       `proof=${String(outputs.proof.size)} elapsedMs=${String(report.elapsedMillis)}`,
   );
+  console.log(`accelerator: ${JSON.stringify(completion.result.accelerator)}`);
 }
 
 await main();

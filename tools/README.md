@@ -4,13 +4,13 @@
 normal builds, tests, and releases, use the npm commands in the root
 `package.json`.
 
-| Directory                        | Purpose                                                                 |
-| -------------------------------- | ----------------------------------------------------------------------- |
-| `bindgen/`                       | Generates UniFFI bindings for `check:bindings`                          |
-| `android-prover-spike/`          | Builds and tests the local prover on an Android device                  |
-| `ios-local-prover/`              | Builds a temporary Expo app and tests the prover in an iOS simulator    |
-| `circuit-size-bench/`            | Generates and measures one synthetic circuit size per process           |
-| `mobile-prover-instrumentation/` | Applies temporary profiling patches for measurements on a mobile device |
+| Directory                        | Purpose                                                                                                      |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `bindgen/`                       | Generates UniFFI bindings for `check:bindings`                                                               |
+| `android-prover-spike/`          | Builds and tests the local prover on an Android device                                                       |
+| `ios-local-prover/`              | Builds a temporary Expo app and tests the prover in an iOS simulator or on an iPhone, on the CPU and the GPU |
+| `circuit-size-bench/`            | Generates and measures one synthetic circuit size per process                                                |
+| `mobile-prover-instrumentation/` | Applies temporary profiling patches for measurements on a mobile device                                      |
 
 The Android and iOS tools write under `target/` and generated native build
 directories. The instrumentation tool is different: it changes the working tree

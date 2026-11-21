@@ -1,7 +1,6 @@
 package dev.oneam.midnightmobile.localprover
 
 import android.content.res.AssetManager
-import com.sun.jna.Library
 import com.sun.jna.Memory
 import com.sun.jna.Native
 import com.sun.jna.Pointer
@@ -48,103 +47,6 @@ data class LocalProverConfiguration(
 )
 
 class LocalProverBridgeException(val stableCode: String) : IllegalStateException(stableCode)
-
-// JNA instantiates these reflectively from com.sun.jna.Klass, so they must be
-// public with a public no-arg constructor. Kotlin's `private` compiles to
-// package-private and makes every configure fail with IllegalAccessException.
-@Structure.FieldOrder("k", "bytes", "bytesLen", "sha256")
-open class ParameterDescriptor : Structure() {
-  @JvmField var k: Int = 0
-  @JvmField var bytes: Pointer? = null
-  @JvmField var bytesLen: Long = 0
-  @JvmField var sha256: Pointer? = null
-}
-
-@Structure.FieldOrder(
-  "keyLocation",
-  "keyLocationLen",
-  "proverKey",
-  "proverKeyLen",
-  "proverKeySha256",
-  "verifierKey",
-  "verifierKeyLen",
-  "verifierKeySha256",
-  "ir",
-  "irLen",
-  "irSha256",
-)
-open class CircuitDescriptor : Structure() {
-  @JvmField var keyLocation: Pointer? = null
-  @JvmField var keyLocationLen: Long = 0
-  @JvmField var proverKey: Pointer? = null
-  @JvmField var proverKeyLen: Long = 0
-  @JvmField var proverKeySha256: Pointer? = null
-  @JvmField var verifierKey: Pointer? = null
-  @JvmField var verifierKeyLen: Long = 0
-  @JvmField var verifierKeySha256: Pointer? = null
-  @JvmField var ir: Pointer? = null
-  @JvmField var irLen: Long = 0
-  @JvmField var irSha256: Pointer? = null
-}
-
-@Structure.FieldOrder("bytes", "bytesLen")
-open class NativeResponse : Structure() {
-  @JvmField var bytes: Pointer? = null
-  @JvmField var bytesLen: Long = 0
-
-  class ByReference : NativeResponse(), Structure.ByReference
-}
-
-// JNA instantiates this reflectively, so it stays public with a no-arg constructor; field order
-// must exactly match Rust's #[repr(C)] LocalProverRequestDescriptor (bytes, then bytes_len).
-@Structure.FieldOrder("bytes", "bytesLen")
-open class RequestDescriptor : Structure() {
-  @JvmField var bytes: Pointer? = null
-  @JvmField var bytesLen: Long = 0
-}
-
-private interface LocalProverNative : Library {
-  fun midnight_mobile_local_prover_configure(
-    parameters: Pointer?,
-    parameterCount: Long,
-    circuits: Pointer?,
-    circuitCount: Long,
-    outputHandle: LongByReference,
-  ): Int
-
-  fun midnight_mobile_local_prover_check(
-    handle: Long,
-    request: Pointer,
-    requestLen: Long,
-    output: NativeResponse.ByReference,
-  ): Int
-
-  fun midnight_mobile_local_prover_prove(
-    handle: Long,
-    request: Pointer,
-    requestLen: Long,
-    output: NativeResponse.ByReference,
-  ): Int
-
-  fun midnight_mobile_local_prover_prove_batch(
-    handle: Long,
-    requests: Pointer?,
-    requestCount: Long,
-    outputs: Pointer?,
-  ): Int
-
-  fun midnight_mobile_local_prover_cancel(handle: Long): Int
-
-  fun midnight_mobile_local_prover_close(handle: Long): Int
-
-  fun midnight_mobile_local_prover_set_max_concurrency(limit: Long): Int
-
-  fun midnight_mobile_local_prover_set_profiling(enabled: Boolean): Int
-
-  fun midnight_mobile_local_prover_take_timings(output: NativeResponse.ByReference): Int
-
-  fun midnight_mobile_local_prover_free(bytes: Pointer?, bytesLen: Long)
-}
 
 private data class MappedFile(
   val definition: LocalProverFile,
@@ -261,16 +163,39 @@ class LocalProverBridge(
    * Drains recorded samples as the JSON string the platform layer forwards verbatim. Destructive:
    * a second call with no proofs in between yields `[]`.
    */
-  fun takeTimings(): String {
+  fun takeTimings(): String = jsonResponse("[]", native::midnight_mobile_local_prover_take_timings)
+
+  /**
+   * GPU acceleration switch. Process-wide like the instrumentation. Accepted on every device: where
+   * the build has no accelerator it changes nothing and the status reports `unsupported`.
+   */
+  fun setAccelerator(enabled: Boolean) {
+    requireSuccess(native.midnight_mobile_local_prover_set_accelerator(enabled))
+  }
+
+  /**
+   * Gives back the accelerator's reusable memory. Cannot fail, so the trim-memory hook can call it
+   * safely; without an accelerator it does nothing.
+   */
+  fun trimMemory() {
+    native.midnight_mobile_local_prover_trim_memory()
+  }
+
+  /** The accelerator's state as the JSON object the platform layer forwards verbatim. */
+  fun acceleratorStatus(): String =
+    jsonResponse("{}", native::midnight_mobile_local_prover_accelerator_status)
+
+  /** Runs a native call that writes UTF-8 JSON into a response; the response is always freed. */
+  private fun jsonResponse(empty: String, call: (NativeResponse.ByReference) -> Int): String {
     val output = NativeResponse.ByReference()
     output.write()
-    val code = native.midnight_mobile_local_prover_take_timings(output)
+    val code = call(output)
     output.read()
     requireSuccess(code)
-    val pointer = output.bytes ?: return "[]"
+    val pointer = output.bytes ?: return empty
     val size = Math.toIntExact(output.bytesLen)
     return try {
-      if (size == 0) "[]" else String(pointer.getByteArray(0, size), Charsets.UTF_8)
+      if (size == 0) empty else String(pointer.getByteArray(0, size), Charsets.UTF_8)
     } finally {
       native.midnight_mobile_local_prover_free(pointer, output.bytesLen)
     }

@@ -1,0 +1,38 @@
+[package]
+name = "midnight-mobile-prover-accel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "midnight_mobile_prover_accel"
+
+[dependencies]
+# The two prover builds the local prover links: 0.7.3 proves Ledger 8 circuits
+# (Zswap, Dust, ZKIR v2) and 0.8.3 proves ZKIR v3 circuits. Both resolve to the
+# hooked copies under `third_party/` through `[patch.crates-io]` in the
+# workspace manifest. No features are requested here, so this crate never
+# widens the feature set the ledger crates selected.
+midnight-proofs-v7 = { package = "midnight-proofs", version = "=0.7.3", default-features = false }
+midnight-proofs-v8 = { package = "midnight-proofs", version = "=0.8.3", default-features = false }
+
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+blst = "=0.3.16"
+midnight-metal = { path = "../../third_party/midnight-metal" }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSProcessInfo"] }
+rayon = "=1.12.0"
+
+[dev-dependencies]
+blake2b_simd = "=1.0.4"
+ff = "=0.13.1"
+group = "=0.13.0"
+midnight-curves-v2 = { package = "midnight-curves", version = "=0.2.1" }
+midnight-curves-v3 = { package = "midnight-curves", version = "=0.3.1" }
+# The feature set the ledger crates build the prover with, so the tests
+# compile against the same API whether this package is tested alone or with
+# the workspace.
+midnight-proofs-v7 = { package = "midnight-proofs", version = "=0.7.3", features = ["circuit-params", "committed-instances"] }
+midnight-proofs-v8 = { package = "midnight-proofs", version = "=0.8.3", features = ["circuit-params", "committed-instances"] }
+rand_chacha = "=0.3.1"
+rand_core = "=0.6.4"

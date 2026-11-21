@@ -1,0 +1,117 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+### Added
+
+### Changed
+
+### Removed
+
+## [0.8.3]
+### Changed
+* `msm_specific` always uses blst's multi-exponentiation for BLS12-381 G1, removing the cut-over to `msm_best` above 2^19 terms. `msm_best` runs the `from_xy` subgroup check of midnight-curves 0.3.1 on every base and bucket, which made commitments above 2^19 terms (k >= 20 circuits) about 7x slower [#536](https://github.com/midnightntwrk/midnight-zk/pull/536)
+
+## [0.8.2]
+### Fixed
+* Check per-proof vector lengths in `verify_algebraic_constraints`. [#482](https://github.com/midnightntwrk/midnight-zk/pull/482)
+
+## [0.8.1]
+### Fixed
+* Bug fix in midnight-curves [#434](https://github.com/midnightntwrk/midnight-zk/pull/434)
+
+## [0.8.0]
+### Added
+* Add `Blake2b256` transcript hash for on-chain verification [#322](https://github.com/midnightntwrk/midnight-zk/pull/322)
+* Add functions to mark the region of a circuit to be measured for cost modelling [#296](https://github.com/midnightntwrk/midnight-zk/pull/296)
+* changed `sha256` name in benches to account for the change of naming convention in `circuits` [#135](https://github.com/midnightntwrk/midnight-zk/pull/135)
+* optional names on VerifierQuery commitments [#205](https://github.com/midnightntwrk/midnight-zk/pull/205)
+* Update READMEs and add badges [#261](https://github.com/midnightntwrk/midnight-zk/pull/261)
+* add MSMCompletenessFluke error [#277](https://github.com/midnightntwrk/midnight-zk/pull/277)
+
+### Changed
+* `MockProver::run` no longer takes a `k` parameter; the minimum required `k` is determined automatically [#293](https://github.com/midnightntwrk/midnight-zk/pull/293)
+* Sort point sets deterministically in KZG multiopen for in-circuit verification [#256](https://github.com/midnightntwrk/midnight-zk/pull/256)
+* Move advice queries before instance queries in prover and verifier [#256](https://github.com/midnightntwrk/midnight-zk/pull/256)
+* `Circuit::Params` extended to carry `max_bit_len` [#251](https://github.com/midnightntwrk/midnight-zk/pull/251)
+* (Benchmarks) Adapt `Relation` impl to new associated type `Error` [#252](https://github.com/midnightntwrk/midnight-zk/pull/252)
+* Collapse MSMs during `multi_prepare` to match in-circuit verifier [#227](https://github.com/midnightntwrk/midnight-zk/pull/227)
+* Improve MSM handling for fixed bases [#212](https://github.com/midnightntwrk/midnight-zk/pull/212)
+* Filtered 0s from MSM [#185](https://github.com/midnightntwrk/midnight-zk/pull/185).
+* Updated Rust toolchain to 1.90.0 [#210](https://github.com/midnightntwrk/midnight-zk/pull/210)
+
+### Removed
+
+## [0.7.1]
+### Changed
+* Thread the prover RNG explicitly [#307](https://github.com/midnightntwrk/midnight-zk/pull/307)
+* Add `s_g2()` accessor on `ParamsVerifierKZG` [#307](https://github.com/midnightntwrk/midnight-zk/pull/307)
+
+## [0.7.0]
+### Added
+* changed `sha256` name in benches to account for the change of naming convention in `circuits` [#135](https://github.com/midnightntwrk/midnight-zk/pull/135)
+
+### Changed
+* Interface of `ParamsKZG::from_parts`
+
+### Removed
+
+## 0.6.0
+### Added
+* Added a conversion to any AssignedCell to AssignedNative for external crates [#148](https://github.com/midnightntwrk/midnight-zk/pull/148)
+* Blind limbs of quotient polynomial and ensure ZK [#161](https://github.com/midnightntwrk/midnight-zk/pull/161)
+
+### Changed
+* Address feedback from ZK Sec audit 3 [#125](https://github.com/midnightntwrk/midnight-zk/pull/125)
+* Output type of `format_instances` is now wrapped in a `Result` [#120](https://github.com/midnightntwrk/midnight-zk/pull/120).
+* Made bench_macros and criterion dev dependencies [#134](https://github.com/midnightntwrk/midnight-zk/pull/134)
+* Cost model properly accounts for PIs and fix trash argument [#154](https://github.com/midnightntwrk/midnight-zk/pull/154)
+* Halo2curves dependency removed and all tests moved to Bls12-381 [#139](https://github.com/midnightntwrk/midnight-zk/pull/139)
+
+### Removed
+* Remove module `model` [#142](https://github.com/midnightntwrk/midnight-zk/pull/142) and feature `cost-estimator`
+
+## 0.5.1
+### Added
+
+### Changed
+* Fix computation of min_k (due to an extra unusable row we were not accounting for) [#114](https://github.com/midnightntwrk/midnight-zk/pull/114)
+
+### Removed
+
+## 0.5.0
+### Added
+* Implement `From<u64>` for Expression [#39](https://github.com/midnightntwrk/midnight-zk/pull/39)
+* Feature to run internal benchmarks [#93](https://github.com/midnightntwrk/midnight-zk/pull/93)
+
+### Changed
+* API for defining custom constraints was unified [#53](https://github.com/midnightntwrk/midnight-zk/pull/53)
+* New cost-model with improved K computation [#104](https://github.com/midnightntwrk/midnight-zk/pull/104)
+* Change type of k in cost model to u32 [#106](https://github.com/midnightntwrk/midnight-zk/pull/106)
+
+### Removed
+
+## 0.4.0
+### Added
+* Add deserialisation function that directly takes as input the ConstraintSystem [#18](https://github.com/midnightntwrk/midnight-zk/pull/18/commits/973467fecd6c31c6b57d06c89dfa0c7dd00bef2b)
+* Add an `update_value` fn, to allow mutating the value inside an `AssignedCell` [#103](https://github.com/midnightntwrk/midnight-zk/pull/103)
+
+### Changed
+* VerifierQuery now accepts commitments in parts [#10](https://github.com/midnightntwrk/midnight-zk/pull/10)
+* Update dependency names [#32](https://github.com/midnightntwrk/midnight-zk/pull/32)
+* Fix versions of crates in monorepo [#33](https://github.com/midnightntwrk/midnight-zk/pull/33)
+* Do not check transcript ends up empty [#34](https://github.com/midnightntwrk/midnight-zk/pull/34)
+* Split `create_proof` into `trace` and `finalize` [#47](https://github.com/midnightntwrk/midnight-zk/pull/47)
+* Optimize ops for `Expression<F>` and implement them for `&Expression<F>` [#52](https://github.com/midnightntwrk/midnight-zk/pull/52)
+* Introduce trash arguments for additive selectors [#59](https://github.com/midnightntwrk/midnight-zk/pull/59)
+* Implement TranscriptHash for u32 [#75](https://github.com/midnightntwrk/midnight-zk/pull/75)
+* Improvement on verifier allocation and use of blstrs MSM [#76](https://github.com/midnightntwrk/midnight-zk/pull/76)
+* Use HashMap instead of BTreeMap for computing shuffled tables [#61](https://github.com/midnightntwrk/midnight-zk/pull/61)
+* Verifier skis `left` MSM if its size and its scalar are one [#102](https://github.com/midnightntwrk/midnight-zk/pull/102)
+* Add a string to `Error::Synthesis` for a descriptive message [#105](https://github.com/midnightntwrk/midnight-zk/pull/105)
+
+### Removed

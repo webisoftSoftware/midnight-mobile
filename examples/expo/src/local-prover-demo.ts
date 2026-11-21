@@ -96,6 +96,54 @@ export function localProverConfiguration(
   };
 }
 
+type LocalProver = Awaited<ReturnType<typeof createMidnightLocalProver>>;
+
+/**
+ * Proves the request twice with GPU acceleration on, when the native prover
+ * has it, and reports both durations: the first proof also builds the GPU's
+ * copy of the proof parameters. A device without a usable GPU is not a
+ * failure; the step then says why the GPU was not used. The accelerator is
+ * switched off again before this returns.
+ */
+export async function runAcceleratedProve(
+  prover: Pick<
+    LocalProver,
+    "prove" | "setAccelerator" | "getAcceleratorStatus"
+  >,
+  request: Uint8Array,
+): Promise<NativeSmokeStep> {
+  const name = "run native prove with GPU";
+  const { setAccelerator, getAcceleratorStatus } = prover;
+  if (setAccelerator === undefined || getAcceleratorStatus === undefined) {
+    return { name, ok: true, detail: "not available in this native build" };
+  }
+  await setAccelerator(true);
+  try {
+    const before = await getAcceleratorStatus();
+    if (!before.active) {
+      return { name, ok: true, detail: `GPU not used: ${before.availability}` };
+    }
+    const started = Date.now();
+    await prover.prove(request);
+    const repeated = Date.now();
+    const proof = await prover.prove(request);
+    const finished = Date.now();
+    const after = await getAcceleratorStatus();
+    const operations = after.gpuOperations - before.gpuOperations;
+    return {
+      name,
+      // A proof that needed the CPU after all must not pass as a GPU proof.
+      ok: proof.length > 0 && operations > 0 && !after.tripped,
+      detail:
+        `${String(proof.length)} bytes; first ${String(repeated - started)} ms, ` +
+        `repeat ${String(finished - repeated)} ms; ` +
+        `${String(operations)} GPU operations on ${after.device ?? "unknown"}`,
+    };
+  } finally {
+    await setAccelerator(false);
+  }
+}
+
 function describeFailure(failure: unknown): string {
   if (failure instanceof MidnightLocalProverError) return failure.code;
   // Do not put native messages, paths, or artifact details on screen.
@@ -146,6 +194,17 @@ export async function runLocalProverSmokeTest(
     if (proof.length === 0) {
       throw new MidnightLocalProverError("PROOF_FAILED");
     }
+
+    // The first proof also derives the circuit's size; the repeat is the
+    // duration to compare with the GPU's repeat below.
+    const repeatStarted = Date.now();
+    const repeated = await prover.prove(requests.prove);
+    steps.push({
+      name: "repeat native prove on CPU",
+      ok: repeated.length > 0,
+      detail: `${String(repeated.length)} bytes in ${String(Date.now() - repeatStarted)} ms`,
+    });
+    steps.push(await runAcceleratedProve(prover, requests.prove));
   } catch (failure: unknown) {
     steps.push({
       name: "native local prover",

@@ -69,7 +69,7 @@ pub const LOCAL_PROVER_CODE_MASK: i32 = 0xFF;
 pub const LOCAL_PROVER_PAYLOAD_SHIFT: u32 = 8;
 
 impl LocalProverError {
-    fn ffi_code(self) -> i32 {
+    pub(super) fn ffi_code(self) -> i32 {
         match self {
             Self::InvalidRequest => 1,
             Self::UnsupportedCircuit => 2,
@@ -181,7 +181,7 @@ unsafe fn batch_request_inputs<'a>(
         .collect()
 }
 
-fn guarded_code(operation: impl FnOnce() -> Result<(), LocalProverError>) -> i32 {
+pub(super) fn guarded_code(operation: impl FnOnce() -> Result<(), LocalProverError>) -> i32 {
     match catch_unwind(AssertUnwindSafe(operation)) {
         Ok(Ok(())) => 0,
         Ok(Err(error)) => error.ffi_code(),
@@ -196,7 +196,7 @@ fn leak_response(bytes: Vec<u8>) -> LocalProverResponse {
     LocalProverResponse { bytes, bytes_len }
 }
 
-fn guarded_response(
+pub(super) fn guarded_response(
     output: &mut LocalProverResponse,
     operation: impl FnOnce() -> Result<Vec<u8>, LocalProverError>,
 ) -> i32 {

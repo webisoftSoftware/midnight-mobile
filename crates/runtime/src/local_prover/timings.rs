@@ -15,6 +15,7 @@ use midnight_zkir::IrSource;
 use serde::Serialize;
 use std::collections::VecDeque;
 
+use super::accelerator::AcceleratorUse;
 use super::{LocalProverError, MAX_TIMING_SAMPLES, PROFILE_STAGES};
 
 static TIMING_SAMPLES: Mutex<VecDeque<ProofStageTiming>> = Mutex::new(VecDeque::new());
@@ -35,6 +36,9 @@ pub(super) struct ProofStageTiming {
     pub(super) ir_load_micros: Option<u64>,
     pub(super) prover_key_init_micros: Option<u64>,
     pub(super) verifier_key_init_micros: Option<u64>,
+    /// The accelerator's work during this proof. Shared by the process: with
+    /// several proofs in flight it includes their work.
+    pub(super) accelerator: AcceleratorUse,
 }
 
 pub(super) struct ProveStageDurations {
@@ -42,6 +46,7 @@ pub(super) struct ProveStageDurations {
     pub(super) select_material_micros: u64,
     pub(super) prove_call_micros: u64,
     pub(super) serialize_response_micros: u64,
+    pub(super) accelerator: AcceleratorUse,
 }
 
 struct CacheCandidateTiming {
@@ -119,6 +124,7 @@ pub(super) fn maybe_record_prove_timing(
         verifier_key_init_micros: cache_candidate
             .as_ref()
             .map(|timing| timing.verifier_key_init_micros),
+        accelerator: stages.accelerator,
     });
 }
 
